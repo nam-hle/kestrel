@@ -4,14 +4,22 @@ import { parseQualifiedName } from "../resolve.js";
 
 describe("parseQualifiedName", () => {
 	test("parses file:name", () => {
-		expect(parseQualifiedName("src/a.ts:Foo")).toEqual({ name: "Foo", file: "src/a.ts" });
+		expect(parseQualifiedName("src/a.ts:Foo")).toEqual({ file: "src/a.ts", index: undefined, segments: ["Foo"] });
+	});
+
+	test("parses a dotted namespace path", () => {
+		expect(parseQualifiedName("src/a.ts:Model.Inner.Node")).toEqual({
+			file: "src/a.ts",
+			index: undefined,
+			segments: ["Model", "Inner", "Node"]
+		});
 	});
 
 	test("parses file:name#index", () => {
 		expect(parseQualifiedName("src/a.ts:Foo#2")).toEqual({
 			index: 2,
-			name: "Foo",
-			file: "src/a.ts"
+			file: "src/a.ts",
+			segments: ["Foo"]
 		});
 	});
 

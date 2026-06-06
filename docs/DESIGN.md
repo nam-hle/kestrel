@@ -49,8 +49,10 @@ All outline ops = deterministic AST walks (ts-morph). No LLM (see VISION anti-go
 
 ## Open design questions (next session)
 
-1. Symbol resolution algorithm — qualified-name grammar (overloads, generics, default/anonymous
-   export, namespace-nested, declaration-merged, re-exports); ambiguity/candidate model.
+1. Symbol resolution algorithm — qualified-name grammar. DONE: dotted namespace paths
+   (`file:Model.Inner.Node`), bare-segment match at any depth → dotted-path candidates, `#index`
+   for same-path collisions. Still open: overloads, generics, default/anonymous export,
+   declaration-merged across files, re-exports.
 2. Warm-lifecycle: how MCP holds the Project; CLI daemon protocol vs cold one-shot.
 3. Output schema — minimal default record; `--context=none|snippet|block` shape; result-set
    bounding (limit/cursor/count-only).

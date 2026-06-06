@@ -57,19 +57,20 @@ export class Engine {
 	}
 
 	/**
-	 * qualified-name -> symbol | candidates. Name-only per file (`relPath:name`).
-	 * Ambiguous within a file -> candidates (caller disambiguates by index).
+	 * qualified-name -> symbol | candidates. `relPath:name`, where name is a dotted
+	 * path into nested namespaces (`Model.Inner.Node`); a bare segment matches at any
+	 * depth. Ambiguous -> candidates (caller disambiguates by dotted path or `#index`).
 	 * Never silently guesses.
 	 */
 	public resolveSymbol(qualifiedName: string): ResolveResult {
-		const { file, name, index } = parseQualifiedName(qualifiedName);
+		const { file, index, segments } = parseQualifiedName(qualifiedName);
 		const sourceFile = this.#getSourceFile(file);
 
 		if (!sourceFile) {
 			return { kind: "not-found" };
 		}
 
-		const decls = findNamedDeclarations(sourceFile, name);
+		const decls = findNamedDeclarations(sourceFile, segments);
 
 		if (decls.length === 0) {
 			return { kind: "not-found" };
@@ -82,45 +83,47 @@ export class Engine {
 				return { kind: "not-found" };
 			}
 
-			return { kind: "symbol", symbol: declarationToHandle(picked, file, name, index) };
+			return { kind: "symbol", symbol: declarationToHandle(picked, file, index) };
 		}
 
 		if (decls.length > 1) {
 			return {
 				kind: "ambiguous",
 				candidates: decls.map((decl, i) => {
-					const handle = declarationToHandle(decl, file, name, i);
+					// Distinct dotted paths self-disambiguate; only same-path collisions need #index.
+					const samePathCount = decls.filter((d) => d.path === decl.path).length;
+					const handle = declarationToHandle(decl, file, samePathCount > 1 ? i : undefined);
 
 					return {
-						kind: decl.getKindName(),
 						position: handle.position,
+						kind: decl.node.getKindName(),
 						qualifiedName: handle.qualifiedName
 					};
 				})
 			};
 		}
 
-		return { kind: "symbol", symbol: declarationToHandle(decls[0]!, file, name) };
+		return { kind: "symbol", symbol: declarationToHandle(decls[0]!, file) };
 	}
 
 	/** Resolve a handle back to its declaration node(s). */
 	#declarationsFor(symbol: SymbolHandle): Node[] {
-		const { file, name, index } = parseQualifiedName(symbol.qualifiedName);
+		const { file, index, segments } = parseQualifiedName(symbol.qualifiedName);
 		const sourceFile = this.#getSourceFile(file);
 
 		if (!sourceFile) {
 			return [];
 		}
 
-		const decls = findNamedDeclarations(sourceFile, name);
+		const decls = findNamedDeclarations(sourceFile, segments);
 
 		if (index !== undefined) {
 			const picked = decls[index];
 
-			return picked ? [picked] : [];
+			return picked ? [picked.node] : [];
 		}
 
-		return decls;
+		return decls.map((d) => d.node);
 	}
 
 	/** All references to a symbol, classified by kind. Bounded by `limit`/`cursor`. */
@@ -203,10 +206,10 @@ export class Engine {
 
 	/** All declaration sites of a resolved symbol (handles declaration merging / overloads). */
 	public findDefinition(symbol: SymbolHandle): SymbolHandle[] {
-		const { file, name } = parseQualifiedName(symbol.qualifiedName);
-		const decls = this.#declarationsFor(symbol);
+		const { file, segments } = parseQualifiedName(symbol.qualifiedName);
+		const path = segments.join(".");
 
-		return decls.map((decl) => declarationToHandle(decl, file, name));
+		return this.#declarationsFor(symbol).map((node) => declarationToHandle({ node, path }, file));
 	}
 
 	/** Structural "table of contents" for a file. Deterministic AST walk. */
