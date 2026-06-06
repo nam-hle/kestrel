@@ -40,6 +40,17 @@ describe("outlineFile", () => {
 		expect(names).toContain("* from ./square.js");
 	});
 
+	test("does not leak function-body locals into the file outline", () => {
+		const engine = new Engine({ tsConfigPath });
+
+		const outline = engine.outlineFile("src/consumer.ts");
+		const allNames = [...outline.functions, ...outline.variables, ...outline.classes].map((m) => m.name);
+
+		// totalArea's body locals (sum, c) and averageArea's (total) must not appear.
+		expect(allNames).toContain("totalArea");
+		expect(allNames.some((n) => n.includes(".sum") || n.includes(".total") || n.endsWith(".c"))).toBe(false);
+	});
+
 	test("surfaces an arrow-const export as a function", () => {
 		const engine = new Engine({ tsConfigPath });
 

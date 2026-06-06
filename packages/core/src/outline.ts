@@ -5,7 +5,7 @@
 import { Node } from "ts-morph";
 import type { Statement, SourceFile } from "ts-morph";
 
-import { position, allDeclarations } from "./resolve.js";
+import { position, outlineDeclarations } from "./resolve.js";
 import type { Member, FileOutline, StatementNode } from "./types.js";
 
 /** Single-line signature: declaration text up to its body (or the whole line). */
@@ -151,8 +151,8 @@ export function buildSymbolOutline(decl: Node, baseDir: string, ownerQualifiedNa
 export function buildFileOutline(sourceFile: SourceFile, baseDir: string): FileOutline {
 	const outline: FileOutline = { exports: [], classes: [], functions: [], variables: [], interfaces: [] };
 
-	// allDeclarations recurses namespaces and tags each with its dotted path.
-	for (const { node, path } of allDeclarations(sourceFile)) {
+	// outlineDeclarations = top-level + namespaces + type members (no function-body locals).
+	for (const { node, path } of outlineDeclarations(sourceFile)) {
 		// A VariableDeclaration's export modifier lives on its parent VariableStatement.
 		const exportHolder = Node.isVariableDeclaration(node) ? node.getVariableStatement() : node;
 		const exported = exportHolder !== undefined && Node.isExportable(exportHolder) && exportHolder.isExported();

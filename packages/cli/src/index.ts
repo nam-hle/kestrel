@@ -1,11 +1,15 @@
 #!/usr/bin/env node
-import { Engine } from "@kestrel/core";
 /**
  * kestrel CLI adapter. Translates CLI args <-> @kestrel/core calls and prints
- * JSON results. No analysis logic. See docs/DESIGN.md Section 1.
+ * results. No analysis logic. See docs/DESIGN.md Section 1.
  */
 import { runMain, defineCommand } from "citty";
 import type { EngineOptions } from "@kestrel/core";
+import { Engine, renderFileOutline } from "@kestrel/core";
+
+function print(text: string): void {
+	process.stdout.write(`${text}\n`);
+}
 
 const tsconfig = {
 	type: "string",
@@ -126,11 +130,23 @@ const impls = defineCommand({
 });
 
 const outlineFile = defineCommand({
-	meta: { name: "outline-file", description: "Outline the structure of a file" },
-	run({ args }) {
-		runSafe(() => emit(engineFrom(args).outlineFile(args.file)));
+	meta: { name: "outline-file", description: "Outline the structure of a file (compact tree; --json for full)" },
+	args: {
+		tsconfig,
+		file: { required: true, type: "positional", description: "Relative file path" },
+		json: { type: "boolean", description: "Emit full JSON instead of the compact tree" }
 	},
-	args: { tsconfig, file: { required: true, type: "positional", description: "Relative file path" } }
+	run({ args }) {
+		runSafe(() => {
+			const outline = engineFrom(args).outlineFile(args.file);
+
+			if (args.json === true) {
+				emit(outline);
+			} else {
+				print(renderFileOutline(args.file, outline));
+			}
+		});
+	}
 });
 
 const imports = defineCommand({

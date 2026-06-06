@@ -62,6 +62,11 @@ function childDeclarations(statements: Statement[]): NamedDeclaration[] {
 	for (const stmt of statements) {
 		if (Node.isVariableStatement(stmt)) {
 			for (const decl of stmt.getDeclarations()) {
+				// Skip destructuring patterns (`const { a, b } = ...`) — no addressable name.
+				if (!Node.isIdentifier(decl.getNameNode())) {
+					continue;
+				}
+
 				decls.push({ node: decl, path: decl.getName() });
 			}
 		} else if (Node.hasName(stmt)) {
@@ -162,6 +167,41 @@ export function allDeclarations(sourceFile: SourceFile): NamedDeclaration[] {
 		// Object-literal selector/handler properties (e.g. factory `return { mean: () => ... }`).
 		for (const { path, node: prop } of objectLiteralFunctionProps(node)) {
 			result.push({ node: prop, path: `${fullPath}.${path}` });
+		}
+	};
+
+	for (const { node, path } of childDeclarations(sourceFile.getStatements())) {
+		result.push({ node, path });
+		descend(node, path);
+	}
+
+	return result;
+}
+
+/** Statements inside a namespace/module body only (not function/method bodies). */
+function namespaceBodyStatements(node: Node): Statement[] {
+	if (!Node.isModuleDeclaration(node)) {
+		return [];
+	}
+
+	const body = node.getBody();
+
+	return body !== undefined && Node.isModuleBlock(body) ? body.getStatements() : [];
+}
+
+/**
+ * Declarations for a file *outline*: top-level + namespace recursion + class/interface
+ * members. Unlike allDeclarations it does NOT descend into function bodies or object
+ * literals — an outline is structure, not local variables.
+ */
+export function outlineDeclarations(sourceFile: SourceFile): NamedDeclaration[] {
+	const result: NamedDeclaration[] = [];
+
+	const descend = (node: Node, fullPath: string): void => {
+		for (const { path, node: child } of [...childDeclarations(namespaceBodyStatements(node)), ...memberDeclarations(node)]) {
+			const childPath = `${fullPath}.${path}`;
+			result.push({ node: child, path: childPath });
+			descend(child, childPath);
 		}
 	};
 
