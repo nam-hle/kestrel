@@ -31,7 +31,14 @@ export function classifyReference(node: Node): ReferenceKind {
 }
 
 function isCallTarget(node: Node): boolean {
-	const parent = node.getParent();
+	let parent = node.getParent();
+
+	// For a qualified call `A.b()`, the node is the property-access name; step up to
+	// the property-access so the call/new check below sees it as the call expression.
+	if (parent !== undefined && Node.isPropertyAccessExpression(parent) && parent.getNameNode() === node) {
+		node = parent;
+		parent = parent.getParent();
+	}
 
 	if (parent === undefined) {
 		return false;

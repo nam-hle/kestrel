@@ -33,6 +33,10 @@ describe("classifyReference", () => {
 		expect(kindsOf(`class Foo {} new Foo();`, "Foo")).toContain("call");
 	});
 
+	test("namespace-qualified call target -> call", () => {
+		expect(kindsOf(`namespace NS { export function go(): void {} } NS.go();`, "go")).toContain("call");
+	});
+
 	test("type annotation -> type-ref", () => {
 		expect(kindsOf(`interface Foo {} const a: Foo = {} as Foo;`, "Foo")).toContain("type-ref");
 	});
