@@ -65,8 +65,23 @@ export function buildFunctionOutline(decl: Node, depth: number, baseDir: string)
 	return body.getStatements().map((stmt) => buildStatementNode(stmt, depth, baseDir));
 }
 
-/** Members of a class / interface declaration. */
+/** Members of a class / interface / namespace declaration. */
 export function buildSymbolOutline(decl: Node, baseDir: string): Member[] {
+	if (Node.isModuleDeclaration(decl)) {
+		const body = decl.getBody();
+		const statements = body !== undefined && Node.isModuleBlock(body) ? body.getStatements() : [];
+
+		return statements.flatMap((stmt) => {
+			if (!Node.hasName(stmt)) {
+				return [];
+			}
+
+			const name = stmt.getName();
+
+			return name === undefined ? [] : [toMember(stmt, name, baseDir)];
+		});
+	}
+
 	const members: Node[] = [];
 
 	if (Node.isClassDeclaration(decl)) {

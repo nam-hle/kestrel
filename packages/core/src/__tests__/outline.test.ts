@@ -56,4 +56,19 @@ describe("outlineSymbol", () => {
 
 		expect(members.map((m) => m.name)).toContain("area");
 	});
+
+	test("lists the members of a namespace", () => {
+		const engine = new Engine({ tsConfigPath });
+		const resolved = engine.resolveSymbol("src/nested.ts:Model");
+
+		if (resolved.kind !== "symbol") {
+			throw new Error("expected symbol");
+		}
+
+		const members = engine.outlineSymbol(resolved.symbol);
+		const names = members.map((m) => m.name);
+
+		expect(names).toContain("Node");
+		expect(names).toContain("Inner");
+	});
 });
