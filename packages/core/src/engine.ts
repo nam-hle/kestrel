@@ -41,6 +41,26 @@ export interface EngineOptions {
 	tsConfigPath: string;
 }
 
+/** Nearest ancestor (incl. self) that is a named, addressable declaration. */
+function namedAncestor(node: Node): Node | undefined {
+	let current: Node | undefined = node;
+
+	while (current !== undefined) {
+		if (
+			Node.isVariableDeclaration(current) ||
+			Node.isClassDeclaration(current) ||
+			Node.isFunctionDeclaration(current) ||
+			Node.isInterfaceDeclaration(current)
+		) {
+			return current;
+		}
+
+		current = current.getParent();
+	}
+
+	return undefined;
+}
+
 export class Engine {
 	#project: Project | undefined;
 
@@ -250,8 +270,11 @@ export class Engine {
 
 			for (const impl of decl.getImplementations()) {
 				const node = impl.getNode();
-				const name = node.getText();
-				const pos = position(node, base);
+				// The impl node may be an object literal (`const x: I = {...}`); use the
+				// enclosing named declaration so the name/position point at `x`, not `{`.
+				const named = namedAncestor(node) ?? node;
+				const name = Node.hasName(named) ? (named.getName() ?? named.getText()) : named.getText();
+				const pos = position(named, base);
 				const qualifiedName = `${pos.file}:${name}`;
 
 				if (seen.has(qualifiedName)) {
