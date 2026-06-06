@@ -40,6 +40,22 @@ describe("outlineFile", () => {
 		expect(names).toContain("* from ./square.js");
 	});
 
+	test("surfaces an arrow-const export as a function", () => {
+		const engine = new Engine({ tsConfigPath });
+
+		const outline = engine.outlineFile("src/consumer.ts");
+
+		expect(outline.functions.map((m) => m.name)).toContain("averageArea");
+	});
+
+	test("surfaces a plain value const in the variables bucket", () => {
+		const engine = new Engine({ tsConfigPath });
+
+		const outline = engine.outlineFile("src/shapes.ts");
+
+		expect(outline.variables.map((m) => m.name)).toContain("helper");
+	});
+
 	test("flags type-only re-exports distinctly from value re-exports", () => {
 		const engine = new Engine({ tsConfigPath });
 

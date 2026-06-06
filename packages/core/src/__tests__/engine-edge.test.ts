@@ -37,6 +37,7 @@ describe("engine edge cases", () => {
 			exports: [],
 			classes: [],
 			functions: [],
+			variables: [],
 			interfaces: []
 		});
 	});

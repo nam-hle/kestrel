@@ -122,7 +122,7 @@ export function buildSymbolOutline(decl: Node, baseDir: string): Member[] {
 }
 
 export function buildFileOutline(sourceFile: SourceFile, baseDir: string): FileOutline {
-	const outline: FileOutline = { exports: [], classes: [], functions: [], interfaces: [] };
+	const outline: FileOutline = { exports: [], classes: [], functions: [], variables: [], interfaces: [] };
 
 	// allDeclarations recurses namespaces and tags each with its dotted path.
 	for (const { node, path } of allDeclarations(sourceFile)) {
@@ -134,6 +134,11 @@ export function buildFileOutline(sourceFile: SourceFile, baseDir: string): FileO
 			outline.interfaces.push(member);
 		} else if (Node.isFunctionDeclaration(node)) {
 			outline.functions.push(member);
+		} else if (Node.isVariableDeclaration(node)) {
+			// A const assigned a function/arrow reads as a function; everything else is a value.
+			const init = node.getInitializer();
+			const isFn = init !== undefined && (Node.isArrowFunction(init) || Node.isFunctionExpression(init));
+			(isFn ? outline.functions : outline.variables).push(member);
 		}
 
 		if (Node.isExportable(node) && node.isExported()) {

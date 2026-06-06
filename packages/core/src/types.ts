@@ -67,6 +67,8 @@ export interface FileOutline {
 	exports: Member[];
 	classes: Member[];
 	functions: Member[];
+	/** const/let/var declarations (function-valued consts are also in functions). */
+	variables: Member[];
 	interfaces: Member[];
 }
 

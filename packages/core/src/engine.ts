@@ -259,7 +259,7 @@ export class Engine {
 		const sourceFile = this.#getSourceFile(path);
 
 		if (!sourceFile) {
-			return { exports: [], classes: [], functions: [], interfaces: [] };
+			return { exports: [], classes: [], functions: [], variables: [], interfaces: [] };
 		}
 
 		return buildFileOutline(sourceFile, this.#baseDir());
