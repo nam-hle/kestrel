@@ -280,6 +280,33 @@ export class Engine {
 		return buildFileOutline(this.#requireSourceFile(path), this.#baseDir());
 	}
 
+	/**
+	 * The transitive public surface of an entry file: resolves `export *` and re-export
+	 * chains to the concrete exported symbols, each pointed at its true declaration.
+	 */
+	public publicSurface(path: string): Candidate[] {
+		const sourceFile = this.#requireSourceFile(path);
+		const base = this.#baseDir();
+		const seen = new Set<string>();
+		const surface: Candidate[] = [];
+
+		for (const [name, declarations] of sourceFile.getExportedDeclarations()) {
+			for (const decl of declarations) {
+				const pos = position(decl, base);
+				const key = `${pos.file}:${name}`;
+
+				if (seen.has(key)) {
+					continue;
+				}
+
+				seen.add(key);
+				surface.push({ position: pos, qualifiedName: key, kind: decl.getKindName() });
+			}
+		}
+
+		return surface;
+	}
+
 	/** The import statements of a file — module wiring, deterministic. */
 	public listImports(path: string): ImportInfo[] {
 		const sourceFile = this.#requireSourceFile(path);

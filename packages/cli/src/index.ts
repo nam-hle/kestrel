@@ -134,6 +134,14 @@ const imports = defineCommand({
 	args: { tsconfig, file: { required: true, type: "positional", description: "Relative file path" } }
 });
 
+const surface = defineCommand({
+	run({ args }) {
+		runSafe(() => emit(engineFrom(args).publicSurface(args.file)));
+	},
+	args: { tsconfig, file: { required: true, type: "positional", description: "Entry file path" } },
+	meta: { name: "surface", description: "Transitive public surface of an entry file (expands export *)" }
+});
+
 const outlineSymbol = defineCommand({
 	meta: { name: "outline-symbol", description: "Outline the members of a class/interface" },
 	args: { tsconfig, symbol: { required: true, type: "positional", description: "file:name[#index]" } },
@@ -184,6 +192,7 @@ const main = defineCommand({
 		search,
 		imports,
 		resolve,
+		surface,
 		"outline-fn": outlineFn,
 		"outline-file": outlineFile,
 		"outline-symbol": outlineSymbol

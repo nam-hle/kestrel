@@ -32,6 +32,7 @@ payloads (burning tokens). kestrel closes that gap.
 | `outlineSymbol`       | members of a class / interface / namespace                                                           |
 | `outlineFunction`     | statement-level skeleton of a function body (incl. arrow/function-expression consts)                 |
 | `listImports`         | the import statements of a file (module + named/default/namespace) — module wiring                   |
+| `publicSurface`       | transitive public surface of an entry barrel — expands `export *` to concrete symbols                |
 
 All operations are **deterministic** AST queries — kestrel never runs an LLM. Prose summaries
 are the calling agent's job; kestrel hands it exact structure.
