@@ -40,6 +40,17 @@ describe("outlineFile", () => {
 		expect(names).toContain("* from ./square.js");
 	});
 
+	test("flags type-only re-exports distinctly from value re-exports", () => {
+		const engine = new Engine({ tsConfigPath });
+
+		const outline = engine.outlineFile("src/barrel.ts");
+		const shape = outline.exports.find((m) => m.name === "Shape");
+		const circle = outline.exports.find((m) => m.name === "Circle");
+
+		expect(shape?.kind).toBe("ExportSpecifier (type)");
+		expect(circle?.kind).toBe("ExportSpecifier");
+	});
+
 	test("includes a signature and position for each declaration", () => {
 		const engine = new Engine({ tsConfigPath });
 

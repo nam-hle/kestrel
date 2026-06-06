@@ -161,11 +161,15 @@ export function buildFileOutline(sourceFile: SourceFile, baseDir: string): FileO
 			continue;
 		}
 
+		const declTypeOnly = exportDecl.isTypeOnly();
+
 		for (const spec of named) {
+			const typeOnly = declTypeOnly || spec.isTypeOnly();
+
 			outline.exports.push({
-				kind: "ExportSpecifier",
 				position: position(spec, baseDir),
 				name: spec.getAliasNode()?.getText() ?? spec.getName(),
+				kind: typeOnly ? "ExportSpecifier (type)" : "ExportSpecifier",
 				signature: `export { ${spec.getText()} } from "${fromModule}"`
 			});
 		}
