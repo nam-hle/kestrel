@@ -87,19 +87,43 @@ function bodyStatements(node: Node): Statement[] {
 	return body !== undefined && Node.isModuleBlock(body) ? body.getStatements() : [];
 }
 
-/** All named declarations in a file, recursing into namespaces, each with its dotted path. */
+/** Named members of a class or interface declaration, as child declarations. */
+function memberDeclarations(node: Node): NamedDeclaration[] {
+	if (!Node.isClassDeclaration(node) && !Node.isInterfaceDeclaration(node)) {
+		return [];
+	}
+
+	const members: NamedDeclaration[] = [];
+
+	for (const member of node.getMembers()) {
+		if (Node.hasName(member)) {
+			const name = member.getName();
+
+			if (name !== undefined) {
+				members.push({ path: name, node: member });
+			}
+		}
+	}
+
+	return members;
+}
+
+/** All named declarations in a file, recursing into namespaces + class/interface members. */
 export function allDeclarations(sourceFile: SourceFile): NamedDeclaration[] {
 	const result: NamedDeclaration[] = [];
 
-	const walk = (statements: Statement[], prefix: string): void => {
-		for (const { node, path } of childDeclarations(statements)) {
-			const fullPath = prefix === "" ? path : `${prefix}.${path}`;
-			result.push({ node, path: fullPath });
-			walk(bodyStatements(node), fullPath);
+	const descend = (node: Node, fullPath: string): void => {
+		for (const { path, node: child } of [...childDeclarations(bodyStatements(node)), ...memberDeclarations(node)]) {
+			const childPath = `${fullPath}.${path}`;
+			result.push({ node: child, path: childPath });
+			descend(child, childPath);
 		}
 	};
 
-	walk(sourceFile.getStatements(), "");
+	for (const { node, path } of childDeclarations(sourceFile.getStatements())) {
+		result.push({ node, path });
+		descend(node, path);
+	}
 
 	return result;
 }
