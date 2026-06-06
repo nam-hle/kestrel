@@ -17,6 +17,17 @@ describe("outlineFile", () => {
 		expect(outline.functions.map((m) => m.name)).toContain("makeCircle");
 	});
 
+	test("surfaces declarations nested inside namespaces with dotted names", () => {
+		const engine = new Engine({ tsConfigPath });
+
+		const outline = engine.outlineFile("src/nested.ts");
+		const names = outline.interfaces.map((m) => m.name);
+
+		expect(names).toContain("Model.Node");
+		expect(names).toContain("Model.Inner.Node");
+		expect(names).toContain("Runtime.Node");
+	});
+
 	test("includes a signature and position for each declaration", () => {
 		const engine = new Engine({ tsConfigPath });
 

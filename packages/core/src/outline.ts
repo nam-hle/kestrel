@@ -5,7 +5,7 @@
 import { Node } from "ts-morph";
 import type { Statement, SourceFile } from "ts-morph";
 
-import { position } from "./resolve.js";
+import { position, allDeclarations } from "./resolve.js";
 import type { Member, FileOutline, StatementNode } from "./types.js";
 
 /** Single-line signature: declaration text up to its body (or the whole line). */
@@ -102,28 +102,19 @@ export function buildSymbolOutline(decl: Node, baseDir: string): Member[] {
 export function buildFileOutline(sourceFile: SourceFile, baseDir: string): FileOutline {
 	const outline: FileOutline = { exports: [], classes: [], functions: [], interfaces: [] };
 
-	for (const stmt of sourceFile.getStatements()) {
-		if (!Node.hasName(stmt)) {
-			continue;
-		}
+	// allDeclarations recurses namespaces and tags each with its dotted path.
+	for (const { node, path } of allDeclarations(sourceFile)) {
+		const member = toMember(node, path, baseDir);
 
-		const name = stmt.getName();
-
-		if (name === undefined) {
-			continue;
-		}
-
-		const member = toMember(stmt, name, baseDir);
-
-		if (Node.isClassDeclaration(stmt)) {
+		if (Node.isClassDeclaration(node)) {
 			outline.classes.push(member);
-		} else if (Node.isInterfaceDeclaration(stmt)) {
+		} else if (Node.isInterfaceDeclaration(node)) {
 			outline.interfaces.push(member);
-		} else if (Node.isFunctionDeclaration(stmt)) {
+		} else if (Node.isFunctionDeclaration(node)) {
 			outline.functions.push(member);
 		}
 
-		if (Node.isExportable(stmt) && stmt.isExported()) {
+		if (Node.isExportable(node) && node.isExported()) {
 			outline.exports.push(member);
 		}
 	}
