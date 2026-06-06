@@ -11,7 +11,7 @@ import type { SourceFile } from "ts-morph";
 import { classifyReference } from "./usages.js";
 import { buildCallHierarchy } from "./call-hierarchy.js";
 import { buildFileOutline, buildSymbolOutline, buildFunctionOutline } from "./outline.js";
-import { position, toRelative, allDeclarations, parseQualifiedName, declarationToHandle, findNamedDeclarations } from "./resolve.js";
+import { position, toRelative, allDeclarations, parseQualifiedName, declarationToHandle, findDeclarationsThroughReExports } from "./resolve.js";
 import type {
 	Member,
 	CallNode,
@@ -83,7 +83,7 @@ export class Engine {
 			return { kind: "not-found" };
 		}
 
-		const decls = findNamedDeclarations(sourceFile, segments);
+		const decls = findDeclarationsThroughReExports(sourceFile, segments);
 
 		if (decls.length === 0) {
 			return { kind: "not-found" };
@@ -163,7 +163,7 @@ export class Engine {
 			return [];
 		}
 
-		const decls = findNamedDeclarations(sourceFile, segments);
+		const decls = findDeclarationsThroughReExports(sourceFile, segments);
 
 		if (index !== undefined) {
 			const picked = decls[index];

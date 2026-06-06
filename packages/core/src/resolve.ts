@@ -126,6 +126,55 @@ export function findNamedDeclarations(sourceFile: SourceFile, segments: string[]
 	});
 }
 
+/**
+ * Like findNamedDeclarations, but if a single-segment name isn't declared locally,
+ * follow the file's `export … from` / `export *` re-exports to the true declaration(s).
+ * Dotted (namespace) paths are resolved locally only.
+ */
+export function findDeclarationsThroughReExports(sourceFile: SourceFile, segments: string[], seen: Set<string> = new Set()): NamedDeclaration[] {
+	const local = findNamedDeclarations(sourceFile, segments);
+
+	if (local.length > 0 || segments.length > 1) {
+		return local;
+	}
+
+	const filePath = sourceFile.getFilePath();
+
+	if (seen.has(filePath)) {
+		return [];
+	}
+
+	seen.add(filePath);
+	const name = segments[0]!;
+
+	for (const exportDecl of sourceFile.getExportDeclarations()) {
+		const target = exportDecl.getModuleSpecifierSourceFile();
+
+		if (target === undefined) {
+			continue;
+		}
+
+		const named = exportDecl.getNamedExports();
+
+		// `export { a, b as c } from`: only follow if this export forwards our name.
+		if (named.length > 0) {
+			const forwards = named.some((spec) => (spec.getAliasNode()?.getText() ?? spec.getName()) === name);
+
+			if (!forwards) {
+				continue;
+			}
+		}
+
+		const found = findDeclarationsThroughReExports(target, [name], seen);
+
+		if (found.length > 0) {
+			return found;
+		}
+	}
+
+	return [];
+}
+
 /** Make an absolute file path relative to a base dir, normalized to forward slashes. */
 export function toRelative(absPath: string, baseDir: string): string {
 	const normalized = absPath.replace(/\\/g, "/");
