@@ -80,3 +80,8 @@ export interface StatementNode {
 export interface OutlineFunctionOptions {
 	depth?: number;
 }
+
+export interface SearchOptions {
+	/** Match the name as a substring (case-insensitive) instead of exact. */
+	contains?: boolean;
+}

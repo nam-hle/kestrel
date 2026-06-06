@@ -10,13 +10,15 @@ import type { SourceFile } from "ts-morph";
 
 import { classifyReference } from "./usages.js";
 import { buildFileOutline, buildSymbolOutline, buildFunctionOutline } from "./outline.js";
-import { position, parseQualifiedName, declarationToHandle, findNamedDeclarations } from "./resolve.js";
+import { position, allDeclarations, parseQualifiedName, declarationToHandle, findNamedDeclarations } from "./resolve.js";
 import type {
 	Member,
+	Candidate,
 	FileOutline,
 	SymbolHandle,
 	UsagesResult,
 	ResolveResult,
+	SearchOptions,
 	StatementNode,
 	FindUsagesOptions,
 	OutlineFunctionOptions
@@ -104,6 +106,38 @@ export class Engine {
 		}
 
 		return { kind: "symbol", symbol: declarationToHandle(decls[0]!, file) };
+	}
+
+	/**
+	 * Repo-wide search for declarations named `name`, across all source files and
+	 * namespace depths. Exact last-segment match by default; substring (case-insensitive)
+	 * with `contains`. Returns candidates the caller can target for refs/def.
+	 */
+	public searchSymbol(name: string, options?: SearchOptions): Candidate[] {
+		const matches = (declName: string): boolean =>
+			options?.contains === true ? declName.toLowerCase().includes(name.toLowerCase()) : declName === name;
+
+		const candidates: Candidate[] = [];
+
+		for (const sourceFile of this.#getProject().getSourceFiles()) {
+			const rel = this.#relPath(sourceFile.getFilePath());
+
+			for (const decl of allDeclarations(sourceFile)) {
+				const segments = decl.path.split(".");
+
+				if (!matches(segments[segments.length - 1]!)) {
+					continue;
+				}
+
+				candidates.push({
+					position: position(decl.node),
+					kind: decl.node.getKindName(),
+					qualifiedName: `${rel}:${decl.path}`
+				});
+			}
+		}
+
+		return candidates;
 	}
 
 	/** Resolve a handle back to its declaration node(s). */

@@ -22,7 +22,8 @@ payloads (burning tokens). kestrel closes that gap.
 
 | Operation             | Description                                                                                          |
 | --------------------- | ---------------------------------------------------------------------------------------------------- |
-| `resolveSymbol`       | `relPath:name` → symbol, or candidates on ambiguity (`name#index` to pick)                           |
+| `searchSymbol`        | repo-wide search for a name across all files (exact, or `--contains` substring) → candidates         |
+| `resolveSymbol`       | `relPath:name` (dotted for nested namespaces, `name#index` to pick) → symbol or candidates           |
 | `findDefinition`      | all declaration sites (handles declaration merging)                                                  |
 | `findUsages`          | references classified by kind (import / call / type-ref / read / write), bounded by `limit`/`cursor` |
 | `findImplementations` | classes implementing an interface                                                                    |

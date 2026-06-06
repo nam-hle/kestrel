@@ -31,6 +31,18 @@ const resolve = defineCommand({
 	args: { tsconfig, symbol: { required: true, type: "positional", description: "file:name[#index]" } }
 });
 
+const search = defineCommand({
+	meta: { name: "search", description: "Search for a symbol by name across the whole project" },
+	run({ args }) {
+		emit(engineFrom(args).searchSymbol(args.name, { contains: args.contains }));
+	},
+	args: {
+		tsconfig,
+		name: { required: true, type: "positional", description: "Symbol name" },
+		contains: { type: "boolean", description: "Match the name as a substring (case-insensitive)" }
+	}
+});
+
 const def = defineCommand({
 	meta: { name: "def", description: "Find the declaration site(s) of a symbol" },
 	args: { tsconfig, symbol: { required: true, type: "positional", description: "file:name[#index]" } },
@@ -117,6 +129,7 @@ const main = defineCommand({
 		def,
 		refs,
 		impls,
+		search,
 		resolve,
 		"outline-fn": outlineFn,
 		"outline-file": outlineFile,

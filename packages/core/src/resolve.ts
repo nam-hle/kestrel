@@ -88,7 +88,7 @@ function bodyStatements(node: Node): Statement[] {
 }
 
 /** All named declarations in a file, recursing into namespaces, each with its dotted path. */
-function allDeclarations(sourceFile: SourceFile): NamedDeclaration[] {
+export function allDeclarations(sourceFile: SourceFile): NamedDeclaration[] {
 	const result: NamedDeclaration[] = [];
 
 	const walk = (statements: Statement[], prefix: string): void => {
