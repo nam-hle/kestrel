@@ -15,6 +15,8 @@ export type ReferenceKind = "call" | "import" | "type-ref" | "read" | "write";
 
 /** One usage of a symbol. Minimal default record. */
 export interface Reference {
+	/** Whether the reference is in a test file. */
+	test?: boolean;
 	position: Position;
 	kind: ReferenceKind;
 }
@@ -48,6 +50,8 @@ export interface FindUsagesOptions {
 	limit?: number;
 	cursor?: string;
 	context?: ContextLevel;
+	/** Omit references located in test files. */
+	excludeTests?: boolean;
 }
 
 /** Bounded result set with optional continuation cursor. */

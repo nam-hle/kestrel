@@ -71,14 +71,21 @@ const refs = defineCommand({
 		tsconfig,
 		cursor: { type: "string", description: "Pagination cursor" },
 		limit: { type: "string", description: "Max references to return" },
-		symbol: { required: true, type: "positional", description: "file:name[#index]" }
+		symbol: { required: true, type: "positional", description: "file:name[#index]" },
+		"exclude-tests": { type: "boolean", description: "Omit references in test files" }
 	},
 	run({ args }) {
 		runSafe(() => {
 			const engine = engineFrom(args);
 			const symbol = resolveSymbolOrThrow(engine, args.symbol);
 
-			emit(engine.findUsages(symbol, { cursor: args.cursor, limit: args.limit ? Number(args.limit) : undefined }));
+			emit(
+				engine.findUsages(symbol, {
+					cursor: args.cursor,
+					excludeTests: args["exclude-tests"] === true,
+					limit: args.limit ? Number(args.limit) : undefined
+				})
+			);
 		});
 	}
 });

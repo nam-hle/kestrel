@@ -41,6 +41,11 @@ export interface EngineOptions {
 	tsConfigPath: string;
 }
 
+/** Heuristic: is this file path a test file? */
+function isTestFile(file: string): boolean {
+	return /(\.test\.|\.spec\.|\/__tests__\/|\/e2e\/)/.test(file);
+}
+
 /** Nearest ancestor (incl. self) that is a named, addressable declaration. */
 function namedAncestor(node: Node): Node | undefined {
 	let current: Node | undefined = node;
@@ -224,7 +229,11 @@ export class Engine {
 		const all = decls
 			.filter((decl) => Node.isReferenceFindable(decl))
 			.flatMap((decl) => decl.findReferencesAsNodes())
-			.map((node) => ({ kind: classifyReference(node), position: position(node, base) }))
+			.map((node) => {
+				const pos = position(node, base);
+
+				return { position: pos, test: isTestFile(pos.file), kind: classifyReference(node) };
+			})
 			.filter((ref) => {
 				const key = `${ref.position.file}:${ref.position.line}:${ref.position.col}`;
 
@@ -234,7 +243,7 @@ export class Engine {
 
 				seen.add(key);
 
-				return true;
+				return options?.excludeTests === true ? ref.test !== true : true;
 			});
 
 		const offset = options?.cursor ? Number(options.cursor) : 0;

@@ -42,4 +42,16 @@ describe("findUsages", () => {
 		expect(page.total).toBeGreaterThan(1);
 		expect(page.nextCursor).toBeDefined();
 	});
+
+	test("tags test-file references and can exclude them", () => {
+		const engine = new Engine({ tsConfigPath });
+		const symbol = resolve(engine, "src/shapes.ts:makeCircle");
+
+		const all = engine.findUsages(symbol);
+		const noTests = engine.findUsages(symbol, { excludeTests: true });
+
+		expect(all.references.some((r) => r.test === true)).toBe(true);
+		expect(noTests.references.every((r) => r.test !== true)).toBe(true);
+		expect(noTests.total).toBeLessThan(all.total);
+	});
 });
