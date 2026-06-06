@@ -1,0 +1,16 @@
+{
+  "name": "@kestrel/mcp",
+  "version": "0.0.0",
+  "type": "module",
+  "bin": {
+    "kestrel-mcp": "./dist/index.js"
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc -b"
+  },
+  "dependencies": {
+    "@kestrel/core": "workspace:*"
+  }
+}
