@@ -69,6 +69,27 @@ const refs = defineCommand({
 	}
 });
 
+const calls = defineCommand({
+	meta: { name: "calls", description: "Call hierarchy: callers (incoming) or callees (outgoing) of a symbol" },
+	args: {
+		tsconfig,
+		depth: { type: "string", description: "Levels to walk (default 2)" },
+		outgoing: { type: "boolean", description: "Show callees instead of callers" },
+		symbol: { required: true, type: "positional", description: "file:name[#index]" }
+	},
+	run({ args }) {
+		const engine = engineFrom(args);
+		const symbol = resolveSymbolOrThrow(engine, args.symbol);
+
+		emit(
+			engine.callHierarchy(symbol, {
+				depth: args.depth ? Number(args.depth) : undefined,
+				direction: args.outgoing === true ? "outgoing" : "incoming"
+			})
+		);
+	}
+});
+
 const impls = defineCommand({
 	meta: { name: "impls", description: "Find implementations of an interface" },
 	args: { tsconfig, symbol: { required: true, type: "positional", description: "file:name[#index]" } },
@@ -136,6 +157,7 @@ const main = defineCommand({
 	subCommands: {
 		def,
 		refs,
+		calls,
 		impls,
 		search,
 		imports,

@@ -86,6 +86,21 @@ export interface SearchOptions {
 	contains?: boolean;
 }
 
+export interface CallHierarchyOptions {
+	/** Max levels to walk (default 2). */
+	depth?: number;
+	/** "incoming" = callers of the symbol (default); "outgoing" = functions it calls. */
+	direction?: "incoming" | "outgoing";
+}
+
+/** A node in a call hierarchy tree. */
+export interface CallNode {
+	/** Callers (incoming) or callees (outgoing) one level down. */
+	calls: CallNode[];
+	position: Position;
+	qualifiedName: string;
+}
+
 /** One import statement in a file. */
 export interface ImportInfo {
 	/** Module specifier, e.g. "./shapes.js". */

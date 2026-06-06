@@ -9,10 +9,12 @@ import { Node, Project } from "ts-morph";
 import type { SourceFile } from "ts-morph";
 
 import { classifyReference } from "./usages.js";
+import { buildCallHierarchy } from "./call-hierarchy.js";
 import { buildFileOutline, buildSymbolOutline, buildFunctionOutline } from "./outline.js";
 import { position, toRelative, allDeclarations, parseQualifiedName, declarationToHandle, findNamedDeclarations } from "./resolve.js";
 import type {
 	Member,
+	CallNode,
 	Candidate,
 	ImportInfo,
 	FileOutline,
@@ -22,6 +24,7 @@ import type {
 	SearchOptions,
 	StatementNode,
 	FindUsagesOptions,
+	CallHierarchyOptions,
 	OutlineFunctionOptions
 } from "./types.js";
 
@@ -200,6 +203,15 @@ export class Engine {
 		const nextCursor = nextOffset < all.length ? String(nextOffset) : undefined;
 
 		return { nextCursor, references: page, total: all.length };
+	}
+
+	/** Callers (incoming) or callees (outgoing) of a symbol, walked to a bounded depth. */
+	public callHierarchy(symbol: SymbolHandle, options?: CallHierarchyOptions): CallNode[] {
+		const direction = options?.direction ?? "incoming";
+		const depth = options?.depth ?? 2;
+		const base = this.#baseDir();
+
+		return this.#declarationsFor(symbol).flatMap((decl) => buildCallHierarchy(decl, direction, depth, base));
 	}
 
 	/** Implementors of an interface / abstract. */

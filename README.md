@@ -27,6 +27,7 @@ payloads (burning tokens). kestrel closes that gap.
 | `findDefinition`      | all declaration sites (handles declaration merging)                                                  |
 | `findUsages`          | references classified by kind (import / call / type-ref / read / write), bounded by `limit`/`cursor` |
 | `findImplementations` | classes implementing an interface                                                                    |
+| `callHierarchy`       | callers (incoming) or callees (outgoing) of a symbol, walked to a bounded depth                      |
 | `outlineFile`         | structural "table of contents": declarations (incl. nested in namespaces) + re-exports               |
 | `outlineSymbol`       | members of a class / interface / namespace                                                           |
 | `outlineFunction`     | statement-level skeleton of a function body (incl. arrow/function-expression consts)                 |

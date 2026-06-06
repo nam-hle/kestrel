@@ -41,7 +41,10 @@ Sketch (not yet approved) — read-only:
 - `outlineSymbol(symbol) -> Member[]` — class/interface/namespace members + signatures
 - `outlineFunction(symbol, { depth }) -> StatementNode[]` — deterministic body skeleton
   (declarations, loops, conditionals, calls, returns + positions); `depth` controls nesting
-- call-hierarchy + dependency-graph queries (vision-level, design TBD)
+- `searchSymbol(name, { contains }) -> Candidate[]` — repo-wide name search
+- `listImports(path) -> ImportInfo[]` — a file's import statements (module wiring)
+- `callHierarchy(symbol, { direction, depth }) -> CallNode[]` — incoming callers / outgoing callees
+- dependency-graph queries (vision-level, design TBD)
 
 All outline ops = deterministic AST walks (ts-morph). No LLM (see VISION anti-goal).
 
