@@ -23,7 +23,7 @@ describe("resolveSymbol", () => {
 		}
 
 		expect(result.symbol.qualifiedName).toBe("src/shapes.ts:Circle");
-		expect(result.symbol.position.file).toMatch(/shapes\.ts$/);
+		expect(result.symbol.position.file).toBe("src/shapes.ts");
 		expect(result.symbol.position.line).toBe(5);
 	});
 

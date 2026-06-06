@@ -126,17 +126,25 @@ export function findNamedDeclarations(sourceFile: SourceFile, segments: string[]
 	});
 }
 
-export function position(node: Node): Position {
+/** Make an absolute file path relative to a base dir, normalized to forward slashes. */
+export function toRelative(absPath: string, baseDir: string): string {
+	const normalized = absPath.replace(/\\/g, "/");
+	const base = baseDir.replace(/\\/g, "/");
+
+	return normalized.startsWith(base) ? normalized.slice(base.length).replace(/^\//, "") : normalized;
+}
+
+export function position(node: Node, baseDir: string): Position {
 	const start = node.getStart();
 	const sourceFile = node.getSourceFile();
 	const { line, column } = sourceFile.getLineAndColumnAtPos(start);
 
-	return { line, col: column, file: sourceFile.getFilePath() };
+	return { line, col: column, file: toRelative(sourceFile.getFilePath(), baseDir) };
 }
 
 /** Build a SymbolHandle for a declaration, optionally with a disambiguation index. */
-export function declarationToHandle(decl: NamedDeclaration, file: string, index?: number): SymbolHandle {
+export function declarationToHandle(decl: NamedDeclaration, file: string, baseDir: string, index?: number): SymbolHandle {
 	const qualifiedName = index === undefined ? `${file}:${decl.path}` : `${file}:${decl.path}#${index}`;
 
-	return { qualifiedName, position: position(decl.node) };
+	return { qualifiedName, position: position(decl.node, baseDir) };
 }

@@ -10,7 +10,7 @@ import type { SourceFile } from "ts-morph";
 
 import { classifyReference } from "./usages.js";
 import { buildFileOutline, buildSymbolOutline, buildFunctionOutline } from "./outline.js";
-import { position, allDeclarations, parseQualifiedName, declarationToHandle, findNamedDeclarations } from "./resolve.js";
+import { position, toRelative, allDeclarations, parseQualifiedName, declarationToHandle, findNamedDeclarations } from "./resolve.js";
 import type {
 	Member,
 	Candidate,
@@ -47,6 +47,13 @@ export class Engine {
 		return project.getSourceFile(relPath) ?? project.getSourceFiles().find((sf) => sf.getFilePath().endsWith(relPath));
 	}
 
+	/** The tsconfig directory, absolute + forward-slashed — the base for relative paths. */
+	#baseDir(): string {
+		return resolvePath(this.options.tsConfigPath)
+			.replace(/\\/g, "/")
+			.replace(/\/[^/]*$/, "");
+	}
+
 	/** Re-read files changed out-of-band before answering. See DESIGN open-Q (staleness). */
 	public refreshIfStale(): void {
 		if (this.#project === undefined) {
@@ -78,6 +85,8 @@ export class Engine {
 			return { kind: "not-found" };
 		}
 
+		const base = this.#baseDir();
+
 		if (index !== undefined) {
 			const picked = decls[index];
 
@@ -85,7 +94,7 @@ export class Engine {
 				return { kind: "not-found" };
 			}
 
-			return { kind: "symbol", symbol: declarationToHandle(picked, file, index) };
+			return { kind: "symbol", symbol: declarationToHandle(picked, file, base, index) };
 		}
 
 		if (decls.length > 1) {
@@ -94,7 +103,7 @@ export class Engine {
 				candidates: decls.map((decl, i) => {
 					// Distinct dotted paths self-disambiguate; only same-path collisions need #index.
 					const samePathCount = decls.filter((d) => d.path === decl.path).length;
-					const handle = declarationToHandle(decl, file, samePathCount > 1 ? i : undefined);
+					const handle = declarationToHandle(decl, file, base, samePathCount > 1 ? i : undefined);
 
 					return {
 						position: handle.position,
@@ -105,7 +114,7 @@ export class Engine {
 			};
 		}
 
-		return { kind: "symbol", symbol: declarationToHandle(decls[0]!, file) };
+		return { kind: "symbol", symbol: declarationToHandle(decls[0]!, file, base) };
 	}
 
 	/**
@@ -118,9 +127,10 @@ export class Engine {
 			options?.contains === true ? declName.toLowerCase().includes(name.toLowerCase()) : declName === name;
 
 		const candidates: Candidate[] = [];
+		const base = this.#baseDir();
 
 		for (const sourceFile of this.#getProject().getSourceFiles()) {
-			const rel = this.#relPath(sourceFile.getFilePath());
+			const rel = toRelative(sourceFile.getFilePath(), base);
 
 			for (const decl of allDeclarations(sourceFile)) {
 				const segments = decl.path.split(".");
@@ -130,8 +140,8 @@ export class Engine {
 				}
 
 				candidates.push({
-					position: position(decl.node),
 					kind: decl.node.getKindName(),
+					position: position(decl.node, base),
 					qualifiedName: `${rel}:${decl.path}`
 				});
 			}
@@ -163,12 +173,13 @@ export class Engine {
 	/** All references to a symbol, classified by kind. Bounded by `limit`/`cursor`. */
 	public findUsages(symbol: SymbolHandle, options?: FindUsagesOptions): UsagesResult {
 		const decls = this.#declarationsFor(symbol);
+		const base = this.#baseDir();
 
 		const seen = new Set<string>();
 		const all = decls
 			.filter((decl) => Node.isReferenceFindable(decl))
 			.flatMap((decl) => decl.findReferencesAsNodes())
-			.map((node) => ({ position: position(node), kind: classifyReference(node) }))
+			.map((node) => ({ kind: classifyReference(node), position: position(node, base) }))
 			.filter((ref) => {
 				const key = `${ref.position.file}:${ref.position.line}:${ref.position.col}`;
 
@@ -190,27 +201,10 @@ export class Engine {
 		return { nextCursor, references: page, total: all.length };
 	}
 
-	/** Relative path of a source file, as used in qualified names (relative to the tsconfig dir). */
-	#relPath(absPath: string): string {
-		// ts-morph normalizes paths to forward slashes; normalize the tsconfig path too
-		// so this works on Windows (where fileURLToPath yields backslashes).
-		const normalized = absPath.replace(/\\/g, "/");
-		// Resolve the tsconfig path to absolute (callers may pass it relative to cwd)
-		// so the base matches ts-morph's absolute file paths.
-		const base = resolvePath(this.options.tsConfigPath)
-			.replace(/\\/g, "/")
-			.replace(/\/[^/]*$/, "");
-
-		if (normalized.startsWith(base)) {
-			return normalized.slice(base.length).replace(/^\//, "");
-		}
-
-		return normalized;
-	}
-
 	/** Implementors of an interface / abstract. */
 	public findImplementations(symbol: SymbolHandle): SymbolHandle[] {
 		const decls = this.#declarationsFor(symbol);
+		const base = this.#baseDir();
 
 		const seen = new Set<string>();
 		const handles: SymbolHandle[] = [];
@@ -223,8 +217,8 @@ export class Engine {
 			for (const impl of decl.getImplementations()) {
 				const node = impl.getNode();
 				const name = node.getText();
-				const pos = position(node);
-				const qualifiedName = `${this.#relPath(pos.file)}:${name}`;
+				const pos = position(node, base);
+				const qualifiedName = `${pos.file}:${name}`;
 
 				if (seen.has(qualifiedName)) {
 					continue;
@@ -242,8 +236,9 @@ export class Engine {
 	public findDefinition(symbol: SymbolHandle): SymbolHandle[] {
 		const { file, segments } = parseQualifiedName(symbol.qualifiedName);
 		const path = segments.join(".");
+		const base = this.#baseDir();
 
-		return this.#declarationsFor(symbol).map((node) => declarationToHandle({ node, path }, file));
+		return this.#declarationsFor(symbol).map((node) => declarationToHandle({ node, path }, file, base));
 	}
 
 	/** Structural "table of contents" for a file. Deterministic AST walk. */
@@ -254,21 +249,21 @@ export class Engine {
 			return { exports: [], classes: [], functions: [], interfaces: [] };
 		}
 
-		return buildFileOutline(sourceFile);
+		return buildFileOutline(sourceFile, this.#baseDir());
 	}
 
 	/** Members of a class / interface / namespace. Deterministic AST walk. */
 	public outlineSymbol(symbol: SymbolHandle): Member[] {
-		const decls = this.#declarationsFor(symbol);
+		const base = this.#baseDir();
 
-		return decls.flatMap((decl) => buildSymbolOutline(decl));
+		return this.#declarationsFor(symbol).flatMap((decl) => buildSymbolOutline(decl, base));
 	}
 
 	/** Statement-level skeleton of a function body. `depth` controls nesting (default 1). */
 	public outlineFunction(symbol: SymbolHandle, options?: OutlineFunctionOptions): StatementNode[] {
 		const depth = options?.depth ?? 1;
-		const decls = this.#declarationsFor(symbol);
+		const base = this.#baseDir();
 
-		return decls.flatMap((decl) => buildFunctionOutline(decl, depth));
+		return this.#declarationsFor(symbol).flatMap((decl) => buildFunctionOutline(decl, depth, base));
 	}
 }

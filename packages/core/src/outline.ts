@@ -17,12 +17,12 @@ function signatureOf(node: Node): string {
 	return head.trim().replace(/\s+/g, " ");
 }
 
-function toMember(node: Node, name: string): Member {
+function toMember(node: Node, name: string, baseDir: string): Member {
 	return {
 		name,
 		kind: node.getKindName(),
-		position: position(node),
-		signature: signatureOf(node)
+		signature: signatureOf(node),
+		position: position(node, baseDir)
 	};
 }
 
@@ -40,11 +40,11 @@ function childStatements(node: Node): Statement[] {
 	return result;
 }
 
-function buildStatementNode(stmt: Node, depth: number): StatementNode {
-	const node: StatementNode = { kind: stmt.getKindName(), position: position(stmt) };
+function buildStatementNode(stmt: Node, depth: number, baseDir: string): StatementNode {
+	const node: StatementNode = { kind: stmt.getKindName(), position: position(stmt, baseDir) };
 
 	if (depth > 1) {
-		const children = childStatements(stmt).map((child) => buildStatementNode(child, depth - 1));
+		const children = childStatements(stmt).map((child) => buildStatementNode(child, depth - 1, baseDir));
 
 		if (children.length > 0) {
 			node.children = children;
@@ -55,18 +55,18 @@ function buildStatementNode(stmt: Node, depth: number): StatementNode {
 }
 
 /** Deterministic statement-level skeleton of a function body. */
-export function buildFunctionOutline(decl: Node, depth: number): StatementNode[] {
+export function buildFunctionOutline(decl: Node, depth: number, baseDir: string): StatementNode[] {
 	const body = decl.forEachChildAsArray().find((c) => Node.isBlock(c));
 
 	if (!body || !Node.isBlock(body)) {
 		return [];
 	}
 
-	return body.getStatements().map((stmt) => buildStatementNode(stmt, depth));
+	return body.getStatements().map((stmt) => buildStatementNode(stmt, depth, baseDir));
 }
 
 /** Members of a class / interface declaration. */
-export function buildSymbolOutline(decl: Node): Member[] {
+export function buildSymbolOutline(decl: Node, baseDir: string): Member[] {
 	const members: Node[] = [];
 
 	if (Node.isClassDeclaration(decl)) {
@@ -80,11 +80,11 @@ export function buildSymbolOutline(decl: Node): Member[] {
 	return members.map((member) => {
 		const name = Node.hasName(member) ? (member.getName() ?? "") : member.getKindName();
 
-		return toMember(member, name);
+		return toMember(member, name, baseDir);
 	});
 }
 
-export function buildFileOutline(sourceFile: SourceFile): FileOutline {
+export function buildFileOutline(sourceFile: SourceFile, baseDir: string): FileOutline {
 	const outline: FileOutline = { exports: [], classes: [], functions: [], interfaces: [] };
 
 	for (const stmt of sourceFile.getStatements()) {
@@ -98,7 +98,7 @@ export function buildFileOutline(sourceFile: SourceFile): FileOutline {
 			continue;
 		}
 
-		const member = toMember(stmt, name);
+		const member = toMember(stmt, name, baseDir);
 
 		if (Node.isClassDeclaration(stmt)) {
 			outline.classes.push(member);
