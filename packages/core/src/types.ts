@@ -85,3 +85,16 @@ export interface SearchOptions {
 	/** Match the name as a substring (case-insensitive) instead of exact. */
 	contains?: boolean;
 }
+
+/** One import statement in a file. */
+export interface ImportInfo {
+	/** Module specifier, e.g. "./shapes.js". */
+	module: string;
+	/** Named imports (their local names). */
+	named: string[];
+	/** Default import local name, if any. */
+	default?: string;
+	/** Namespace import local name (`* as ns`), if any. */
+	namespace?: string;
+	position: Position;
+}

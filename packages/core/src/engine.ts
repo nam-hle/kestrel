@@ -14,6 +14,7 @@ import { position, toRelative, allDeclarations, parseQualifiedName, declarationT
 import type {
 	Member,
 	Candidate,
+	ImportInfo,
 	FileOutline,
 	SymbolHandle,
 	UsagesResult,
@@ -250,6 +251,30 @@ export class Engine {
 		}
 
 		return buildFileOutline(sourceFile, this.#baseDir());
+	}
+
+	/** The import statements of a file — module wiring, deterministic. */
+	public listImports(path: string): ImportInfo[] {
+		const sourceFile = this.#getSourceFile(path);
+
+		if (!sourceFile) {
+			return [];
+		}
+
+		const base = this.#baseDir();
+
+		return sourceFile.getImportDeclarations().map((decl) => {
+			const namespace = decl.getNamespaceImport()?.getText();
+			const defaultImport = decl.getDefaultImport()?.getText();
+
+			return {
+				module: decl.getModuleSpecifierValue(),
+				named: decl.getNamedImports().map((n) => n.getName()),
+				...(defaultImport !== undefined ? { default: defaultImport } : {}),
+				...(namespace !== undefined ? { namespace } : {}),
+				position: position(decl, base)
+			};
+		});
 	}
 
 	/** Members of a class / interface / namespace. Deterministic AST walk. */

@@ -87,6 +87,14 @@ const outlineFile = defineCommand({
 	args: { tsconfig, file: { required: true, type: "positional", description: "Relative file path" } }
 });
 
+const imports = defineCommand({
+	run({ args }) {
+		emit(engineFrom(args).listImports(args.file));
+	},
+	meta: { name: "imports", description: "List the import statements of a file" },
+	args: { tsconfig, file: { required: true, type: "positional", description: "Relative file path" } }
+});
+
 const outlineSymbol = defineCommand({
 	meta: { name: "outline-symbol", description: "Outline the members of a class/interface" },
 	args: { tsconfig, symbol: { required: true, type: "positional", description: "file:name[#index]" } },
@@ -130,6 +138,7 @@ const main = defineCommand({
 		refs,
 		impls,
 		search,
+		imports,
 		resolve,
 		"outline-fn": outlineFn,
 		"outline-file": outlineFile,

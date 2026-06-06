@@ -27,9 +27,10 @@ payloads (burning tokens). kestrel closes that gap.
 | `findDefinition`      | all declaration sites (handles declaration merging)                                                  |
 | `findUsages`          | references classified by kind (import / call / type-ref / read / write), bounded by `limit`/`cursor` |
 | `findImplementations` | classes implementing an interface                                                                    |
-| `outlineFile`         | structural "table of contents": exports, classes, interfaces, functions                              |
-| `outlineSymbol`       | members of a class / interface                                                                       |
-| `outlineFunction`     | deterministic statement-level skeleton of a function body                                            |
+| `outlineFile`         | structural "table of contents": declarations (incl. nested in namespaces) + re-exports               |
+| `outlineSymbol`       | members of a class / interface / namespace                                                           |
+| `outlineFunction`     | statement-level skeleton of a function body (incl. arrow/function-expression consts)                 |
+| `listImports`         | the import statements of a file (module + named/default/namespace) — module wiring                   |
 
 All operations are **deterministic** AST queries — kestrel never runs an LLM. Prose summaries
 are the calling agent's job; kestrel hands it exact structure.
