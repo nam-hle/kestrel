@@ -18,7 +18,7 @@ export const averageArea = (count: number): number => {
 };
 
 export class AreaService {
-	// Arrow-bound class property — the dominant A12 selector/handler shape.
+	// Arrow-bound class property — a common selector/handler shape.
 	public compute = (count: number): number => {
 		return averageArea(count);
 	};
@@ -28,7 +28,7 @@ export interface AreaCalculators {
 	mean: (count: number) => number;
 }
 
-// Factory returning an object literal of arrow methods — the A12 selectors shape.
+// Factory returning an object literal of arrow methods — a common selectors shape.
 export function makeCalculators(): AreaCalculators {
 	return {
 		mean: (count: number): number => {
@@ -37,7 +37,7 @@ export function makeCalculators(): AreaCalculators {
 	};
 }
 
-// Factory with a nested function declaration returned by shorthand — also A12 shape.
+// Factory with a nested function declaration returned by shorthand — another common shape.
 export function makeSelectors(): AreaCalculators {
 	function mean(count: number): number {
 		return averageArea(count);
