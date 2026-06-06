@@ -1,16 +1,18 @@
 {
-  "name": "@kestrel/cli",
-  "version": "0.0.0",
-  "type": "module",
-  "bin": {
-    "kestrel": "./dist/index.js"
-  },
-  "files": ["dist"],
-  "scripts": {
-    "build": "tsup",
-    "typecheck": "tsc -b"
-  },
-  "dependencies": {
-    "@kestrel/core": "workspace:*"
-  }
+	"name": "@kestrel/cli",
+	"version": "0.0.0",
+	"type": "module",
+	"bin": {
+		"kestrel": "./dist/index.js"
+	},
+	"files": [
+		"dist"
+	],
+	"scripts": {
+		"build": "tsup",
+		"typecheck": "tsc -b"
+	},
+	"dependencies": {
+		"@kestrel/core": "workspace:*"
+	}
 }

@@ -1,53 +1,59 @@
-import { describe, expect, test } from "vitest";
 import { fileURLToPath } from "node:url";
+
+import { test, expect, describe } from "vitest";
+
 import { Engine } from "../index.js";
 
-const tsConfigPath = fileURLToPath(
-  new URL("./fixtures/sample/tsconfig.json", import.meta.url),
-);
+const tsConfigPath = fileURLToPath(new URL("./fixtures/sample/tsconfig.json", import.meta.url));
 
 describe("outlineFile", () => {
-  test("buckets the top-level declarations of a file", () => {
-    const engine = new Engine({ tsConfigPath });
+	test("buckets the top-level declarations of a file", () => {
+		const engine = new Engine({ tsConfigPath });
 
-    const outline = engine.outlineFile("src/shapes.ts");
+		const outline = engine.outlineFile("src/shapes.ts");
 
-    expect(outline.classes.map((m) => m.name)).toContain("Circle");
-    expect(outline.interfaces.map((m) => m.name)).toContain("Shape");
-    expect(outline.functions.map((m) => m.name)).toContain("makeCircle");
-  });
+		expect(outline.classes.map((m) => m.name)).toContain("Circle");
+		expect(outline.interfaces.map((m) => m.name)).toContain("Shape");
+		expect(outline.functions.map((m) => m.name)).toContain("makeCircle");
+	});
 
-  test("includes a signature and position for each declaration", () => {
-    const engine = new Engine({ tsConfigPath });
+	test("includes a signature and position for each declaration", () => {
+		const engine = new Engine({ tsConfigPath });
 
-    const outline = engine.outlineFile("src/shapes.ts");
-    const circle = outline.classes.find((m) => m.name === "Circle");
+		const outline = engine.outlineFile("src/shapes.ts");
+		const circle = outline.classes.find((m) => m.name === "Circle");
 
-    expect(circle).toBeDefined();
-    expect(circle?.kind).toBe("ClassDeclaration");
-    expect(circle?.position.line).toBe(5);
-    expect(circle?.signature).toContain("Circle");
-  });
+		expect(circle).toBeDefined();
+		expect(circle?.kind).toBe("ClassDeclaration");
+		expect(circle?.position.line).toBe(5);
+		expect(circle?.signature).toContain("Circle");
+	});
 });
 
 describe("outlineSymbol", () => {
-  test("lists the members of a class", () => {
-    const engine = new Engine({ tsConfigPath });
-    const resolved = engine.resolveSymbol("src/shapes.ts:Circle");
-    if (resolved.kind !== "symbol") throw new Error("expected symbol");
+	test("lists the members of a class", () => {
+		const engine = new Engine({ tsConfigPath });
+		const resolved = engine.resolveSymbol("src/shapes.ts:Circle");
 
-    const members = engine.outlineSymbol(resolved.symbol);
+		if (resolved.kind !== "symbol") {
+			throw new Error("expected symbol");
+		}
 
-    expect(members.map((m) => m.name)).toContain("area");
-  });
+		const members = engine.outlineSymbol(resolved.symbol);
 
-  test("lists the members of an interface", () => {
-    const engine = new Engine({ tsConfigPath });
-    const resolved = engine.resolveSymbol("src/shapes.ts:Shape");
-    if (resolved.kind !== "symbol") throw new Error("expected symbol");
+		expect(members.map((m) => m.name)).toContain("area");
+	});
 
-    const members = engine.outlineSymbol(resolved.symbol);
+	test("lists the members of an interface", () => {
+		const engine = new Engine({ tsConfigPath });
+		const resolved = engine.resolveSymbol("src/shapes.ts:Shape");
 
-    expect(members.map((m) => m.name)).toContain("area");
-  });
+		if (resolved.kind !== "symbol") {
+			throw new Error("expected symbol");
+		}
+
+		const members = engine.outlineSymbol(resolved.symbol);
+
+		expect(members.map((m) => m.name)).toContain("area");
+	});
 });

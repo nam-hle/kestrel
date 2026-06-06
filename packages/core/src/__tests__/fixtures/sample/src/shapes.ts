@@ -1,16 +1,16 @@
 export interface Shape {
-  area(): number;
+	area(): number;
 }
 
 export class Circle implements Shape {
-  constructor(private radius: number) {}
-  area(): number {
-    return Math.PI * this.radius * this.radius;
-  }
+	constructor(private radius: number) {}
+	area(): number {
+		return Math.PI * this.radius * this.radius;
+	}
 }
 
 export function makeCircle(radius: number): Circle {
-  return new Circle(radius);
+	return new Circle(radius);
 }
 
 const helper = 42;

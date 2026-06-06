@@ -32,7 +32,7 @@ verified. Tiered by **accuracy** (semantic vs textual) and **agent-fit**.
 - **SWC / oxc** — Rust parsers/transpilers (fast AST), **syntactic only — no typechecker**,
   so no type-aware references. Fallback-sweep tier, not semantic core.
 
-Takeaway: Rust has great *syntactic* TS tooling, no usable *semantic* (typechecker) tier.
+Takeaway: Rust has great _syntactic_ TS tooling, no usable _semantic_ (typechecker) tier.
 Native-speed semantics = **Go (tsgo)**, not Rust. Going pure-Rust = building a typechecker.
 
 ## LSP-bridge MCP servers (agent-native, semantic)

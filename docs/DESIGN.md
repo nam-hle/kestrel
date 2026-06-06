@@ -6,8 +6,9 @@ Reference: [VISION.md](./VISION.md), [PRIOR-ART.md](./PRIOR-ART.md).
 ## Approach (chosen): Warm core engine + thin adapters
 
 Rejected alternatives:
-- *Stateless spawn-per-query* — rebuilds + typechecks every call; brutal cold-start per query.
-- *Engine + SCIP hybrid* — over-built; SCIP deferred.
+
+- _Stateless spawn-per-query_ — rebuilds + typechecks every call; brutal cold-start per query.
+- _Engine + SCIP hybrid_ — over-built; SCIP deferred.
 
 ## Section 1 — Architecture & layers (APPROVED)
 
@@ -23,6 +24,7 @@ packages/
 - **mcp** / **cli** are thin: translate transport ↔ core calls. No analysis logic.
 
 Data flow:
+
 ```
 adapter -> core.refreshIfStale() -> core.resolveSymbol(name) -> core.query -> formatted result -> adapter serializes
 ```
@@ -30,7 +32,8 @@ adapter -> core.refreshIfStale() -> core.resolveSymbol(name) -> core.query -> fo
 ## Section 2 — Core API surface (PENDING)
 
 Sketch (not yet approved) — read-only:
-- `resolveSymbol(qualifiedName) -> Symbol | Candidate[]`  (ambiguity → candidates w/ positions)
+
+- `resolveSymbol(qualifiedName) -> Symbol | Candidate[]` (ambiguity → candidates w/ positions)
 - `findUsages(symbol, { context, limit, cursor })` — bounded result set
 - `findImplementations(symbol)`
 - `findDefinition(symbol)`
@@ -69,7 +72,7 @@ The dominant risk class for a read-only v1. Targets + mitigations to decide:
   `SourceFile` is cheap; re-typechecking the dependent graph is not. Decide: refresh-on-demand
   per query vs fs-watch vs agent-signals-change. Measure invalidation cost.
 - **Large reference sets.** `findUsages` on common symbols → thousands of hits. Cap + paginate
-  (`limit`/`cursor`), offer count-only. Protects latency *and* agent token budget.
+  (`limit`/`cursor`), offer count-only. Protects latency _and_ agent token budget.
 - **Memory.** Warm `Project` = full AST + types in RAM, GB-scale on big repos; long-lived MCP
   process. Decide eviction/budget, lib-file loading tradeoff.
 - **Concurrency.** Serialize queries on the shared Project (cheap, read-only) — see open-Q6.

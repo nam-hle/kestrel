@@ -7,7 +7,7 @@
  * Skeleton: entry only. Arg parsing + commands TBD.
  */
 export function main(_argv: string[]): void {
-  throw new Error("not implemented");
+	throw new Error("not implemented");
 }
 
 main(process.argv.slice(2));

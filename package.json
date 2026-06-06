@@ -1,23 +1,35 @@
 {
-  "name": "kestrel-monorepo",
-  "version": "0.0.0",
-  "private": true,
-  "type": "module",
-  "packageManager": "pnpm@10.33.1",
-  "engines": {
-    "node": ">=24"
-  },
-  "scripts": {
-    "build": "tsc -b",
-    "clean": "tsc -b --clean",
-    "typecheck": "tsc -b",
-    "test": "vitest run"
-  },
-  "devDependencies": {
-    "@types/node": "^24.0.0",
-    "@vitest/coverage-v8": "^2.1.9",
-    "tsup": "^8.0.0",
-    "typescript": "^5.6.0",
-    "vitest": "^2.0.0"
-  }
+	"name": "kestrel-monorepo",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"packageManager": "pnpm@10.33.1",
+	"engines": {
+		"node": ">=24"
+	},
+	"scripts": {
+		"build": "nadle build",
+		"test": "nadle test"
+	},
+	"prettier": "@nadle/prettier-config",
+	"pnpm": {
+		"onlyBuiltDependencies": [
+			"esbuild"
+		]
+	},
+	"devDependencies": {
+		"@nadle/eslint-config": "^1.0.2",
+		"@nadle/prettier-config": "^0.0.5",
+		"@nadle/ts-config": "^0.0.2",
+		"@types/node": "^24.0.0",
+		"@vitest/coverage-v8": "^2.1.9",
+		"@vitest/eslint-plugin": "^1.6.19",
+		"eslint": "^9.39.4",
+		"nadle": "^0.5.1",
+		"prettier": "^3.8.3",
+		"tsup": "^8.0.0",
+		"typescript": "^5.6.0",
+		"typescript-eslint": "^8.60.1",
+		"vitest": "^2.0.0"
+	}
 }

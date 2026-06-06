@@ -6,5 +6,5 @@
  * Skeleton: entry only. MCP wiring TBD.
  */
 export function main(): void {
-  throw new Error("not implemented");
+	throw new Error("not implemented");
 }

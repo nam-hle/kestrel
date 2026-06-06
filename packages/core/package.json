@@ -1,21 +1,26 @@
 {
-  "name": "@kestrel/core",
-  "version": "0.0.0",
-  "type": "module",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
-    }
-  },
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "files": ["dist"],
-  "scripts": {
-    "build": "tsup",
-    "typecheck": "tsc -b"
-  },
-  "dependencies": {
-    "ts-morph": "^24.0.0"
-  }
+	"name": "@kestrel/core",
+	"version": "0.0.0",
+	"type": "module",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js"
+		}
+	},
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"files": [
+		"dist"
+	],
+	"scripts": {
+		"build": "tsup",
+		"typecheck": "tsc -b"
+	},
+	"dependencies": {
+		"ts-morph": "^24.0.0"
+	},
+	"devDependencies": {
+		"vitest": "^2.0.0"
+	}
 }
