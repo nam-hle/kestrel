@@ -30,7 +30,10 @@ export interface Candidate {
  * Result of resolving a qualified name: either a single symbol handle,
  * or a list of candidates the caller must disambiguate.
  */
-export type ResolveResult = { kind: "symbol"; symbol: SymbolHandle } | { kind: "ambiguous"; candidates: Candidate[] } | { kind: "not-found" };
+export type ResolveResult =
+	| { kind: "symbol"; symbol: SymbolHandle }
+	| { kind: "ambiguous"; candidates: Candidate[] }
+	| { kind: "not-found"; suggestions?: string[] };
 
 /** Opaque handle to a resolved symbol. Shape TBD (wraps ts-morph Symbol). */
 export interface SymbolHandle {

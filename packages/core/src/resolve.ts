@@ -175,6 +175,45 @@ export function findDeclarationsThroughReExports(sourceFile: SourceFile, segment
 	return [];
 }
 
+/** Levenshtein edit distance between two strings. */
+function editDistance(a: string, b: string): number {
+	const rows = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array<number>(b.length).fill(0)]);
+
+	for (let j = 1; j <= b.length; j++) {
+		rows[0]![j] = j;
+	}
+
+	for (let i = 1; i <= a.length; i++) {
+		for (let j = 1; j <= b.length; j++) {
+			const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+			rows[i]![j] = Math.min(rows[i - 1]![j]! + 1, rows[i]![j - 1]! + 1, rows[i - 1]![j - 1]! + cost);
+		}
+	}
+
+	return rows[a.length]![b.length]!;
+}
+
+/** Nearest declaration names in a file to a (mistyped) target — for not-found suggestions. */
+export function nearestNames(sourceFile: SourceFile, target: string, limit = 3): string[] {
+	const names = [
+		...new Set(
+			allDeclarations(sourceFile).map((d) => {
+				const parts = d.path.split(".");
+
+				return parts[parts.length - 1]!;
+			})
+		)
+	];
+	const threshold = Math.max(2, Math.ceil(target.length / 3));
+
+	return names
+		.map((name) => ({ name, dist: editDistance(name.toLowerCase(), target.toLowerCase()) }))
+		.filter((c) => c.dist > 0 && c.dist <= threshold)
+		.sort((a, b) => a.dist - b.dist)
+		.slice(0, limit)
+		.map((c) => c.name);
+}
+
 /** Make an absolute file path relative to a base dir, normalized to forward slashes. */
 export function toRelative(absPath: string, baseDir: string): string {
 	const normalized = absPath.replace(/\\/g, "/");

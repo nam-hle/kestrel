@@ -27,6 +27,20 @@ describe("resolveSymbol", () => {
 		expect(result.symbol.position.line).toBe(5);
 	});
 
+	test("suggests near-miss names on not-found", () => {
+		const engine = newEngine();
+
+		const result = engine.resolveSymbol("src/shapes.ts:Circel");
+
+		expect(result.kind).toBe("not-found");
+
+		if (result.kind !== "not-found") {
+			return;
+		}
+
+		expect(result.suggestions).toContain("Circle");
+	});
+
 	test("returns not-found for a name that does not exist", () => {
 		const engine = newEngine();
 

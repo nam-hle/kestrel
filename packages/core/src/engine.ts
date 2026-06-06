@@ -11,7 +11,15 @@ import type { SourceFile } from "ts-morph";
 import { classifyReference } from "./usages.js";
 import { buildCallHierarchy } from "./call-hierarchy.js";
 import { buildFileOutline, buildSymbolOutline, buildFunctionOutline } from "./outline.js";
-import { position, toRelative, allDeclarations, parseQualifiedName, declarationToHandle, findDeclarationsThroughReExports } from "./resolve.js";
+import {
+	position,
+	toRelative,
+	nearestNames,
+	allDeclarations,
+	parseQualifiedName,
+	declarationToHandle,
+	findDeclarationsThroughReExports
+} from "./resolve.js";
 import type {
 	Member,
 	CallNode,
@@ -86,7 +94,9 @@ export class Engine {
 		const decls = findDeclarationsThroughReExports(sourceFile, segments);
 
 		if (decls.length === 0) {
-			return { kind: "not-found" };
+			const suggestions = nearestNames(sourceFile, segments[segments.length - 1]!);
+
+			return suggestions.length > 0 ? { suggestions, kind: "not-found" } : { kind: "not-found" };
 		}
 
 		const base = this.#baseDir();
