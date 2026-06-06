@@ -119,5 +119,35 @@ export function buildFileOutline(sourceFile: SourceFile, baseDir: string): FileO
 		}
 	}
 
+	// Re-exports: `export { X } from "..."`, `export type { X } from`, `export * from`.
+	for (const exportDecl of sourceFile.getExportDeclarations()) {
+		const fromModule = exportDecl.getModuleSpecifierValue();
+
+		if (fromModule === undefined) {
+			continue;
+		}
+
+		const named = exportDecl.getNamedExports();
+
+		if (named.length === 0) {
+			outline.exports.push({
+				kind: "ExportDeclaration",
+				name: `* from ${fromModule}`,
+				position: position(exportDecl, baseDir),
+				signature: exportDecl.getText().replace(/\s+/g, " ")
+			});
+			continue;
+		}
+
+		for (const spec of named) {
+			outline.exports.push({
+				kind: "ExportSpecifier",
+				position: position(spec, baseDir),
+				name: spec.getAliasNode()?.getText() ?? spec.getName(),
+				signature: `export { ${spec.getText()} } from "${fromModule}"`
+			});
+		}
+	}
+
 	return outline;
 }

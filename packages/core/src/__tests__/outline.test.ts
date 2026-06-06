@@ -28,6 +28,18 @@ describe("outlineFile", () => {
 		expect(names).toContain("Runtime.Node");
 	});
 
+	test("surfaces re-exports from a barrel file", () => {
+		const engine = new Engine({ tsConfigPath });
+
+		const outline = engine.outlineFile("src/barrel.ts");
+		const names = outline.exports.map((m) => m.name);
+
+		expect(names).toContain("Circle");
+		expect(names).toContain("makeCircle");
+		expect(names).toContain("Shape");
+		expect(names).toContain("* from ./square.js");
+	});
+
 	test("includes a signature and position for each declaration", () => {
 		const engine = new Engine({ tsConfigPath });
 
