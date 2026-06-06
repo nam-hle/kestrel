@@ -153,13 +153,16 @@ export class Engine {
 
 	/** Relative path of a source file, as used in qualified names (relative to the tsconfig dir). */
 	#relPath(absPath: string): string {
-		const base = this.options.tsConfigPath.replace(/\/[^/]*$/, "");
+		// ts-morph normalizes paths to forward slashes; normalize the tsconfig path too
+		// so this works on Windows (where fileURLToPath yields backslashes).
+		const normalized = absPath.replace(/\\/g, "/");
+		const base = this.options.tsConfigPath.replace(/\\/g, "/").replace(/\/[^/]*$/, "");
 
-		if (absPath.startsWith(base)) {
-			return absPath.slice(base.length).replace(/^\//, "");
+		if (normalized.startsWith(base)) {
+			return normalized.slice(base.length).replace(/^\//, "");
 		}
 
-		return absPath;
+		return normalized;
 	}
 
 	/** Implementors of an interface / abstract. */

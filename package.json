@@ -25,7 +25,7 @@
 		"@vitest/coverage-v8": "^2.1.9",
 		"@vitest/eslint-plugin": "^1.6.19",
 		"eslint": "^9.39.4",
-		"nadle": "^0.5.1",
+		"nadle": "https://pkg.pr.new/nadle@2cdb015",
 		"prettier": "^3.8.3",
 		"tsup": "^8.0.0",
 		"typescript": "^5.6.0",
