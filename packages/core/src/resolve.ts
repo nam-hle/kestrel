@@ -76,15 +76,28 @@ function childDeclarations(statements: Statement[]): NamedDeclaration[] {
 	return decls;
 }
 
-/** Statements inside a namespace/module declaration body, if any. */
+/** Statements inside a namespace, function, method, or arrow/fn-expr body, if any. */
 function bodyStatements(node: Node): Statement[] {
-	if (!Node.isModuleDeclaration(node)) {
-		return [];
+	if (Node.isModuleDeclaration(node)) {
+		const body = node.getBody();
+
+		return body !== undefined && Node.isModuleBlock(body) ? body.getStatements() : [];
 	}
 
-	const body = node.getBody();
+	// Nested declarations inside a function/method body (e.g. a factory's inner functions).
+	let body: Node | undefined;
 
-	return body !== undefined && Node.isModuleBlock(body) ? body.getStatements() : [];
+	if (Node.isFunctionDeclaration(node) || Node.isMethodDeclaration(node)) {
+		body = node.getBody();
+	} else if (Node.isVariableDeclaration(node)) {
+		const init = node.getInitializer();
+
+		if (init !== undefined && (Node.isArrowFunction(init) || Node.isFunctionExpression(init))) {
+			body = init.getBody();
+		}
+	}
+
+	return body !== undefined && Node.isBlock(body) ? body.getStatements() : [];
 }
 
 /** Named members of a class or interface declaration, as child declarations. */
@@ -108,6 +121,33 @@ function memberDeclarations(node: Node): NamedDeclaration[] {
 	return members;
 }
 
+/**
+ * Function/arrow-valued properties of object literals inside a declaration's body
+ * (e.g. a factory `return { mean: () => ... }`). Lets object-literal selectors be
+ * addressed and traced. Scoped to function/arrow-valued properties only.
+ */
+function objectLiteralFunctionProps(node: Node): NamedDeclaration[] {
+	const props: NamedDeclaration[] = [];
+
+	node.forEachDescendant((descendant) => {
+		if (!Node.isPropertyAssignment(descendant)) {
+			return;
+		}
+
+		const init = descendant.getInitializer();
+
+		if (init !== undefined && (Node.isArrowFunction(init) || Node.isFunctionExpression(init))) {
+			const name = descendant.getName();
+
+			if (name !== "") {
+				props.push({ path: name, node: descendant });
+			}
+		}
+	});
+
+	return props;
+}
+
 /** All named declarations in a file, recursing into namespaces + class/interface members. */
 export function allDeclarations(sourceFile: SourceFile): NamedDeclaration[] {
 	const result: NamedDeclaration[] = [];
@@ -117,6 +157,11 @@ export function allDeclarations(sourceFile: SourceFile): NamedDeclaration[] {
 			const childPath = `${fullPath}.${path}`;
 			result.push({ node: child, path: childPath });
 			descend(child, childPath);
+		}
+
+		// Object-literal selector/handler properties (e.g. factory `return { mean: () => ... }`).
+		for (const { path, node: prop } of objectLiteralFunctionProps(node)) {
+			result.push({ node: prop, path: `${fullPath}.${path}` });
 		}
 	};
 

@@ -39,4 +39,31 @@ describe("callHierarchy", () => {
 
 		expect(names(callees)).toContain("totalArea");
 	});
+
+	test("outgoing: descends into an arrow-bound class property's body", () => {
+		const engine = new Engine({ tsConfigPath });
+		const symbol = resolve(engine, "src/consumer.ts:AreaService.compute");
+
+		const callees = engine.callHierarchy(symbol, { depth: 1, direction: "outgoing" });
+
+		expect(names(callees)).toContain("averageArea");
+	});
+
+	test("outgoing: descends into an object-literal property's body", () => {
+		const engine = new Engine({ tsConfigPath });
+		const symbol = resolve(engine, "src/consumer.ts:makeCalculators.mean");
+
+		const callees = engine.callHierarchy(symbol, { depth: 1, direction: "outgoing" });
+
+		expect(names(callees)).toContain("averageArea");
+	});
+
+	test("outgoing: descends into a function nested in a factory body", () => {
+		const engine = new Engine({ tsConfigPath });
+		const symbol = resolve(engine, "src/consumer.ts:makeSelectors.mean");
+
+		const callees = engine.callHierarchy(symbol, { depth: 1, direction: "outgoing" });
+
+		expect(names(callees)).toContain("averageArea");
+	});
 });
