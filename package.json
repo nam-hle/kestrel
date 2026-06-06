@@ -3,6 +3,13 @@
 	"version": "0.0.0",
 	"private": true,
 	"type": "module",
+	"description": "Semantic symbol intelligence for TypeScript, shaped for AI agents",
+	"license": "MIT",
+	"author": "Nam Hoang Le",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/nam-hle/kestrel.git"
+	},
 	"packageManager": "pnpm@10.33.1",
 	"engines": {
 		"node": ">=24"
