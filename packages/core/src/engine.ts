@@ -354,7 +354,7 @@ export class Engine {
 	public outlineSymbol(symbol: SymbolHandle): Member[] {
 		const base = this.#baseDir();
 
-		return this.#declarationsFor(symbol).flatMap((decl) => buildSymbolOutline(decl, base));
+		return this.#declarationsFor(symbol).flatMap((decl) => buildSymbolOutline(decl, base, symbol.qualifiedName));
 	}
 
 	/** Statement-level skeleton of a function body. `depth` controls nesting (default 1). */

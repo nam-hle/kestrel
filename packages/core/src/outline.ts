@@ -110,8 +110,12 @@ export function buildFunctionOutline(decl: Node, depth: number, baseDir: string)
 	return body.getStatements().map((stmt) => buildStatementNode(stmt, depth, baseDir));
 }
 
-/** Members of a class / interface / namespace declaration. */
-export function buildSymbolOutline(decl: Node, baseDir: string): Member[] {
+/** Members of a class / interface / namespace declaration. `ownerQualifiedName` (file:Owner)
+ * prefixes each member's addressable qualifiedName. */
+export function buildSymbolOutline(decl: Node, baseDir: string, ownerQualifiedName?: string): Member[] {
+	const withQName = (member: Member, name: string): Member =>
+		ownerQualifiedName === undefined ? member : { ...member, qualifiedName: `${ownerQualifiedName}.${name}` };
+
 	if (Node.isModuleDeclaration(decl)) {
 		const body = decl.getBody();
 		const statements = body !== undefined && Node.isModuleBlock(body) ? body.getStatements() : [];
@@ -123,7 +127,7 @@ export function buildSymbolOutline(decl: Node, baseDir: string): Member[] {
 
 			const name = stmt.getName();
 
-			return name === undefined ? [] : [toMember(stmt, name, baseDir)];
+			return name === undefined ? [] : [withQName(toMember(stmt, name, baseDir), name)];
 		});
 	}
 
@@ -140,7 +144,7 @@ export function buildSymbolOutline(decl: Node, baseDir: string): Member[] {
 	return members.map((member) => {
 		const name = Node.hasName(member) ? (member.getName() ?? "") : member.getKindName();
 
-		return toMember(member, name, baseDir);
+		return withQName(toMember(member, name, baseDir), name);
 	});
 }
 

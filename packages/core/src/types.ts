@@ -65,6 +65,8 @@ export interface Member {
 	position: Position;
 	/** Whether the declaration is exported from its file. */
 	exported?: boolean;
+	/** Addressable qualified name (file:Owner.member), when known. */
+	qualifiedName?: string;
 	/** Generic type parameter names, when the declaration is generic. */
 	typeParameters?: string[];
 }

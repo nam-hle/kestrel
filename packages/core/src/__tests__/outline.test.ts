@@ -114,6 +114,19 @@ describe("outlineSymbol", () => {
 		expect(members.map((m) => m.name)).toContain("area");
 	});
 
+	test("members carry an addressable qualifiedName", () => {
+		const engine = new Engine({ tsConfigPath });
+		const resolved = engine.resolveSymbol("src/shapes.ts:Circle");
+
+		if (resolved.kind !== "symbol") {
+			throw new Error("expected symbol");
+		}
+
+		const area = engine.outlineSymbol(resolved.symbol).find((m) => m.name === "area");
+
+		expect(area?.qualifiedName).toBe("src/shapes.ts:Circle.area");
+	});
+
 	test("lists the members of an interface", () => {
 		const engine = new Engine({ tsConfigPath });
 		const resolved = engine.resolveSymbol("src/shapes.ts:Shape");
