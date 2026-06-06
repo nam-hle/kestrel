@@ -2,9 +2,17 @@
  * kestrel core engine. Holds a warm ts-morph Project, resolves symbols,
  * answers read-only queries. Transport-agnostic — knows nothing about MCP/CLI.
  * See docs/DESIGN.md Section 1 (architecture) + Section 2 (API).
- *
- * Skeleton: signatures only. No logic yet.
  */
+import { Node, Project } from "ts-morph";
+import type { SourceFile } from "ts-morph";
+import {
+  declarationToHandle,
+  findNamedDeclarations,
+  parseQualifiedName,
+  position,
+} from "./resolve.js";
+import { classifyReference } from "./usages.js";
+import { buildFileOutline, buildFunctionOutline, buildSymbolOutline } from "./outline.js";
 import type {
   FileOutline,
   FindUsagesOptions,
@@ -24,40 +32,158 @@ export interface EngineOptions {
 const NOT_IMPLEMENTED = "not implemented";
 
 export class Engine {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  #project: Project | undefined;
+
   constructor(private readonly options: EngineOptions) {}
+
+  /** Lazily load + warm the ts-morph Project on first use. */
+  #getProject(): Project {
+    this.#project ??= new Project({ tsConfigFilePath: this.options.tsConfigPath });
+    return this.#project;
+  }
+
+  #getSourceFile(relPath: string): SourceFile | undefined {
+    const project = this.#getProject();
+    return (
+      project.getSourceFile(relPath) ??
+      project.getSourceFiles().find((sf) => sf.getFilePath().endsWith(relPath))
+    );
+  }
 
   /** Re-read files changed out-of-band before answering. See DESIGN open-Q (staleness). */
   refreshIfStale(): void {
-    throw new Error(NOT_IMPLEMENTED);
+    if (this.#project === undefined) return;
+    for (const sourceFile of this.#project.getSourceFiles()) {
+      sourceFile.refreshFromFileSystemSync();
+    }
   }
 
-  /** qualified-name -> symbol | candidates. Never silently guesses. */
-  resolveSymbol(_qualifiedName: string): ResolveResult {
-    throw new Error(NOT_IMPLEMENTED);
+  /**
+   * qualified-name -> symbol | candidates. Name-only per file (`relPath:name`).
+   * Ambiguous within a file -> candidates (caller disambiguates by index).
+   * Never silently guesses.
+   */
+  resolveSymbol(qualifiedName: string): ResolveResult {
+    const { file, name, index } = parseQualifiedName(qualifiedName);
+    const sourceFile = this.#getSourceFile(file);
+    if (!sourceFile) return { kind: "not-found" };
+
+    const decls = findNamedDeclarations(sourceFile, name);
+    if (decls.length === 0) return { kind: "not-found" };
+
+    if (index !== undefined) {
+      const picked = decls[index];
+      if (!picked) return { kind: "not-found" };
+      return { kind: "symbol", symbol: declarationToHandle(picked, file, name, index) };
+    }
+
+    if (decls.length > 1) {
+      return {
+        kind: "ambiguous",
+        candidates: decls.map((decl, i) => {
+          const handle = declarationToHandle(decl, file, name, i);
+          return {
+            qualifiedName: handle.qualifiedName,
+            position: handle.position,
+            kind: decl.getKindName(),
+          };
+        }),
+      };
+    }
+
+    return { kind: "symbol", symbol: declarationToHandle(decls[0]!, file, name) };
   }
 
-  findUsages(_symbol: SymbolHandle, _options?: FindUsagesOptions): UsagesResult {
-    throw new Error(NOT_IMPLEMENTED);
+  /** Resolve a handle back to its declaration node(s). */
+  #declarationsFor(symbol: SymbolHandle): Node[] {
+    const { file, name, index } = parseQualifiedName(symbol.qualifiedName);
+    const sourceFile = this.#getSourceFile(file);
+    if (!sourceFile) return [];
+    const decls = findNamedDeclarations(sourceFile, name);
+    if (index !== undefined) {
+      const picked = decls[index];
+      return picked ? [picked] : [];
+    }
+    return decls;
   }
 
-  findImplementations(_symbol: SymbolHandle): SymbolHandle[] {
-    throw new Error(NOT_IMPLEMENTED);
+  /** All references to a symbol, classified by kind. Bounded by `limit`/`cursor`. */
+  findUsages(symbol: SymbolHandle, options?: FindUsagesOptions): UsagesResult {
+    const decls = this.#declarationsFor(symbol);
+
+    const seen = new Set<string>();
+    const all = decls
+      .filter((decl) => Node.isReferenceFindable(decl))
+      .flatMap((decl) => decl.findReferencesAsNodes())
+      .map((node) => ({ position: position(node), kind: classifyReference(node) }))
+      .filter((ref) => {
+        const key = `${ref.position.file}:${ref.position.line}:${ref.position.col}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+
+    const offset = options?.cursor ? Number(options.cursor) : 0;
+    const limit = options?.limit;
+    const page = limit === undefined ? all.slice(offset) : all.slice(offset, offset + limit);
+    const nextOffset = offset + page.length;
+    const nextCursor = nextOffset < all.length ? String(nextOffset) : undefined;
+
+    return { references: page, total: all.length, nextCursor };
   }
 
-  findDefinition(_symbol: SymbolHandle): SymbolHandle {
-    throw new Error(NOT_IMPLEMENTED);
+  /** Relative path of a source file, as used in qualified names (relative to the tsconfig dir). */
+  #relPath(absPath: string): string {
+    const base = this.options.tsConfigPath.replace(/\/[^/]*$/, "");
+    if (absPath.startsWith(base)) return absPath.slice(base.length).replace(/^\//, "");
+    return absPath;
   }
 
-  outlineFile(_path: string): FileOutline {
-    throw new Error(NOT_IMPLEMENTED);
+  /** Implementors of an interface / abstract. */
+  findImplementations(symbol: SymbolHandle): SymbolHandle[] {
+    const decls = this.#declarationsFor(symbol);
+
+    const seen = new Set<string>();
+    const handles: SymbolHandle[] = [];
+    for (const decl of decls) {
+      if (!Node.isInterfaceDeclaration(decl)) continue;
+      for (const impl of decl.getImplementations()) {
+        const node = impl.getNode();
+        const name = node.getText();
+        const pos = position(node);
+        const qualifiedName = `${this.#relPath(pos.file)}:${name}`;
+        if (seen.has(qualifiedName)) continue;
+        seen.add(qualifiedName);
+        handles.push({ qualifiedName, position: pos });
+      }
+    }
+    return handles;
   }
 
-  outlineSymbol(_symbol: SymbolHandle): Member[] {
-    throw new Error(NOT_IMPLEMENTED);
+  /** All declaration sites of a resolved symbol (handles declaration merging / overloads). */
+  findDefinition(symbol: SymbolHandle): SymbolHandle[] {
+    const { file, name } = parseQualifiedName(symbol.qualifiedName);
+    const decls = this.#declarationsFor(symbol);
+    return decls.map((decl) => declarationToHandle(decl, file, name));
   }
 
-  outlineFunction(_symbol: SymbolHandle, _options?: OutlineFunctionOptions): StatementNode[] {
-    throw new Error(NOT_IMPLEMENTED);
+  /** Structural "table of contents" for a file. Deterministic AST walk. */
+  outlineFile(path: string): FileOutline {
+    const sourceFile = this.#getSourceFile(path);
+    if (!sourceFile) return { exports: [], classes: [], interfaces: [], functions: [] };
+    return buildFileOutline(sourceFile);
+  }
+
+  /** Members of a class / interface / namespace. Deterministic AST walk. */
+  outlineSymbol(symbol: SymbolHandle): Member[] {
+    const decls = this.#declarationsFor(symbol);
+    return decls.flatMap((decl) => buildSymbolOutline(decl));
+  }
+
+  /** Statement-level skeleton of a function body. `depth` controls nesting (default 1). */
+  outlineFunction(symbol: SymbolHandle, options?: OutlineFunctionOptions): StatementNode[] {
+    const depth = options?.depth ?? 1;
+    const decls = this.#declarationsFor(symbol);
+    return decls.flatMap((decl) => buildFunctionOutline(decl, depth));
   }
 }
