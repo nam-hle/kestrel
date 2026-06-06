@@ -25,6 +25,10 @@ describe("classifyReference", () => {
 		expect(kindsOf(`import * as ns from "./m.js"; ns.x;`, "ns")).toContain("import");
 	});
 
+	test("barrel re-export specifier -> re-export", () => {
+		expect(kindsOf(`export { foo } from "./m.js";`, "foo")).toContain("re-export");
+	});
+
 	test("call target -> call", () => {
 		expect(kindsOf(`declare function foo(): void; foo();`, "foo")).toContain("call");
 	});

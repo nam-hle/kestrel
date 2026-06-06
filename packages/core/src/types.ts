@@ -11,7 +11,7 @@ export interface Position {
 }
 
 /** Kind of a reference at a usage site. */
-export type ReferenceKind = "call" | "import" | "type-ref" | "read" | "write";
+export type ReferenceKind = "call" | "import" | "re-export" | "type-ref" | "read" | "write";
 
 /** One usage of a symbol. Minimal default record. */
 export interface Reference {

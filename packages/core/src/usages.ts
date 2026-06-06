@@ -7,6 +7,17 @@ import { Node, SyntaxKind } from "ts-morph";
 import type { ReferenceKind } from "./types.js";
 
 export function classifyReference(node: Node): ReferenceKind {
+	// `export { X } from "..."` — a barrel re-export, distinct from a consuming import.
+	const exportSpecifier = node.getFirstAncestorByKind(SyntaxKind.ExportSpecifier);
+
+	if (exportSpecifier !== undefined) {
+		const exportDecl = exportSpecifier.getFirstAncestorByKind(SyntaxKind.ExportDeclaration);
+
+		if (exportDecl !== undefined && Node.isExportDeclaration(exportDecl) && exportDecl.getModuleSpecifierValue() !== undefined) {
+			return "re-export";
+		}
+	}
+
 	if (node.getFirstAncestorByKind(SyntaxKind.ImportSpecifier) !== undefined) {
 		return "import";
 	}
