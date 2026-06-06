@@ -14,5 +14,8 @@
 	},
 	"dependencies": {
 		"@kestrel/core": "workspace:*"
+	},
+	"devDependencies": {
+		"@types/node": "^24.13.1"
 	}
 }
