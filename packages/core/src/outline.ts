@@ -149,7 +149,10 @@ export function buildFileOutline(sourceFile: SourceFile, baseDir: string): FileO
 
 	// allDeclarations recurses namespaces and tags each with its dotted path.
 	for (const { node, path } of allDeclarations(sourceFile)) {
-		const member = toMember(node, path, baseDir);
+		// A VariableDeclaration's export modifier lives on its parent VariableStatement.
+		const exportHolder = Node.isVariableDeclaration(node) ? node.getVariableStatement() : node;
+		const exported = exportHolder !== undefined && Node.isExportable(exportHolder) && exportHolder.isExported();
+		const member: Member = { ...toMember(node, path, baseDir), exported };
 
 		if (Node.isClassDeclaration(node)) {
 			outline.classes.push(member);
@@ -164,7 +167,7 @@ export function buildFileOutline(sourceFile: SourceFile, baseDir: string): FileO
 			(isFn ? outline.functions : outline.variables).push(member);
 		}
 
-		if (Node.isExportable(node) && node.isExported()) {
+		if (exported) {
 			outline.exports.push(member);
 		}
 	}

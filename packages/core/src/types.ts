@@ -63,6 +63,8 @@ export interface Member {
 	kind: string;
 	signature: string;
 	position: Position;
+	/** Whether the declaration is exported from its file. */
+	exported?: boolean;
 	/** Generic type parameter names, when the declaration is generic. */
 	typeParameters?: string[];
 }

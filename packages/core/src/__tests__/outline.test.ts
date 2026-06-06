@@ -56,6 +56,17 @@ describe("outlineFile", () => {
 		expect(outline.variables.map((m) => m.name)).toContain("helper");
 	});
 
+	test("marks declarations with their exported status", () => {
+		const engine = new Engine({ tsConfigPath });
+
+		const outline = engine.outlineFile("src/shapes.ts");
+		const circle = outline.classes.find((m) => m.name === "Circle");
+		const box = outline.interfaces.find((m) => m.name === "Box");
+
+		expect(circle?.exported).toBe(true);
+		expect(box?.exported).toBe(true);
+	});
+
 	test("surfaces generic type parameters of a declaration", () => {
 		const engine = new Engine({ tsConfigPath });
 
