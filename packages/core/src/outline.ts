@@ -54,11 +54,33 @@ function buildStatementNode(stmt: Node, depth: number, baseDir: string): Stateme
 	return node;
 }
 
+/** Find the body block of a function-like declaration, including arrow/fn-expr consts. */
+function functionBody(decl: Node): Node | undefined {
+	const direct = decl.forEachChildAsArray().find((c) => Node.isBlock(c));
+
+	if (direct !== undefined) {
+		return direct;
+	}
+
+	// Arrow / function-expression assigned to a const: descend to the initializer's block.
+	if (Node.isVariableDeclaration(decl)) {
+		const init = decl.getInitializer();
+
+		if (init !== undefined && (Node.isArrowFunction(init) || Node.isFunctionExpression(init))) {
+			const body = init.getBody();
+
+			return Node.isBlock(body) ? body : undefined;
+		}
+	}
+
+	return undefined;
+}
+
 /** Deterministic statement-level skeleton of a function body. */
 export function buildFunctionOutline(decl: Node, depth: number, baseDir: string): StatementNode[] {
-	const body = decl.forEachChildAsArray().find((c) => Node.isBlock(c));
+	const body = functionBody(decl);
 
-	if (!body || !Node.isBlock(body)) {
+	if (body === undefined || !Node.isBlock(body)) {
 		return [];
 	}
 

@@ -30,6 +30,17 @@ describe("outlineFunction", () => {
 		expect(kinds).toContain("ReturnStatement");
 	});
 
+	test("skeletons an arrow function assigned to a const", () => {
+		const engine = new Engine({ tsConfigPath });
+		const symbol = resolve(engine, "src/consumer.ts:averageArea");
+
+		const kinds = engine.outlineFunction(symbol).map((n) => n.kind);
+
+		expect(kinds).toContain("VariableStatement");
+		expect(kinds).toContain("IfStatement");
+		expect(kinds).toContain("ReturnStatement");
+	});
+
 	test("nests child statements up to the requested depth", () => {
 		const engine = new Engine({ tsConfigPath });
 		const symbol = resolve(engine, "src/consumer.ts:totalArea");

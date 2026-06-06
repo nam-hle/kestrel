@@ -8,3 +8,11 @@ export function totalArea(count: number): number {
 	}
 	return sum;
 }
+
+export const averageArea = (count: number): number => {
+	const total = totalArea(count);
+	if (count === 0) {
+		return 0;
+	}
+	return total / count;
+};
