@@ -96,6 +96,21 @@ export interface OutlineFunctionOptions {
 	depth?: number;
 }
 
+/** One row of a usage report: a public symbol with its reference counts. */
+export interface UsageReportEntry {
+	kind: string;
+	/** Total references (post test-exclusion if requested), declaration excluded. */
+	total: number;
+	/** Non-import, non-re-export references — a proxy for "really consumed". */
+	consumed: number;
+	position: Position;
+	qualifiedName: string;
+}
+
+export interface UsageReportOptions {
+	excludeTests?: boolean;
+}
+
 export interface SearchOptions {
 	/** Match the name as a substring (case-insensitive) instead of exact. */
 	contains?: boolean;

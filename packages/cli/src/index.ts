@@ -149,6 +149,18 @@ const surface = defineCommand({
 	meta: { name: "surface", description: "Transitive public surface of an entry file (expands export *)" }
 });
 
+const usage = defineCommand({
+	meta: { name: "usage", description: "Usage report: each public symbol of an entry with its reference counts" },
+	run({ args }) {
+		runSafe(() => emit(engineFrom(args).usageReport(args.file, { excludeTests: args["exclude-tests"] === true })));
+	},
+	args: {
+		tsconfig,
+		file: { required: true, type: "positional", description: "Entry file path" },
+		"exclude-tests": { type: "boolean", description: "Omit references in test files" }
+	}
+});
+
 const outlineSymbol = defineCommand({
 	meta: { name: "outline-symbol", description: "Outline the members of a class/interface" },
 	args: { tsconfig, symbol: { required: true, type: "positional", description: "file:name[#index]" } },
@@ -196,6 +208,7 @@ const main = defineCommand({
 		refs,
 		calls,
 		impls,
+		usage,
 		search,
 		imports,
 		resolve,

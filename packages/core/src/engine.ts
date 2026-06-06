@@ -31,7 +31,9 @@ import type {
 	ResolveResult,
 	SearchOptions,
 	StatementNode,
+	UsageReportEntry,
 	FindUsagesOptions,
+	UsageReportOptions,
 	CallHierarchyOptions,
 	OutlineFunctionOptions
 } from "./types.js";
@@ -337,6 +339,20 @@ export class Engine {
 		}
 
 		return surface;
+	}
+
+	/**
+	 * Usage report for every public symbol of an entry file: each symbol with its total
+	 * reference count and a `consumed` count (excluding import / re-export references — a
+	 * proxy for real consumption). One call replaces surface + per-symbol refs.
+	 */
+	public usageReport(path: string, options?: UsageReportOptions): UsageReportEntry[] {
+		return this.publicSurface(path).map((symbol) => {
+			const { total, references } = this.findUsages(symbol, { excludeTests: options?.excludeTests });
+			const consumed = references.filter((r) => r.kind !== "import" && r.kind !== "re-export").length;
+
+			return { total, consumed, kind: symbol.kind, position: symbol.position, qualifiedName: symbol.qualifiedName };
+		});
 	}
 
 	/** The import statements of a file — module wiring, deterministic. */
