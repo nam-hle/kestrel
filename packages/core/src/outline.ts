@@ -17,12 +17,35 @@ function signatureOf(node: Node): string {
 	return head.trim().replace(/\s+/g, " ");
 }
 
+function typeParametersOf(node: Node): string[] | undefined {
+	const holder = Node.isVariableDeclaration(node) ? node.getInitializer() : node;
+
+	if (
+		holder === undefined ||
+		!(
+			Node.isClassDeclaration(holder) ||
+			Node.isInterfaceDeclaration(holder) ||
+			Node.isTypeAliasDeclaration(holder) ||
+			Node.isFunctionDeclaration(holder)
+		)
+	) {
+		return undefined;
+	}
+
+	const params = holder.getTypeParameters().map((p) => p.getName());
+
+	return params.length > 0 ? params : undefined;
+}
+
 function toMember(node: Node, name: string, baseDir: string): Member {
+	const typeParameters = typeParametersOf(node);
+
 	return {
 		name,
 		kind: node.getKindName(),
 		signature: signatureOf(node),
-		position: position(node, baseDir)
+		position: position(node, baseDir),
+		...(typeParameters !== undefined ? { typeParameters } : {})
 	};
 }
 

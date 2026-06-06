@@ -56,6 +56,15 @@ describe("outlineFile", () => {
 		expect(outline.variables.map((m) => m.name)).toContain("helper");
 	});
 
+	test("surfaces generic type parameters of a declaration", () => {
+		const engine = new Engine({ tsConfigPath });
+
+		const outline = engine.outlineFile("src/shapes.ts");
+		const box = outline.interfaces.find((m) => m.name === "Box");
+
+		expect(box?.typeParameters).toEqual(["T", "U"]);
+	});
+
 	test("flags type-only re-exports distinctly from value re-exports", () => {
 		const engine = new Engine({ tsConfigPath });
 

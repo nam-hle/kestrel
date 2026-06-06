@@ -15,3 +15,8 @@ export function makeCircle(radius: number): Circle {
 
 const helper = 42;
 export { helper };
+
+export interface Box<T, U> {
+	value: T;
+	meta: U;
+}

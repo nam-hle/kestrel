@@ -63,6 +63,8 @@ export interface Member {
 	kind: string;
 	signature: string;
 	position: Position;
+	/** Generic type parameter names, when the declaration is generic. */
+	typeParameters?: string[];
 }
 
 /** File-level structural outline ("table of contents"). */
