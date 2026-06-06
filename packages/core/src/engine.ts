@@ -3,6 +3,8 @@
  * answers read-only queries. Transport-agnostic — knows nothing about MCP/CLI.
  * See docs/DESIGN.md Section 1 (architecture) + Section 2 (API).
  */
+import { resolve as resolvePath } from "node:path";
+
 import { Node, Project } from "ts-morph";
 import type { SourceFile } from "ts-morph";
 
@@ -156,7 +158,11 @@ export class Engine {
 		// ts-morph normalizes paths to forward slashes; normalize the tsconfig path too
 		// so this works on Windows (where fileURLToPath yields backslashes).
 		const normalized = absPath.replace(/\\/g, "/");
-		const base = this.options.tsConfigPath.replace(/\\/g, "/").replace(/\/[^/]*$/, "");
+		// Resolve the tsconfig path to absolute (callers may pass it relative to cwd)
+		// so the base matches ts-morph's absolute file paths.
+		const base = resolvePath(this.options.tsConfigPath)
+			.replace(/\\/g, "/")
+			.replace(/\/[^/]*$/, "");
 
 		if (normalized.startsWith(base)) {
 			return normalized.slice(base.length).replace(/^\//, "");
