@@ -23,9 +23,19 @@ function emit(value: unknown): void {
 	process.stdout.write(`${JSON.stringify(value, null, 2)}\n`);
 }
 
+/** Run a command body, printing a clean error (no stack trace) and exiting non-zero on failure. */
+function runSafe(fn: () => void): void {
+	try {
+		fn();
+	} catch (error) {
+		process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
+		process.exitCode = 1;
+	}
+}
+
 const resolve = defineCommand({
 	run({ args }) {
-		emit(engineFrom(args).resolveSymbol(args.symbol));
+		runSafe(() => emit(engineFrom(args).resolveSymbol(args.symbol)));
 	},
 	meta: { name: "resolve", description: "Resolve a qualified name to a symbol or candidates" },
 	args: { tsconfig, symbol: { required: true, type: "positional", description: "file:name[#index]" } }
@@ -34,7 +44,7 @@ const resolve = defineCommand({
 const search = defineCommand({
 	meta: { name: "search", description: "Search for a symbol by name across the whole project" },
 	run({ args }) {
-		emit(engineFrom(args).searchSymbol(args.name, { contains: args.contains }));
+		runSafe(() => emit(engineFrom(args).searchSymbol(args.name, { contains: args.contains })));
 	},
 	args: {
 		tsconfig,
@@ -47,25 +57,29 @@ const def = defineCommand({
 	meta: { name: "def", description: "Find the declaration site(s) of a symbol" },
 	args: { tsconfig, symbol: { required: true, type: "positional", description: "file:name[#index]" } },
 	run({ args }) {
-		const engine = engineFrom(args);
+		runSafe(() => {
+			const engine = engineFrom(args);
 
-		emit(engine.findDefinition(resolveSymbolOrThrow(engine, args.symbol)));
+			emit(engine.findDefinition(resolveSymbolOrThrow(engine, args.symbol)));
+		});
 	}
 });
 
 const refs = defineCommand({
 	meta: { name: "refs", description: "Find usages of a symbol" },
-	run({ args }) {
-		const engine = engineFrom(args);
-		const symbol = resolveSymbolOrThrow(engine, args.symbol);
-
-		emit(engine.findUsages(symbol, { cursor: args.cursor, limit: args.limit ? Number(args.limit) : undefined }));
-	},
 	args: {
 		tsconfig,
 		cursor: { type: "string", description: "Pagination cursor" },
 		limit: { type: "string", description: "Max references to return" },
 		symbol: { required: true, type: "positional", description: "file:name[#index]" }
+	},
+	run({ args }) {
+		runSafe(() => {
+			const engine = engineFrom(args);
+			const symbol = resolveSymbolOrThrow(engine, args.symbol);
+
+			emit(engine.findUsages(symbol, { cursor: args.cursor, limit: args.limit ? Number(args.limit) : undefined }));
+		});
 	}
 });
 
@@ -78,15 +92,17 @@ const calls = defineCommand({
 		symbol: { required: true, type: "positional", description: "file:name[#index]" }
 	},
 	run({ args }) {
-		const engine = engineFrom(args);
-		const symbol = resolveSymbolOrThrow(engine, args.symbol);
+		runSafe(() => {
+			const engine = engineFrom(args);
+			const symbol = resolveSymbolOrThrow(engine, args.symbol);
 
-		emit(
-			engine.callHierarchy(symbol, {
-				depth: args.depth ? Number(args.depth) : undefined,
-				direction: args.outgoing === true ? "outgoing" : "incoming"
-			})
-		);
+			emit(
+				engine.callHierarchy(symbol, {
+					depth: args.depth ? Number(args.depth) : undefined,
+					direction: args.outgoing === true ? "outgoing" : "incoming"
+				})
+			);
+		});
 	}
 });
 
@@ -94,25 +110,27 @@ const impls = defineCommand({
 	meta: { name: "impls", description: "Find implementations of an interface" },
 	args: { tsconfig, symbol: { required: true, type: "positional", description: "file:name[#index]" } },
 	run({ args }) {
-		const engine = engineFrom(args);
+		runSafe(() => {
+			const engine = engineFrom(args);
 
-		emit(engine.findImplementations(resolveSymbolOrThrow(engine, args.symbol)));
+			emit(engine.findImplementations(resolveSymbolOrThrow(engine, args.symbol)));
+		});
 	}
 });
 
 const outlineFile = defineCommand({
-	run({ args }) {
-		emit(engineFrom(args).outlineFile(args.file));
-	},
 	meta: { name: "outline-file", description: "Outline the structure of a file" },
+	run({ args }) {
+		runSafe(() => emit(engineFrom(args).outlineFile(args.file)));
+	},
 	args: { tsconfig, file: { required: true, type: "positional", description: "Relative file path" } }
 });
 
 const imports = defineCommand({
-	run({ args }) {
-		emit(engineFrom(args).listImports(args.file));
-	},
 	meta: { name: "imports", description: "List the import statements of a file" },
+	run({ args }) {
+		runSafe(() => emit(engineFrom(args).listImports(args.file)));
+	},
 	args: { tsconfig, file: { required: true, type: "positional", description: "Relative file path" } }
 });
 
@@ -120,9 +138,11 @@ const outlineSymbol = defineCommand({
 	meta: { name: "outline-symbol", description: "Outline the members of a class/interface" },
 	args: { tsconfig, symbol: { required: true, type: "positional", description: "file:name[#index]" } },
 	run({ args }) {
-		const engine = engineFrom(args);
+		runSafe(() => {
+			const engine = engineFrom(args);
 
-		emit(engine.outlineSymbol(resolveSymbolOrThrow(engine, args.symbol)));
+			emit(engine.outlineSymbol(resolveSymbolOrThrow(engine, args.symbol)));
+		});
 	}
 });
 
@@ -134,10 +154,12 @@ const outlineFn = defineCommand({
 		symbol: { required: true, type: "positional", description: "file:name[#index]" }
 	},
 	run({ args }) {
-		const engine = engineFrom(args);
-		const symbol = resolveSymbolOrThrow(engine, args.symbol);
+		runSafe(() => {
+			const engine = engineFrom(args);
+			const symbol = resolveSymbolOrThrow(engine, args.symbol);
 
-		emit(engine.outlineFunction(symbol, { depth: args.depth ? Number(args.depth) : undefined }));
+			emit(engine.outlineFunction(symbol, { depth: args.depth ? Number(args.depth) : undefined }));
+		});
 	}
 });
 

@@ -59,6 +59,17 @@ export class Engine {
 		return project.getSourceFile(relPath) ?? project.getSourceFiles().find((sf) => sf.getFilePath().endsWith(relPath));
 	}
 
+	/** Like #getSourceFile but throws a clear error when the file isn't in the project. */
+	#requireSourceFile(relPath: string): SourceFile {
+		const sourceFile = this.#getSourceFile(relPath);
+
+		if (!sourceFile) {
+			throw new Error(`file not found in project: ${relPath} (is it covered by the tsconfig, and is the path correct?)`);
+		}
+
+		return sourceFile;
+	}
+
 	/** The tsconfig directory, absolute + forward-slashed — the base for relative paths. */
 	#baseDir(): string {
 		return resolvePath(this.options.tsConfigPath)
@@ -266,22 +277,12 @@ export class Engine {
 
 	/** Structural "table of contents" for a file. Deterministic AST walk. */
 	public outlineFile(path: string): FileOutline {
-		const sourceFile = this.#getSourceFile(path);
-
-		if (!sourceFile) {
-			return { exports: [], classes: [], functions: [], variables: [], interfaces: [] };
-		}
-
-		return buildFileOutline(sourceFile, this.#baseDir());
+		return buildFileOutline(this.#requireSourceFile(path), this.#baseDir());
 	}
 
 	/** The import statements of a file — module wiring, deterministic. */
 	public listImports(path: string): ImportInfo[] {
-		const sourceFile = this.#getSourceFile(path);
-
-		if (!sourceFile) {
-			return [];
-		}
+		const sourceFile = this.#requireSourceFile(path);
 
 		const base = this.#baseDir();
 

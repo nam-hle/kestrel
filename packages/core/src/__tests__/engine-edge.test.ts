@@ -31,15 +31,9 @@ describe("engine edge cases", () => {
 		expect(result).toEqual({ total: 0, references: [], nextCursor: undefined });
 	});
 
-	test("outlineFile on a missing file returns empty buckets", () => {
+	test("outlineFile throws for a file not in the project", () => {
 		const engine = new Engine({ tsConfigPath });
-		expect(engine.outlineFile("nope.ts")).toEqual({
-			exports: [],
-			classes: [],
-			functions: [],
-			variables: [],
-			interfaces: []
-		});
+		expect(() => engine.outlineFile("nope.ts")).toThrow(/file not found in project/);
 	});
 
 	test("outlineSymbol on a non-class/interface returns empty", () => {
