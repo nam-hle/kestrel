@@ -26,6 +26,12 @@ tasks.register("test").config({
 	description: "Run all tests"
 });
 
+tasks.register("testCoverage", ExecTask, { args: ["run", "--coverage"], command: "vitest" }).config({
+	group: "Testing",
+	dependsOn: ["build"],
+	description: "Run unit tests with coverage (thresholds enforced in vitest.config.ts)"
+});
+
 // --- Checking ---
 
 tasks.register("eslint", ExecTask, { args: ["."], command: "eslint" }).config({

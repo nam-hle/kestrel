@@ -70,7 +70,10 @@ jobs:
           node-version: ${{ matrix.node-version }}
 
       - name: Test
-        run: nadle test
+        run: nadle testCoverage
+        env:
+          # Fail (not skip) the tsgo LSP suites if the bin is unavailable on this runner.
+          KESTREL_REQUIRE_LSP: "1"
 
   status:
     name: CI Status
