@@ -19,9 +19,10 @@ option warm / when cold-start complaints arrive.
 ## Package reality (verify at spike time)
 
 - `@typescript/native-preview` exists (e.g. `7.0.0-dev.*`). Explicitly WIP, API churns.
-- `@typescript/api` does NOT exist on npm (404). The embeddable surface ships under
-  `@typescript/native-preview` — confirm the exact import path + exported API in the
-  installed version before writing any adapter code.
+- `@typescript/api` does NOT exist on npm (404). The embeddable JS API ships under
+  `@typescript/native-preview/unstable/{sync,async,fs,proto}`. Confirmed 2026-06-07: the
+  surface is typechecker-level (Checker/Program/Symbol), with **no references/implementations**
+  yet — see Results.
 
 ## What the spike must answer (pass/fail rubric)
 
@@ -63,6 +64,27 @@ option warm / when cold-start complaints arrive.
 Adopt tsgo (Door 2) only if: rubric 1+2+4 PASS (surface + addressing + parity) AND (3 PASS
 OR cold-start is an active user complaint). Otherwise keep ts-morph; revisit next preview.
 
-## Results
+## Results (2026-06-07)
 
-_(fill after running the spike)_
+Ran on `@typescript/native-preview@7.0.0-dev.20260606.1`.
+
+**Package reality, corrected:** `@typescript/api` does NOT exist on npm (404). The programmatic
+JS API ships inside `@typescript/native-preview` under `./unstable/sync`, `./unstable/async`,
+`./unstable/fs`, `./unstable/proto` (package description: "Preview CLI and JS API for the
+native TypeScript compiler port").
+
+**Rubric #1 (surface exists): FAIL.** `unstable/sync` exports compiler/typechecker primitives —
+`API, Project, Program, Checker, Symbol, Signature, Emitter`, plus flag enums. `Checker` exposes
+`getSymbolAtLocation`, `getSymbolAtPosition`, `getTypeOfSymbol`, etc. But there is **no
+find-references, no get-implementations, no language-service** in the programmatic surface.
+Those ops live in the LSP layer (Door 3), not the embeddable API.
+
+**Consequence:** to use Door 2, kestrel would have to reimplement find-references /
+find-implementations on top of the raw checker (walk every file, resolve each identifier's
+symbol, compare) — i.e. rebuild what ts-morph/tsserver give for free. That contradicts the
+thesis ("borrow proven semantics, don't reinvent the typechecker"). Rubrics 2-5 not worth
+running until #1 passes.
+
+**Decision: keep ts-morph. Door 2 deferred.** Re-run this spike on a future preview; the gate
+is the programmatic API exposing references + implementations without spawning an LSP process.
+Branch + dep torn down (not merged).
