@@ -14,6 +14,11 @@ describe("uriToRelative", () => {
 		const winRoot = "C:/proj";
 		expect(uriToRelative("file:///C:\\proj\\src\\a.ts", winRoot)).toBe("src/a.ts");
 	});
+
+	it("matches a lowercase drive letter against an uppercase root (tsgo lowercases it)", () => {
+		// tsgo emits `d:/...`; the root from resolvePath keeps the OS case `D:/...`. Must still strip.
+		expect(uriToRelative("file:///d:/proj/src/a.ts", "D:/proj")).toBe("src/a.ts");
+	});
 });
 
 describe("lspToPosition", () => {

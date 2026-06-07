@@ -2,6 +2,11 @@
 import type { Position } from "../types.js";
 import type { LspLocation, LspPosition, LocationLink } from "./protocol.js";
 
+/** Lowercase a leading Windows drive letter so `D:` and `d:` compare equal. */
+function normalizeDrive(p: string): string {
+	return p.replace(/^([A-Za-z]):/, (_m, d: string) => `${d.toLowerCase()}:`);
+}
+
 /** `file://<root>/rest` -> `rest`, forward-slashed, root-relative. */
 export function uriToRelative(uri: string, root: string): string {
 	let path = uri.replace(/^file:\/\//, "").replace(/\\/g, "/");
@@ -9,7 +14,9 @@ export function uriToRelative(uri: string, root: string): string {
 	path = decodeURIComponent(path);
 	// Windows drive-letter URIs decode to `/C:/...`; drop the leading slash before the drive.
 	path = path.replace(/^\/([A-Za-z]:)/, "$1");
-	const base = root.replace(/\\/g, "/");
+	// tsgo lowercases the drive letter; the root keeps the OS case. Normalize both to match.
+	path = normalizeDrive(path);
+	const base = normalizeDrive(root.replace(/\\/g, "/"));
 
 	return path.startsWith(base) ? path.slice(base.length).replace(/^\//, "") : path;
 }
