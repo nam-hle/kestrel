@@ -2,7 +2,7 @@
  * Compact text rendering of outlines — a token-lean YAML-ish tree, the default
  * agent-facing format. Namespace/owner prefixes are factored out into nesting.
  */
-import type { Member, FileOutline } from "./types.js";
+import type { Member, Position, Candidate, FileOutline, SymbolHandle, UsagesResult, ResolveResult } from "./types.js";
 
 interface TreeNode {
 	children: Map<string, TreeNode>;
@@ -98,4 +98,55 @@ export function renderFileOutline(file: string, outline: FileOutline): string {
 	}
 
 	return lines.join("\n");
+}
+
+/** Re-feedable address of a position: file:line:col. */
+function addr(pos: Position): string {
+	return `${pos.file}:${pos.line}:${pos.col}`;
+}
+
+/** A symbol-row: qualifiedName-first (the next-query input), kind + line after. */
+function candidateRow(c: Candidate): string {
+	return `${c.qualifiedName}\t${c.kind}\tL${c.position.line}`;
+}
+
+export function renderReferences(result: UsagesResult): string {
+	if (result.references.length === 0) {
+		return "(no references)";
+	}
+
+	const rows = result.references.map((r) => {
+		const parts = [addr(r.position), r.kind, ...(r.context !== undefined ? [r.context] : []), ...(r.test === true ? ["(test)"] : [])];
+
+		return parts.join("\t");
+	});
+	const cursor = result.nextCursor !== undefined ? ` (more: cursor ${result.nextCursor})` : "";
+
+	return `${rows.join("\n")}\n${result.total} refs${cursor}`;
+}
+
+export function renderHandles(handles: SymbolHandle[]): string {
+	if (handles.length === 0) {
+		return "(none)";
+	}
+
+	return handles.map((h) => `${addr(h.position)}\t${h.qualifiedName}`).join("\n");
+}
+
+export function renderCandidates(candidates: Candidate[]): string {
+	return candidates.length === 0 ? "(none)" : candidates.map(candidateRow).join("\n");
+}
+
+export function renderResolve(result: ResolveResult): string {
+	if (result.kind === "symbol") {
+		return `${result.symbol.qualifiedName}\tL${result.symbol.position.line}`;
+	}
+
+	if (result.kind === "ambiguous") {
+		return result.candidates.map(candidateRow).join("\n");
+	}
+
+	return result.suggestions !== undefined && result.suggestions.length > 0
+		? `not found\ndid you mean: ${result.suggestions.join(", ")}`
+		: "not found";
 }
