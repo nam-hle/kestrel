@@ -52,6 +52,25 @@ describe.skipIf(!binAvailable)("LspEngine", () => {
 		expect(lspRefs).toContain("src/consumer.ts:1:10");
 	}, 30_000);
 
+	it("attaches context snippets when requested (and omits by default)", async () => {
+		const resolved = await lsp.resolveSymbol("src/shapes.ts:makeCircle");
+
+		if (resolved.kind !== "symbol") {
+			throw new Error("expected symbol");
+		}
+
+		const none = await lsp.findUsages(resolved.symbol);
+		expect(none.references.every((r) => r.context === undefined)).toBe(true);
+
+		const snippet = await lsp.findUsages(resolved.symbol, { context: "snippet" });
+		const callRef = snippet.references.find((r) => r.kind === "call");
+		expect(callRef!.context).toContain("makeCircle");
+		expect(callRef!.context).not.toMatch(/\n/);
+
+		const block = await lsp.findUsages(resolved.symbol, { context: "block" });
+		expect(block.references.find((r) => r.kind === "call")!.context).toContain("makeCircle");
+	}, 30_000);
+
 	it("excludes function-body locals when resolving a bare name", async () => {
 		// averageArea is a top-level const; `total` lives only inside totalArea's body.
 		// A bare `total` must NOT resolve to the body-local (mirrors the ts-morph resolver).

@@ -91,11 +91,12 @@ server.registerTool(
 			symbol: symbolArg,
 			limit: z.number().optional(),
 			cursor: z.string().optional(),
-			excludeTests: z.boolean().optional()
+			excludeTests: z.boolean().optional(),
+			context: z.enum(["none", "snippet", "block"]).optional().describe("Surrounding source per ref (default none)")
 		}
 	},
-	async ({ limit, symbol, cursor, engine, tsConfig: tc, excludeTests }) =>
-		json(await resolveOr(tc, kindOf(engine), symbol, (e, s) => e.findUsages(s, { limit, cursor, excludeTests })))
+	async ({ limit, symbol, cursor, engine, context, tsConfig: tc, excludeTests }) =>
+		json(await resolveOr(tc, kindOf(engine), symbol, (e, s) => e.findUsages(s, { limit, cursor, context, excludeTests })))
 );
 
 server.registerTool(

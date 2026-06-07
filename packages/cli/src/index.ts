@@ -97,7 +97,8 @@ const refs = defineCommand({
 				await e.findUsages(symbol, {
 					cursor: args.cursor,
 					excludeTests: args["exclude-tests"] === true,
-					limit: args.limit ? Number(args.limit) : undefined
+					limit: args.limit ? Number(args.limit) : undefined,
+					context: args.context as "none" | "snippet" | "block" | undefined
 				})
 			);
 		});
@@ -108,7 +109,8 @@ const refs = defineCommand({
 		cursor: { type: "string", description: "Pagination cursor" },
 		limit: { type: "string", description: "Max references to return" },
 		symbol: { required: true, type: "positional", description: "file:name[#index]" },
-		"exclude-tests": { type: "boolean", description: "Omit references in test files" }
+		"exclude-tests": { type: "boolean", description: "Omit references in test files" },
+		context: { type: "string", description: "Surrounding source per ref: none (default) | snippet | block" }
 	}
 });
 

@@ -54,4 +54,38 @@ describe("findUsages", () => {
 		expect(noTests.references.every((r) => r.test !== true)).toBe(true);
 		expect(noTests.total).toBeLessThan(all.total);
 	});
+
+	test("omits context by default and on context=none", () => {
+		const engine = new Engine({ tsConfigPath });
+		const symbol = resolve(engine, "src/shapes.ts:makeCircle");
+
+		expect(engine.findUsages(symbol).references.every((r) => r.context === undefined)).toBe(true);
+		expect(engine.findUsages(symbol, { context: "none" }).references.every((r) => r.context === undefined)).toBe(true);
+	});
+
+	test("context=snippet attaches the trimmed reference line", () => {
+		const engine = new Engine({ tsConfigPath });
+		const symbol = resolve(engine, "src/shapes.ts:makeCircle");
+
+		const refs = engine.findUsages(symbol, { context: "snippet" }).references;
+
+		expect(refs.every((r) => typeof r.context === "string")).toBe(true);
+		// A call site's snippet contains the call; snippets are single-line + trimmed.
+		const callRef = refs.find((r) => r.kind === "call");
+		expect(callRef!.context).toContain("makeCircle");
+		expect(callRef!.context).not.toMatch(/\n/);
+		expect(callRef!.context).toBe(callRef!.context!.trim());
+	});
+
+	test("context=block attaches the enclosing statement text", () => {
+		const engine = new Engine({ tsConfigPath });
+		const symbol = resolve(engine, "src/shapes.ts:makeCircle");
+
+		const refs = engine.findUsages(symbol, { context: "block" }).references;
+		const callRef = refs.find((r) => r.kind === "call");
+
+		expect(callRef!.context).toContain("makeCircle");
+		// The block is the enclosing statement — at least as much as the snippet.
+		expect(callRef!.context!.length).toBeGreaterThan(0);
+	});
 });
