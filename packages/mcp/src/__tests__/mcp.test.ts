@@ -147,27 +147,42 @@ describe("MCP server integration", () => {
 		expect(result.serverInfo?.name).toBe("kestrel");
 	}, 20_000);
 
-	it("tools/list returns 12 tools including resolve, usages, and outline_file", async () => {
+	it("tools/list includes the regularized names + new ops + back-compat aliases", async () => {
 		const result = (await client.request("tools/list", {})) as { tools: { name: string }[] };
 
 		const names = result.tools.map((t) => t.name);
-		expect(names).toContain("resolve");
-		expect(names).toContain("usages");
+		// regularized + new ops
+		expect(names).toContain("view_outline");
+		expect(names).toContain("view_symbol");
+		expect(names).toContain("view_context");
+		expect(names).toContain("view_region");
+		expect(names).toContain("find_refs");
+		expect(names).toContain("find_callers");
+		expect(names).toContain("find_callees");
+		expect(names).toContain("exports");
+		// back-compat aliases retained
 		expect(names).toContain("outline_file");
-		expect(names.length).toBe(12);
+		expect(names).toContain("usages");
+		expect(names).toContain("calls");
 	}, 20_000);
 
 	it("tools/call resolve returns kind:symbol for makeCircle", async () => {
 		const result = (await client.request("tools/call", {
 			name: "resolve",
-			arguments: {
-				tsConfig: TSCONFIG,
-				symbol: "src/shapes.ts:makeCircle"
-			}
+			arguments: { tsConfig: TSCONFIG, symbol: "src/shapes.ts:makeCircle" }
 		})) as { content: { type: string; text: string }[] };
 
 		expect(result.content[0]?.type).toBe("text");
 		const parsed = JSON.parse(result.content[0]!.text) as { kind: string };
 		expect(parsed.kind).toBe("symbol");
+	}, 20_000);
+
+	it("tools/call view_symbol returns the declaration source", async () => {
+		const result = (await client.request("tools/call", {
+			name: "view_symbol",
+			arguments: { tsConfig: TSCONFIG, symbol: "src/shapes.ts:makeCircle" }
+		})) as { content: { type: string; text: string }[] };
+
+		expect(result.content[0]!.text).toContain("makeCircle");
 	}, 20_000);
 });

@@ -93,6 +93,68 @@ describe("CLI integration", () => {
 		}, 20_000);
 	});
 
+	describe("view family", () => {
+		it("view outline prints the compact tree", async () => {
+			const { code, stdout } = await run(["view", "outline", "--tsconfig", TSCONFIG, "src/shapes.ts"]);
+
+			expect(code).toBe(0);
+			expect(stdout).toContain("Circle");
+		}, 20_000);
+
+		it("view symbol prints the declaration source", async () => {
+			const { code, stdout } = await run(["view", "symbol", "--tsconfig", TSCONFIG, "src/shapes.ts:makeCircle"]);
+
+			expect(code).toBe(0);
+			expect(stdout).toContain("makeCircle");
+		}, 20_000);
+
+		it("view region prints a line range", async () => {
+			const { code, stdout } = await run(["view", "region", "--tsconfig", TSCONFIG, "src/shapes.ts:1-3"]);
+
+			expect(code).toBe(0);
+			expect(stdout).toContain("Shape");
+		}, 20_000);
+
+		it("view context bundles source + callees + typeRefs", async () => {
+			const { code, stdout } = await run(["view", "context", "--tsconfig", TSCONFIG, "src/consumer.ts:totalArea"]);
+
+			expect(code).toBe(0);
+			const ctx = JSON.parse(stdout) as { typeRefs: string[]; callees: unknown[] };
+			expect(ctx.typeRefs).toContain("Circle");
+			expect(Array.isArray(ctx.callees)).toBe(true);
+		}, 20_000);
+	});
+
+	describe("find family", () => {
+		it("find callees lists outgoing calls (exit 0)", async () => {
+			const { code } = await run(["find", "callees", "--tsconfig", TSCONFIG, "src/consumer.ts:totalArea"]);
+
+			expect(code).toBe(0);
+		}, 20_000);
+
+		it("find symbol searches by name", async () => {
+			const { code, stdout } = await run(["find", "symbol", "--tsconfig", TSCONFIG, "makeCircle"]);
+
+			expect(code).toBe(0);
+			expect(stdout).toContain("makeCircle");
+		}, 20_000);
+	});
+
+	describe("back-compat aliases", () => {
+		it("outline-file alias still works", async () => {
+			const { code, stdout } = await run(["outline-file", "--tsconfig", TSCONFIG, "src/shapes.ts"]);
+
+			expect(code).toBe(0);
+			expect(stdout).toContain("Circle");
+		}, 20_000);
+
+		it("calls --outgoing alias maps to callees", async () => {
+			const { code } = await run(["calls", "--tsconfig", TSCONFIG, "--outgoing", "src/consumer.ts:totalArea"]);
+
+			expect(code).toBe(0);
+		}, 20_000);
+	});
+
 	describe("missing required --tsconfig", () => {
 		it("exits non-zero when --tsconfig is omitted", async () => {
 			const { code } = await run(["resolve", "src/shapes.ts:makeCircle"]);

@@ -8,6 +8,7 @@ import { pathToFileURL } from "node:url";
 import { resolve as resolvePath } from "node:path";
 
 import { LspClient } from "./lsp/client.js";
+import { readRegionFrom } from "./region.js";
 import { parseQualifiedName } from "./resolve.js";
 import { LspSymbolKind } from "./lsp/protocol.js";
 import { resolveInSymbols } from "./lsp/bridge.js";
@@ -15,12 +16,15 @@ import type { LspLocation, LspPosition, DocumentSymbol } from "./lsp/protocol.js
 import { lspToPosition, uriToRelative, asLocationOrNull, locationToPosition } from "./lsp/translate.js";
 import {
 	contextAt,
+	typeRefsIn,
 	classifyAt,
 	buildOutline,
 	parseImports,
 	parseReExports,
 	topLevelExports,
 	functionSkeleton,
+	signatureOfSource,
+	declarationSourceAt,
 	outlineSymbolMembers
 } from "./lsp/syntactic.js";
 import type {
@@ -33,9 +37,12 @@ import type {
 	FileOutline,
 	SymbolHandle,
 	UsagesResult,
+	SourceResult,
+	RegionResult,
 	ResolveResult,
 	SearchOptions,
 	StatementNode,
+	SymbolContext,
 	UsageReportEntry,
 	FindUsagesOptions,
 	UsageReportOptions,
@@ -239,6 +246,37 @@ export class LspEngine {
 		const locs = await this.#locations("textDocument/definition", file, segments);
 
 		return this.#dedupeHandles(locs);
+	}
+
+	public async symbolSource(symbol: SymbolHandle): Promise<SourceResult[]> {
+		const { file, segments } = parseQualifiedName(symbol.qualifiedName);
+		const hits = await this.#hits(file, segments);
+		const text = this.#read(file);
+
+		return hits.map((hit) => ({
+			qualifiedName: `${file}:${hit.path}`,
+			position: this.#pos(file, hit.rangeStart),
+			source: declarationSourceAt(text, hit.position) ?? ""
+		}));
+	}
+
+	public readRegion(file: string, startLine: number, endLine: number): Promise<RegionResult> {
+		return Promise.resolve(readRegionFrom(`${this.#root}/${file}`, file, startLine, endLine));
+	}
+
+	public async symbolContext(symbol: SymbolHandle): Promise<SymbolContext> {
+		const sources = await this.symbolSource(symbol);
+		const first = sources[0];
+		const source = first?.source ?? "";
+
+		return {
+			source,
+			typeRefs: typeRefsIn(source),
+			signature: signatureOfSource(source),
+			position: first?.position ?? symbol.position,
+			qualifiedName: first?.qualifiedName ?? symbol.qualifiedName,
+			callees: await this.callHierarchy(symbol, { depth: 1, direction: "outgoing" })
+		};
 	}
 
 	public async findImplementations(symbol: SymbolHandle): Promise<SymbolHandle[]> {

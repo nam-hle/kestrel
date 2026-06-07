@@ -8,9 +8,11 @@ import { resolve as resolvePath } from "node:path";
 import { Node, Project } from "ts-morph";
 import type { SourceFile } from "ts-morph";
 
+import { readRegionFrom } from "./region.js";
 import { classifyReference } from "./usages.js";
 import type { SymbolEngine } from "./symbol-engine.js";
 import { buildCallHierarchy } from "./call-hierarchy.js";
+import { typeRefsIn, signatureOfSource } from "./lsp/syntactic.js";
 import { buildFileOutline, buildSymbolOutline, buildFunctionOutline } from "./outline.js";
 import {
 	position,
@@ -31,9 +33,12 @@ import type {
 	ContextLevel,
 	SymbolHandle,
 	UsagesResult,
+	SourceResult,
+	RegionResult,
 	ResolveResult,
 	SearchOptions,
 	StatementNode,
+	SymbolContext,
 	UsageReportEntry,
 	FindUsagesOptions,
 	UsageReportOptions,
@@ -341,6 +346,42 @@ export class Engine implements SymbolEngine {
 		const base = this.#baseDir();
 
 		return this.#declarationsFor(symbol).map((node) => declarationToHandle({ node, path }, file, base));
+	}
+
+	/** Exact source of each declaration of a symbol (signature + body). */
+	public symbolSource(symbol: SymbolHandle): SourceResult[] {
+		const { file, segments } = parseQualifiedName(symbol.qualifiedName);
+		const path = segments.join(".");
+		const base = this.#baseDir();
+
+		return this.#declarationsFor(symbol).map((node) => {
+			const handle = declarationToHandle({ node, path }, file, base);
+
+			return { source: node.getText(), position: handle.position, qualifiedName: handle.qualifiedName };
+		});
+	}
+
+	/** A verbatim slice of a file by 1-based inclusive line range. */
+	public readRegion(file: string, startLine: number, endLine: number): RegionResult {
+		const sourceFile = this.#requireSourceFile(file);
+
+		return readRegionFrom(sourceFile.getFilePath(), file, startLine, endLine);
+	}
+
+	/** A symbol's source + signature + outgoing callees + referenced type names, in one call. */
+	public symbolContext(symbol: SymbolHandle): SymbolContext {
+		const sources = this.symbolSource(symbol);
+		const first = sources[0];
+		const source = first?.source ?? "";
+
+		return {
+			source,
+			typeRefs: typeRefsIn(source),
+			signature: signatureOfSource(source),
+			position: first?.position ?? symbol.position,
+			qualifiedName: first?.qualifiedName ?? symbol.qualifiedName,
+			callees: this.callHierarchy(symbol, { depth: 1, direction: "outgoing" })
+		};
 	}
 
 	/** Structural "table of contents" for a file. Deterministic AST walk. */

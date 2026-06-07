@@ -23,7 +23,9 @@ export function asAsync(engine: SymbolEngine): AsyncSymbolEngine {
 		outlineFile: (path) => Promise.resolve(engine.outlineFile(path)),
 		listImports: (path) => Promise.resolve(engine.listImports(path)),
 		publicSurface: (path) => Promise.resolve(engine.publicSurface(path)),
+		symbolSource: (symbol) => Promise.resolve(engine.symbolSource(symbol)),
 		outlineSymbol: (symbol) => Promise.resolve(engine.outlineSymbol(symbol)),
+		symbolContext: (symbol) => Promise.resolve(engine.symbolContext(symbol)),
 		findDefinition: (symbol) => Promise.resolve(engine.findDefinition(symbol)),
 		usageReport: (path, options) => Promise.resolve(engine.usageReport(path, options)),
 		searchSymbol: (name, options) => Promise.resolve(engine.searchSymbol(name, options)),
@@ -31,7 +33,8 @@ export function asAsync(engine: SymbolEngine): AsyncSymbolEngine {
 		findImplementations: (symbol) => Promise.resolve(engine.findImplementations(symbol)),
 		resolveSymbol: (qualifiedName) => Promise.resolve(engine.resolveSymbol(qualifiedName)),
 		callHierarchy: (symbol, options) => Promise.resolve(engine.callHierarchy(symbol, options)),
-		outlineFunction: (symbol, options) => Promise.resolve(engine.outlineFunction(symbol, options))
+		outlineFunction: (symbol, options) => Promise.resolve(engine.outlineFunction(symbol, options)),
+		readRegion: (file, startLine, endLine) => Promise.resolve(engine.readRegion(file, startLine, endLine))
 	};
 }
 

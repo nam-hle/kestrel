@@ -489,3 +489,61 @@ function fnBody(node: ts.Node): ts.Block | undefined {
 
 	return body !== undefined && ts.isBlock(body) ? body : undefined;
 }
+
+/** Exact source of the smallest enclosing declaration at the given LSP position. */
+export function declarationSourceAt(text: string, pos: LspPosition): string | undefined {
+	const sf = parse("__src.ts", text);
+	const offset = sf.getPositionOfLineAndCharacter(pos.line, pos.character);
+	let decl: ts.Node | undefined;
+
+	const visit = (node: ts.Node): void => {
+		if (offset < node.getStart(sf) || offset >= node.getEnd()) {
+			return;
+		}
+
+		if (
+			ts.isClassDeclaration(node) ||
+			ts.isInterfaceDeclaration(node) ||
+			ts.isFunctionDeclaration(node) ||
+			ts.isTypeAliasDeclaration(node) ||
+			ts.isModuleDeclaration(node) ||
+			ts.isVariableStatement(node) ||
+			ts.isMethodDeclaration(node) ||
+			ts.isPropertyDeclaration(node)
+		) {
+			decl = node;
+		}
+
+		node.forEachChild(visit);
+	};
+
+	visit(sf);
+
+	return decl?.getText(sf);
+}
+
+/** Distinct named types referenced anywhere in the given declaration source. */
+export function typeRefsIn(text: string): string[] {
+	const sf = parse("__types.ts", text);
+	const names = new Set<string>();
+
+	const visit = (node: ts.Node): void => {
+		if (ts.isTypeReferenceNode(node)) {
+			names.add(node.typeName.getText(sf));
+		}
+
+		node.forEachChild(visit);
+	};
+
+	visit(sf);
+
+	return [...names];
+}
+
+/** The declaration head up to its body — single line, whitespace-collapsed. */
+export function signatureOfSource(source: string): string {
+	const brace = source.indexOf("{");
+	const head = brace === -1 ? source : source.slice(0, brace);
+
+	return head.trim().replace(/\s+/g, " ");
+}
