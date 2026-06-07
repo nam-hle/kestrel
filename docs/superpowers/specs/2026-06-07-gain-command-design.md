@@ -43,20 +43,25 @@ output pure).
 All under `packages/cli/src/gain/`.
 
 ### `estimate.ts`
+
 ```
 bytesToTokens(bytes: number): number   // ceil(bytes / 4)
 ```
+
 Pure. The single place the heuristic lives.
 
 ### `files.ts`
+
 ```
 filesIn(result: unknown): string[]
 ```
+
 Walks the result JSON, collects every string under a `file` key (covers
 `position.file` and top-level `file`), dedupes, returns sorted. Generic — works for
 every op without per-op wiring.
 
 ### `ledger.ts`
+
 ```
 interface GainEntry {
   ts: number;            // ms epoch, stamped by caller (Date.now lives in the CLI, not a pure fn)
@@ -71,6 +76,7 @@ record(entry: GainEntry): void          // append one line to ~/.kestrel/gain.js
 read(): GainEntry[]                      // parse, skip malformed lines
 aggregate(entries, opts): Aggregate      // totals, percent, top ops, optional by-project
 ```
+
 - Append is one `appendFileSync` of `JSON.stringify(entry) + "\n"`. Line writes are
   small and atomic enough for this use; no locking.
 - Creates `~/.kestrel/` lazily.
@@ -79,7 +85,9 @@ aggregate(entries, opts): Aggregate      // totals, percent, top ops, optional b
   skip, never throw.
 
 ### `command.ts`
+
 The `gain` citty subcommand.
+
 ```
 kestrel gain
   queries:   142
@@ -92,6 +100,7 @@ kestrel gain --history       # last N entries, one per line
 kestrel gain --by-project    # group totals by cwd
 kestrel gain --json          # machine-readable aggregate
 ```
+
 All numbers `~`-prefixed.
 
 ## Integration
@@ -107,13 +116,13 @@ Tracking enabled = `KESTREL_GAIN` not in `{"0","false"}` and `KESTREL_NO_GAIN` u
 
 ## Error handling
 
-| Failure | Behavior |
-| --- | --- |
-| Cannot resolve home dir | skip recording, query unaffected |
-| Ledger write fails (read-only FS, quota) | swallow, query unaffected |
-| Ledger missing on `gain` | print "no gain recorded yet" |
-| Malformed ledger line on read | skip that line |
-| Result file unreadable when sizing baseline | count it as 0 bytes, continue |
+| Failure                                     | Behavior                         |
+| ------------------------------------------- | -------------------------------- |
+| Cannot resolve home dir                     | skip recording, query unaffected |
+| Ledger write fails (read-only FS, quota)    | swallow, query unaffected        |
+| Ledger missing on `gain`                    | print "no gain recorded yet"     |
+| Malformed ledger line on read               | skip that line                   |
+| Result file unreadable when sizing baseline | count it as 0 bytes, continue    |
 
 ## Testing (TDD, red first)
 

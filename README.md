@@ -70,16 +70,30 @@ once it ships an embeddable find-references API.
 
 ## Usage
 
-**CLI** — one-shot semantic queries (JSON output; `outline-file` prints a compact tree):
+**CLI** — one-shot semantic queries (JSON output; `view outline` prints a compact tree).
+Commands group by intent: `view` (read code) and `find` (locate/trace), plus top-level
+`resolve` / `imports` / `exports` / `usage`:
 
 ```bash
-npx @kestrel/cli resolve src/foo.ts:Bar --tsconfig tsconfig.json
-npx @kestrel/cli refs src/foo.ts:Bar --tsconfig tsconfig.json --exclude-tests
-npx @kestrel/cli outline-file src/foo.ts --tsconfig tsconfig.json
+# read code
+npx @kestrel/cli view outline src/foo.ts --tsconfig tsconfig.json
+npx @kestrel/cli view symbol src/foo.ts:Bar --tsconfig tsconfig.json     # exact source
+npx @kestrel/cli view context src/foo.ts:Bar --tsconfig tsconfig.json    # source + callees + types
+npx @kestrel/cli view region src/foo.ts:10-40 --tsconfig tsconfig.json   # line range
+
+# locate / trace
+npx @kestrel/cli find refs src/foo.ts:Bar --tsconfig tsconfig.json --exclude-tests
+npx @kestrel/cli find callers src/foo.ts:Bar --tsconfig tsconfig.json
+npx @kestrel/cli find callees src/foo.ts:Bar --tsconfig tsconfig.json
 ```
 
 (After a global install — `npm i -g @kestrel/cli` — the binary is just `kestrel`.) Add
 `--engine lsp` to any command to use the tsgo-backed engine instead of the ts-morph default.
+
+_Renamed in 0.1:_ `outline-file → view outline`, `outline-symbol → view members`,
+`outline-fn → view body`, `search → find symbol`, `def/refs/impls → find def/refs/impls`,
+`calls → find callers` (`--outgoing → find callees`), `surface → exports`. The old flat names
+still work as hidden aliases.
 
 **MCP** — the same operations as MCP tools over stdio, holding the project warm across calls
 (no per-call cold start). The server runs via `npx @kestrel/mcp`. Host setup:
@@ -104,10 +118,11 @@ command = "npx"
 args = ["-y", "@kestrel/mcp"]
 ```
 
-Tools: `resolve`, `search`, `definition`, `usages`, `calls`, `implementations`,
-`outline_file`, `outline_symbol`, `outline_function`, `imports`, `surface`, `usage_report`.
-Each takes a `tsConfig` argument (engine cached per tsconfig); pass `engine: "lsp"` to opt
-into the tsgo backend.
+Tools: `view_outline`, `view_symbol`, `view_context`, `view_region`, `view_members`,
+`view_body`, `find_symbol`, `find_def`, `find_refs`, `find_impls`, `find_callers`,
+`find_callees`, `resolve`, `imports`, `exports`, `usage_report`. Each takes a `tsConfig`
+argument (engine cached per tsconfig); pass `engine: "lsp"` to opt into the tsgo backend. The
+old tool names (`outline_file`, `search`, `usages`, `calls`, `surface`, …) remain as aliases.
 
 ## Development
 
