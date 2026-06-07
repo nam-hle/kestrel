@@ -22,21 +22,10 @@
 	"publishConfig": {
 		"access": "public"
 	},
-	"exports": {
-		".": {
-			"types": "./dist/index.d.ts",
-			"import": "./dist/index.js"
-		}
-	},
-	"main": "./dist/index.js",
-	"types": "./dist/index.d.ts",
+	"exports": "./dist/index.js",
 	"files": [
 		"dist"
 	],
-	"scripts": {
-		"build": "tsup",
-		"typecheck": "tsc -b"
-	},
 	"dependencies": {
 		"@typescript/native-preview": "7.0.0-dev.20260606.1",
 		"ts-morph": "^28.0.0"

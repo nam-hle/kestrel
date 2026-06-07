@@ -11,7 +11,7 @@ const configs: ConfigArray = tsEslint.config(
 		languageOptions: {
 			parserOptions: {
 				tsconfigRootDir: import.meta.dirname,
-				project: ["./packages/*/tsconfig.eslint.json"]
+				project: ["./tsconfig.check.json"]
 			}
 		}
 	},

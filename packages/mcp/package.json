@@ -28,10 +28,6 @@
 	"files": [
 		"dist"
 	],
-	"scripts": {
-		"build": "tsup",
-		"typecheck": "tsc -b"
-	},
 	"dependencies": {
 		"@kestrel/core": "workspace:*",
 		"@modelcontextprotocol/sdk": "1.27.1",

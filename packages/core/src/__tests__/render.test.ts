@@ -116,7 +116,7 @@ describe("renderResolve", () => {
 	});
 });
 
-import type { SourceResult, RegionResult, StatementNode } from "../types.js";
+import type { Member, SourceResult, RegionResult, StatementNode } from "../types.js";
 import { renderSource, renderRegion, renderMembers, renderStatements } from "../render.js";
 
 describe("renderSource", () => {
