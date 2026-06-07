@@ -30,9 +30,5 @@
 	"dependencies": {
 		"@kestrel/core": "workspace:*",
 		"citty": "^0.2.2"
-	},
-	"devDependencies": {
-		"@types/node": "^24.13.1",
-		"vitest": "^4.1.8"
 	}
 }

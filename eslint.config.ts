@@ -20,7 +20,9 @@ const configs: ConfigArray = tsEslint.config(
 		...vitest.configs.recommended,
 		rules: {
 			...vitest.configs.recommended.rules,
-			"vitest/expect-expect": ["error", { assertFunctionNames: ["expect", "expectTypeOf"] }]
+			"vitest/expect-expect": ["error", { assertFunctionNames: ["expect", "expectTypeOf"] }],
+			// vitest is a root devDependency shared by every package, not re-declared per package.
+			"n/no-extraneous-import": ["error", { allowModules: ["vitest"] }]
 		}
 	}
 );
