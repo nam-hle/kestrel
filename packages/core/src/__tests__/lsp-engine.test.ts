@@ -64,4 +64,15 @@ describe.skipIf(!binAvailable)("LspEngine", () => {
 
 		expect(lspImports.map((i) => i.module)).toEqual(baseline.map((i) => i.module));
 	}, 30_000);
+
+	it("resolves a re-exported symbol through a barrel", async () => {
+		const r = await lsp.resolveSymbol("src/barrel.ts:Circle");
+
+		if (r.kind !== "symbol") {
+			throw new Error(`expected symbol, got ${r.kind}`);
+		}
+
+		// True declaration lives in shapes.ts, not the barrel.
+		expect(r.symbol.position.file).toBe("src/shapes.ts");
+	}, 30_000);
 });
