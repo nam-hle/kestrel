@@ -101,9 +101,7 @@ export class LspEngine {
 		const hits = await this.#hits(file, segments);
 
 		if (hits.length === 0) {
-			const fallback = await this.#resolveViaWorkspace(segments);
-
-			return fallback ?? { kind: "not-found" };
+			return { kind: "not-found" };
 		}
 
 		if (index !== undefined) {
@@ -160,51 +158,6 @@ export class LspEngine {
 		const locs: LspLocation[] = Array.isArray(result) ? result : result !== null ? [result] : [];
 
 		return locs.length > 0 ? locationToPosition(locs[0]!, this.#root) : undefined;
-	}
-
-	/**
-	 * Re-export fidelity fallback: documentSymbol sees only a file's own declarations, so a
-	 * symbol behind a barrel (`export { X } from "..."`) isn't found locally. workspace/symbol
-	 * searches the whole project and points at the re-export site; we then follow
-	 * textDocument/definition to reach the true declaration.
-	 */
-	async #resolveViaWorkspace(segments: string[]): Promise<ResolveResult | undefined> {
-		if (segments.length !== 1) {
-			return undefined;
-		}
-
-		const client = await this.#ready();
-		const name = segments[0]!;
-		const results = (await client.request("workspace/symbol", { query: name })) as { name: string; location: LspLocation }[] | null;
-		const exact = (results ?? []).find((r) => r.name === name);
-
-		if (exact === undefined) {
-			return undefined;
-		}
-
-		// workspace/symbol may point at a re-export site rather than the true declaration.
-		// Follow textDocument/definition to get to the actual declaration.
-		const reExportLoc = exact.location;
-		const reExportFile = uriToRelative(reExportLoc.uri, this.#root);
-		await this.#open(client, reExportFile);
-
-		const defResult = (await client.request("textDocument/definition", {
-			position: reExportLoc.range.start,
-			textDocument: { uri: reExportLoc.uri }
-		})) as LspLocation[] | LspLocation | null;
-
-		const defLocs: LspLocation[] = Array.isArray(defResult) ? defResult : defResult !== null ? [defResult] : [];
-
-		if (defLocs.length > 0) {
-			const position = locationToPosition(defLocs[0]!, this.#root);
-
-			return { kind: "symbol", symbol: { position, qualifiedName: `${position.file}:${name}` } };
-		}
-
-		// definition hop yielded nothing — fall back to the workspace/symbol position itself.
-		const position = locationToPosition(reExportLoc, this.#root);
-
-		return { kind: "symbol", symbol: { position, qualifiedName: `${position.file}:${name}` } };
 	}
 
 	public async searchSymbol(name: string, options?: SearchOptions): Promise<Candidate[]> {
