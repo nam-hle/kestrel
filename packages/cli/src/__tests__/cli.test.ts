@@ -56,10 +56,17 @@ async function run(args: string[]): Promise<{ code: number; stdout: string; stde
 	}
 }
 
-/** Run the CLI with `HOME` pointed at `home` so the gain ledger lands in an isolated dir. */
+/**
+ * Run the CLI with the home dir pointed at `home` so the gain ledger lands in an
+ * isolated dir. `os.homedir()` reads `USERPROFILE` on Windows and `HOME` elsewhere,
+ * so set both.
+ */
 async function runWithHome(home: string, args: string[]): Promise<{ code: number; stdout: string; stderr: string }> {
 	try {
-		const { stdout, stderr } = await execFileAsync(process.execPath, [CLI_BIN, ...args], { timeout: 20_000, env: { ...process.env, HOME: home } });
+		const { stdout, stderr } = await execFileAsync(process.execPath, [CLI_BIN, ...args], {
+			timeout: 20_000,
+			env: { ...process.env, HOME: home, USERPROFILE: home }
+		});
 
 		return { stdout, stderr, code: 0 };
 	} catch (error) {
