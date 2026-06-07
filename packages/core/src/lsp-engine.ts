@@ -81,8 +81,12 @@ export class LspEngine {
 		this.#opened.clear();
 	}
 
-	public refreshIfStale(): void {
-		this.#opened.clear(); // next access re-opens with fresh text
+	public refreshIfStale(): Promise<void> {
+		// Drop the opened-set so the next access re-sends each file (re-indexing on the server).
+		// Async to match AsyncSymbolEngine and leave room to await a server round-trip later.
+		this.#opened.clear();
+
+		return Promise.resolve();
 	}
 
 	/** Resolve file:Name to LSP positions via tsgo's documentSymbol tree. */

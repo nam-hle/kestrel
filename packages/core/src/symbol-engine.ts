@@ -37,7 +37,14 @@ export interface SymbolEngine {
 	outlineFunction(symbol: SymbolHandle, options?: OutlineFunctionOptions): StatementNode[];
 }
 
-/** Async form of SymbolEngine — every method returns a Promise. For the LSP engine. */
+/**
+ * Async form of SymbolEngine — every method returns a Promise, plus `dispose` for engines
+ * that own resources (the tsgo subprocess). This is the single surface CLI + MCP consume, so
+ * either engine works through one `await`-everything code path.
+ */
 export type AsyncSymbolEngine = {
 	[K in keyof SymbolEngine]: (...args: Parameters<SymbolEngine[K]>) => Promise<ReturnType<SymbolEngine[K]>>;
+} & {
+	/** Release any held resources (subprocess, warm project). No-op for the ts-morph engine. */
+	dispose(): Promise<void>;
 };
