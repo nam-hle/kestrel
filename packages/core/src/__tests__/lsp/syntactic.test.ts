@@ -1,6 +1,6 @@
 import { it, expect, describe } from "vitest";
 
-import { classifyAt, parseImports } from "../../lsp/syntactic.js";
+import { classifyAt, buildOutline, parseImports, functionSkeleton } from "../../lsp/syntactic.js";
 
 const consumer = `import { makeCircle, Circle } from "./shapes.js";
 
@@ -33,5 +33,47 @@ describe("classifyAt", () => {
 		const line = before.split("\n").length - 1;
 		const character = idx - before.lastIndexOf("\n") - 1;
 		expect(classifyAt(consumer, { line, character })).toBe("call");
+	});
+});
+
+const shapes = `export interface Shape {
+	area(): number;
+}
+
+export class Circle implements Shape {
+	area(): number {
+		return 1;
+	}
+}
+
+export function makeCircle(): Circle {
+	return new Circle();
+}
+
+export interface Box<T, U> {
+	value: T;
+}
+`;
+
+describe("buildOutline", () => {
+	it("buckets interfaces / classes / functions with exported flag", () => {
+		const o = buildOutline("src/shapes.ts", shapes);
+		expect(o.interfaces.map((m) => m.name).sort()).toEqual(["Box", "Shape"]);
+		expect(o.classes.map((m) => m.name)).toEqual(["Circle"]);
+		expect(o.functions.map((m) => m.name)).toEqual(["makeCircle"]);
+		expect(o.classes[0]!.exported).toBe(true);
+	});
+
+	it("captures generic type parameters", () => {
+		const o = buildOutline("src/shapes.ts", shapes);
+		expect(o.interfaces.find((m) => m.name === "Box")!.typeParameters).toEqual(["T", "U"]);
+	});
+});
+
+describe("functionSkeleton", () => {
+	it("returns the top-level statement kinds of a function body", () => {
+		// Line 10 (0-based), character 16 lands on "makeCircle" (after "export function ").
+		const o = functionSkeleton(shapes, { line: 10, character: 16 }, 1);
+		expect(o.map((s) => s.kind)).toContain("ReturnStatement");
 	});
 });
