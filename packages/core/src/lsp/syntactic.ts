@@ -207,23 +207,97 @@ function memberOf({ sf, kind, name, node, path, qualified }: MemberArgs): Member
 export function buildOutline(path: string, text: string): FileOutline {
 	const sf = parse(path, text);
 	const outline: FileOutline = { classes: [], exports: [], functions: [], variables: [], interfaces: [] };
+	walkOutline({ sf, path, outline }, sf.statements, "");
+
+	return outline;
+}
+
+/**
+ * Top-level EXPORTED declarations only (class/interface/function/type-alias/namespace/var) —
+ * NOT namespace members. This is the public *surface* of a file's own code, mirroring
+ * ts-morph's getExportedDeclarations: an exported namespace counts as one entry, not its
+ * members. (outlineFile, by contrast, recurses into members.)
+ */
+export function topLevelExports(path: string, text: string): Member[] {
+	const sf = parse(path, text);
+	const out: Member[] = [];
+
+	const push = (name: string, kind: string, node: ts.Node): void => {
+		out.push(memberOf({ sf, path, name, kind, node }));
+	};
 
 	for (const stmt of sf.statements) {
-		let member: Member | undefined;
+		if (!isExported(stmt)) {
+			continue;
+		}
 
 		if (ts.isClassDeclaration(stmt) && stmt.name !== undefined) {
-			member = memberOf({ sf, path, node: stmt, name: stmt.name.text, kind: "ClassDeclaration" });
-			outline.classes.push(member);
+			push(stmt.name.text, "ClassDeclaration", stmt);
 		} else if (ts.isInterfaceDeclaration(stmt)) {
-			member = memberOf({ sf, path, node: stmt, name: stmt.name.text, kind: "InterfaceDeclaration" });
-			outline.interfaces.push(member);
+			push(stmt.name.text, "InterfaceDeclaration", stmt);
 		} else if (ts.isFunctionDeclaration(stmt) && stmt.name !== undefined) {
-			member = memberOf({ sf, path, node: stmt, name: stmt.name.text, kind: "FunctionDeclaration" });
-			outline.functions.push(member);
+			push(stmt.name.text, "FunctionDeclaration", stmt);
+		} else if (ts.isTypeAliasDeclaration(stmt)) {
+			push(stmt.name.text, "TypeAliasDeclaration", stmt);
+		} else if (ts.isModuleDeclaration(stmt) && ts.isIdentifier(stmt.name)) {
+			push(stmt.name.text, "ModuleDeclaration", stmt);
 		} else if (ts.isVariableStatement(stmt)) {
 			for (const decl of stmt.declarationList.declarations) {
 				if (ts.isIdentifier(decl.name)) {
-					const vm = memberOf({ sf, path, node: stmt, name: decl.name.text, kind: "VariableDeclaration" });
+					push(decl.name.text, "VariableDeclaration", stmt);
+				}
+			}
+		}
+	}
+
+	return out;
+}
+
+/** Invariants threaded through the outline walk. */
+interface OutlineWalk {
+	path: string;
+	sf: ts.SourceFile;
+	outline: FileOutline;
+}
+
+/** Statements inside a namespace/module body, if it has a block body. */
+function moduleStatements(node: ts.ModuleDeclaration): readonly ts.Statement[] {
+	return node.body !== undefined && ts.isModuleBlock(node.body) ? node.body.statements : [];
+}
+
+/**
+ * Classify each statement into the outline buckets, recursing into namespaces so members get
+ * a dotted path (`Events.onClick`) — mirrors the ts-morph engine's outlineDeclarations.
+ */
+function walkOutline(walk: OutlineWalk, statements: readonly ts.Statement[], prefix: string): void {
+	const { sf, path, outline } = walk;
+	const dotted = (name: string): string => (prefix === "" ? name : `${prefix}.${name}`);
+
+	for (const stmt of statements) {
+		let member: Member | undefined;
+
+		if (ts.isClassDeclaration(stmt) && stmt.name !== undefined) {
+			member = memberOf({ sf, path, node: stmt, kind: "ClassDeclaration", name: dotted(stmt.name.text) });
+			outline.classes.push(member);
+		} else if (ts.isInterfaceDeclaration(stmt)) {
+			member = memberOf({ sf, path, node: stmt, name: dotted(stmt.name.text), kind: "InterfaceDeclaration" });
+			outline.interfaces.push(member);
+		} else if (ts.isFunctionDeclaration(stmt) && stmt.name !== undefined) {
+			member = memberOf({ sf, path, node: stmt, kind: "FunctionDeclaration", name: dotted(stmt.name.text) });
+			outline.functions.push(member);
+		} else if (ts.isModuleDeclaration(stmt) && ts.isIdentifier(stmt.name)) {
+			member = memberOf({ sf, path, node: stmt, kind: "ModuleDeclaration", name: dotted(stmt.name.text) });
+
+			if (isExported(stmt)) {
+				outline.exports.push(member);
+			}
+
+			walkOutline(walk, moduleStatements(stmt), dotted(stmt.name.text));
+			continue; // namespace itself isn't a class/interface/fn/var bucket
+		} else if (ts.isVariableStatement(stmt)) {
+			for (const decl of stmt.declarationList.declarations) {
+				if (ts.isIdentifier(decl.name)) {
+					const vm = memberOf({ sf, path, node: stmt, kind: "VariableDeclaration", name: dotted(decl.name.text) });
 					outline.variables.push(vm);
 
 					if (isExported(stmt)) {
@@ -231,6 +305,8 @@ export function buildOutline(path: string, text: string): FileOutline {
 					}
 				}
 			}
+
+			continue;
 		} else if (ts.isExportDeclaration(stmt) && stmt.moduleSpecifier !== undefined && ts.isStringLiteral(stmt.moduleSpecifier)) {
 			const fromModule = stmt.moduleSpecifier.text;
 
@@ -261,7 +337,6 @@ export function buildOutline(path: string, text: string): FileOutline {
 				}
 			}
 
-			// skip adding `member` for export declarations — handled above
 			continue;
 		}
 
@@ -269,8 +344,6 @@ export function buildOutline(path: string, text: string): FileOutline {
 			outline.exports.push(member);
 		}
 	}
-
-	return outline;
 }
 
 /** Member declarations of a class/interface/namespace at a given position. */

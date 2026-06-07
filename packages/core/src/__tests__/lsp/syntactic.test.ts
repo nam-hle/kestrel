@@ -1,6 +1,6 @@
 import { it, expect, describe } from "vitest";
 
-import { classifyAt, buildOutline, parseImports, functionSkeleton } from "../../lsp/syntactic.js";
+import { classifyAt, buildOutline, parseImports, topLevelExports, functionSkeleton } from "../../lsp/syntactic.js";
 
 const consumer = `import { makeCircle, Circle } from "./shapes.js";
 
@@ -67,6 +67,59 @@ describe("buildOutline", () => {
 	it("captures generic type parameters", () => {
 		const o = buildOutline("src/shapes.ts", shapes);
 		expect(o.interfaces.find((m) => m.name === "Box")!.typeParameters).toEqual(["T", "U"]);
+	});
+
+	it("recurses into namespaces with dotted member names", () => {
+		const nested = `export namespace Model {
+	export interface Node { id: string; }
+	export namespace Inner {
+		export interface Node { deep: boolean; }
+	}
+}
+
+export namespace Runtime {
+	export interface Node { live: boolean; }
+}
+`;
+		const o = buildOutline("src/nested.ts", nested);
+
+		// Nested interfaces are bucketed with their dotted path (mirrors the ts-morph engine).
+		expect(o.interfaces.map((m) => m.name).sort()).toEqual(["Model.Inner.Node", "Model.Node", "Runtime.Node"]);
+		// Namespaces + members appear in exports with dotted paths.
+		expect(o.exports.map((m) => m.name).sort()).toEqual(["Model", "Model.Inner", "Model.Inner.Node", "Model.Node", "Runtime", "Runtime.Node"]);
+	});
+
+	it("buckets namespaced consts and functions by kind", () => {
+		const ns = `export namespace Events {
+	export const onClick = 1;
+	export function handle(): void {}
+}
+`;
+		const o = buildOutline("src/events.ts", ns);
+
+		expect(o.variables.map((m) => m.name)).toEqual(["Events.onClick"]);
+		expect(o.functions.map((m) => m.name)).toEqual(["Events.handle"]);
+	});
+});
+
+describe("topLevelExports", () => {
+	it("lists top-level exports incl. type aliases, namespace as one entry (not its members)", () => {
+		const src = `export namespace Events {
+	export const onClick = 1;
+	export function handle(): void {}
+}
+export type Area = "a" | "b";
+export const X = 1;
+const internal = 2;
+function notExported(): void {}
+`;
+		const names = topLevelExports("src/s.ts", src)
+			.map((m) => m.name)
+			.sort();
+
+		// Namespace is ONE entry; its members are NOT in the surface; type alias included;
+		// non-exported decls excluded.
+		expect(names).toEqual(["Area", "Events", "X"]);
 	});
 });
 
