@@ -73,21 +73,41 @@ once it ships an embeddable find-references API.
 **CLI** — one-shot semantic queries (JSON output; `outline-file` prints a compact tree):
 
 ```bash
-kestrel resolve src/foo.ts:Bar --tsconfig tsconfig.json
-kestrel refs src/foo.ts:Bar --tsconfig tsconfig.json --exclude-tests
-kestrel outline-file src/foo.ts --tsconfig tsconfig.json
+npx @kestrel/cli resolve src/foo.ts:Bar --tsconfig tsconfig.json
+npx @kestrel/cli refs src/foo.ts:Bar --tsconfig tsconfig.json --exclude-tests
+npx @kestrel/cli outline-file src/foo.ts --tsconfig tsconfig.json
 ```
 
-**MCP** — the same operations as MCP tools over stdio, holding the ts-morph project warm
-across calls (no per-call cold start). Point an MCP host at the server binary:
+(After a global install — `npm i -g @kestrel/cli` — the binary is just `kestrel`.) Add
+`--engine lsp` to any command to use the tsgo-backed engine instead of the ts-morph default.
+
+**MCP** — the same operations as MCP tools over stdio, holding the project warm across calls
+(no per-call cold start). The server runs via `npx @kestrel/mcp`. Host setup:
+
+_Claude Code_ — `.claude/mcp.json` (or via `claude mcp add`):
 
 ```json
-{ "mcpServers": { "kestrel": { "command": "kestrel-mcp" } } }
+{ "mcpServers": { "kestrel": { "command": "npx", "args": ["-y", "@kestrel/mcp"] } } }
+```
+
+_Cursor_ — `~/.cursor/mcp.json` (or `.cursor/mcp.json` in the project):
+
+```json
+{ "mcpServers": { "kestrel": { "command": "npx", "args": ["-y", "@kestrel/mcp"] } } }
+```
+
+_Codex_ — `~/.codex/config.toml`:
+
+```toml
+[mcp_servers.kestrel]
+command = "npx"
+args = ["-y", "@kestrel/mcp"]
 ```
 
 Tools: `resolve`, `search`, `definition`, `usages`, `calls`, `implementations`,
 `outline_file`, `outline_symbol`, `outline_function`, `imports`, `surface`, `usage_report`.
-Each takes a `tsConfig` argument; the engine is cached per tsconfig.
+Each takes a `tsConfig` argument (engine cached per tsconfig); pass `engine: "lsp"` to opt
+into the tsgo backend.
 
 ## Development
 
