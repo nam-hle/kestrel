@@ -9,6 +9,7 @@ import { Node, Project } from "ts-morph";
 import type { SourceFile } from "ts-morph";
 
 import { classifyReference } from "./usages.js";
+import type { SymbolEngine } from "./symbol-engine.js";
 import { buildCallHierarchy } from "./call-hierarchy.js";
 import { buildFileOutline, buildSymbolOutline, buildFunctionOutline } from "./outline.js";
 import {
@@ -68,7 +69,7 @@ function namedAncestor(node: Node): Node | undefined {
 	return undefined;
 }
 
-export class Engine {
+export class Engine implements SymbolEngine {
 	#project: Project | undefined;
 
 	public constructor(private readonly options: EngineOptions) {}

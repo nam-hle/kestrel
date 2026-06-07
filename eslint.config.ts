@@ -17,7 +17,11 @@ const configs: ConfigArray = tsEslint.config(
 	},
 	{
 		files: ["**/*.test.ts"],
-		...vitest.configs.recommended
+		...vitest.configs.recommended,
+		rules: {
+			...vitest.configs.recommended.rules,
+			"vitest/expect-expect": ["error", { assertFunctionNames: ["expect", "expectTypeOf"] }]
+		}
 	}
 );
 
