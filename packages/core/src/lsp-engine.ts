@@ -249,7 +249,12 @@ export class LspEngine {
 
 	public async findUsages(symbol: SymbolHandle, options?: FindUsagesOptions): Promise<UsagesResult> {
 		const { file, segments } = parseQualifiedName(symbol.qualifiedName);
-		const locs = await this.#locations("textDocument/references", file, segments, { context: { includeDeclaration: false } });
+		// includeDeclaration:true — tsgo otherwise drops import sites along with the declaration,
+		// undercounting vs ts-morph. We keep imports and filter only the declaration itself,
+		// keyed by the declaration's NAME-token position (tsgo returns refs at the name token).
+		const hits = await this.#hits(file, segments);
+		const declKeys = new Set(hits.map((h) => `${file}:${h.position.line + 1}:${h.position.character + 1}`));
+		const locs = await this.#locations("textDocument/references", file, segments, { context: { includeDeclaration: true } });
 
 		const seen = new Set<string>();
 		const all = [];
@@ -258,7 +263,7 @@ export class LspEngine {
 			const position = locationToPosition(loc, this.#root);
 			const key = `${position.file}:${position.line}:${position.col}`;
 
-			if (seen.has(key)) {
+			if (seen.has(key) || declKeys.has(key)) {
 				continue;
 			}
 

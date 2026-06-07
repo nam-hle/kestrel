@@ -1,148 +1,43 @@
-# kestrel — tsgo (Door 2) spike spec
+# kestrel — tsgo engine notes
 
-Question: can kestrel swap its engine from ts-morph to tsgo's programmatic API **while
-staying in Node** — getting tsgo's ~10x typecheck speed without a Go rewrite?
+How kestrel can run on tsgo (the native TypeScript port) for speed, and the opt-in `LspEngine`
+that does it. Background: tsgo is an escape hatch for cold-start, not a differentiator — the
+differentiator is the output layer. ts-morph stays the default.
 
-This is a **throwaway spike**, not a migration. Deferred per the [ROADMAP](./ROADMAP.md):
-tsgo is an escape hatch for cold-start, not a differentiator. Run this only to keep the
-option warm / when cold-start complaints arrive.
+## Which door (decided)
 
-## Three doors (recap)
+- **Door 1 — Go-native embeddable API.** Not viable: no committed stable Go embedding API.
+- **Door 2 — programmatic JS API** (`@typescript/native-preview/unstable/{sync,async,fs,proto}`).
+  Spiked 2026-06-07: exposes typechecker primitives only (Checker/Program/Symbol) — **no
+  find-references / implementations / language-service**. Using it would mean reinventing
+  tsserver on the raw checker. Rejected.
+- **Door 3 — tsgo as an LSP subprocess. CHOSEN + built.** `tsgo --lsp --stdio` advertises
+  references/implementations/definition/callHierarchy/documentSymbol/rename — the full op set.
+  This is how every tsgo-based tool (e.g. lsmcp) gets refs/impls. Byte offsets stay internal,
+  translated to kestrel's `file:Name` + 1-based contract at the boundary.
 
-- **Door 1** — Go-native embeddable API (what VISION planned). NOT viable: no committed
-  stable Go embedding API (discussion only). Stays deferred.
-- **Door 2** — programmatic API from Node via `@typescript/native-preview`. The sleeper —
-  this spike.
-- **Door 3** — tsgo as an LSP server (subprocess). **CHOSEN.** Spiked + works (see Door-3
-  Results). Byte offsets stay internal, translated to kestrel's contract at the boundary —
-  tsgo-as-backend is correct (engine is swappable; the differentiator is the output layer).
-  This is how every tsgo-based tool (e.g. lsmcp) actually gets refs/impls; the embeddable API
-  cannot (Door 2 Results). Earlier "rejected" note was wrong.
+`@typescript/native-preview` is WIP (`7.0.0-dev.*`), API/protocol churns — pin the version.
 
-## Package reality (verify at spike time)
+## LspEngine (built 2026-06-07)
 
-- `@typescript/native-preview` exists (e.g. `7.0.0-dev.*`). Explicitly WIP, API churns.
-- `@typescript/api` does NOT exist on npm (404). The embeddable JS API ships under
-  `@typescript/native-preview/unstable/{sync,async,fs,proto}`. Confirmed 2026-06-07: the
-  surface is typechecker-level (Checker/Program/Symbol), with **no references/implementations**
-  yet — see Results.
-
-## What the spike must answer (pass/fail rubric)
-
-1. **Surface exists** — does the programmatic API expose, callable from Node:
-   - find-all-references for a symbol → list of locations,
-   - find-implementations of an interface,
-   - go-to-definition.
-     PASS = all three reachable without spawning an LSP process. FAIL = must go through LSP
-     (that's Door 3, rejected).
-
-2. **Addressing in / out** — can a reference be requested by a stable identity (or at least a
-   resolvable position) and results mapped back to kestrel's `file:Name` scheme without
-   byte-offset bookkeeping leaking into the public API? PASS = kestrel's addressing model
-   survives. FAIL = the API forces offset-centric round-tripping.
-
-3. **Speedup is real** — on a mid-size repo, cold load + a batch of refs/impls queries:
-   measure wall-time vs the current ts-morph engine. PASS = meaningfully faster (target ≥3x
-   on cold load; the headline claim is ~10x typecheck). FAIL = parity or slower.
-
-4. **Parity** — do refs/impls results match ts-morph's on the kestrel test fixtures +
-   one real repo (same symbols found, no misses)? PASS = equal or better. FAIL = gaps.
-
-5. **Stability** — does the same code run across two consecutive preview releases, or does
-   the API break? Note churn risk explicitly.
-
-## Method
-
-- Throwaway branch `spike/tsgo-engine`. Do NOT touch `packages/core/src/engine.ts` on main.
-- Add `@typescript/native-preview` as a spike-only dep.
-- Write a tiny standalone script (not wired into the engine) that:
-  1. loads a project via the programmatic API,
-  2. runs find-references + find-implementations on 3-5 known symbols,
-  3. prints results + timings,
-  4. diffs results against `kestrel refs` / `kestrel impls` on the same symbols.
-- Record findings in this file under a "Results" section. Delete the branch after.
-
-## Decision gate
-
-Adopt tsgo (Door 2) only if: rubric 1+2+4 PASS (surface + addressing + parity) AND (3 PASS
-OR cold-start is an active user complaint). Otherwise keep ts-morph; revisit next preview.
-
-## Results (2026-06-07)
-
-Ran on `@typescript/native-preview@7.0.0-dev.20260606.1`.
-
-**Package reality, corrected:** `@typescript/api` does NOT exist on npm (404). The programmatic
-JS API ships inside `@typescript/native-preview` under `./unstable/sync`, `./unstable/async`,
-`./unstable/fs`, `./unstable/proto` (package description: "Preview CLI and JS API for the
-native TypeScript compiler port").
-
-**Rubric #1 (surface exists): FAIL.** `unstable/sync` exports compiler/typechecker primitives —
-`API, Project, Program, Checker, Symbol, Signature, Emitter`, plus flag enums. `Checker` exposes
-`getSymbolAtLocation`, `getSymbolAtPosition`, `getTypeOfSymbol`, etc. But there is **no
-find-references, no get-implementations, no language-service** in the programmatic surface.
-Those ops live in the LSP layer (Door 3), not the embeddable API.
-
-**Consequence:** to use Door 2, kestrel would have to reimplement find-references /
-find-implementations on top of the raw checker (walk every file, resolve each identifier's
-symbol, compare) — i.e. rebuild what ts-morph/tsserver give for free. That contradicts the
-thesis ("borrow proven semantics, don't reinvent the typechecker"). Rubrics 2-5 not worth
-running until #1 passes.
-
-**Decision: keep ts-morph. Door 2 deferred.** Re-run this spike on a future preview; the gate
-is the programmatic API exposing references + implementations without spawning an LSP process.
-Branch + dep torn down (not merged).
-
-## Door 3 — Results (2026-06-07): PASS, this is the path
-
-Spiked `tsgo --lsp --stdio` end-to-end on the kestrel fixtures.
-
-- **Transport works.** Spawn the `tsgo` bin (from `@typescript/native-preview`) with
-  `--lsp --stdio`, speak LSP over stdio (Content-Length framing + JSON-RPC).
-- **Capabilities advertised on initialize:** `referencesProvider`, `implementationProvider`,
-  `definitionProvider`, `callHierarchyProvider`, `documentSymbolProvider`,
-  `workspaceSymbolProvider`, `renameProvider`, and more — the full kestrel op set, plus rename
-  for a future modify phase.
-- **References verified live.** initialize → (answer the server's `workspace/configuration` +
-  `client/registerCapability` requests — NOT answering them hangs the handshake) → initialized
-  → `textDocument/didOpen` → `textDocument/references` at the symbol position → real locations
-  matching the ts-morph engine's result (e.g. `makeCircle` → consumer.ts + e2e/usage.ts).
-- **Output maps cleanly to kestrel's contract:** strip `file://<root>/` for the relative path;
-  LSP 0-based line/char → kestrel 1-based. Byte offsets never leave the adapter.
-
-**Architecture for the LspEngine** (next build session, see /tmp/kestrel-door3-handoff.md):
-spawn one warm tsgo LSP per project root; bridge `file:Name` → a position (cheap: parse the
-file / reuse a light AST pass to find the name's location) → LSP request → translate locations
-back to kestrel types. Additive + opt-in; ts-morph stays default. The addressing bridge
-(name → position) is the main design choice.
-
-**Open caveats:** preview API/protocol churn; subprocess lifecycle + shutdown; warmth (one per
-root); first query waits for project index (saw ~1.5s before references resolved on the tiny
-fixture — measure on a real repo).
-
-## LspEngine — built (2026-06-07)
-
-The opt-in `LspEngine` is implemented in `packages/core` (additive; ts-morph `Engine` stays
-the default). Design + plan: `docs/superpowers/specs/2026-06-07-lsp-engine-design.md`,
+Opt-in, in `packages/core`, additive. Design + plan:
+`docs/superpowers/specs/2026-06-07-lsp-engine-design.md`,
 `docs/superpowers/plans/2026-06-07-lsp-engine.md`.
 
 - **Shape:** a `SymbolEngine` interface both engines satisfy; `LspEngine` is the async form
-  (`AsyncSymbolEngine`). Semantic ops (resolve/refs/impls/definition/callHierarchy) go to a
-  warm `tsgo --lsp` subprocess; syntactic ops (imports, outline, function skeleton) go to a
-  `ts.createSourceFile` parser — the LSP can't serve those. Output stays kestrel's contract
-  (`file:Name` + 1-based positions); LSP offsets never leave the adapter.
-- **Addressing bridge:** `file:Name` → position via tsgo's own `documentSymbol` tree (no
-  second semantic engine). Re-exports: tsgo lists an `export { X } from` specifier as a
-  Variable at the barrel; a single `textDocument/definition` hop reaches the true declaration.
-- **Lifecycle:** lazy spawn, one tsgo per engine, warm for its lifetime, killed on
-  `dispose()`. Client drains stderr and times out requests (30s) so a hung subprocess can't
-  deadlock the engine.
-- **Tests:** parity tests vs the ts-morph engine on the synthetic fixtures (resolve position,
-  refs, impls, imports). All gated to skip when the tsgo bin is absent; they run in CI.
+  (`AsyncSymbolEngine`). Semantic ops (resolve/refs/impls/definition/callHierarchy) → a warm
+  `tsgo --lsp` subprocess; syntactic ops (imports, outline, function skeleton) → a
+  `ts.createSourceFile` parser (the LSP can't serve those).
+- **Addressing bridge:** `file:Name` → position via tsgo's own `documentSymbol` tree (no second
+  semantic engine). Re-exports: tsgo lists an `export { X } from` specifier as a Variable at the
+  barrel; a `textDocument/definition` hop reaches the true declaration.
+- **Lifecycle:** lazy spawn, one tsgo per engine, warm for its lifetime, killed on `dispose()`.
+  The client answers the server's `workspace/configuration` + `client/registerCapability`
+  requests (else the handshake hangs), drains stderr, and times out requests (30s).
+- **Tests:** parity vs the ts-morph engine on synthetic fixtures; gated to skip when the tsgo
+  bin is absent, run in CI.
 
-### Perf — first real-repo A/B (ts-morph vs tsgo-LSP)
-
-Throwaway harness (outside the repo) on a 743-LOC real file, querying both engines through
-the public API. tsgo wins on every axis:
+## Perf — real-repo A/B (743-LOC file)
 
 | metric                    | ts-morph | tsgo-LSP | speedup |
 | ------------------------- | -------: | -------: | ------: |
@@ -150,15 +45,18 @@ the public API. tsgo wins on every axis:
 | findUsages (hot symbol)   |   762 ms |    79 ms |    9.6x |
 | outlineFile               |    12 ms |     3 ms |      4x |
 
-This confirms the thesis behind keeping tsgo on the table: the cold-start + heavy-refs cost is
-where ts-morph hurts, and tsgo erases most of it.
+## Parity (verified)
 
-### Known parity gap (open)
+Both engines produce identical reference sets — same positions, not just counts (36/36, 6/6,
+2/2 on the symbols tried). Two divergences found on a real file and fixed:
 
-On the same real file the two engines disagreed on reference COUNTS for some symbols (e.g. 36
-vs 26 on one interface; 6 vs 3 on a class; one `const` returned 0 refs from tsgo vs 2 from
-ts-morph). The synthetic fixtures did not expose this. Before claiming "parity", reconcile:
-whether ts-morph counts type-position / re-export-site references that tsgo's
-`textDocument/references` omits (or the reverse), and why a `const` (kind=Constant) yielded no
-references through the LSP path. This does not block the engine (opt-in; ts-morph default) but
-gates any parity claim. Track as the next investigation.
+1. **Imports undercounted.** tsgo's `references` with `includeDeclaration:false` drops import
+   sites with the declaration. Fix: request `includeDeclaration:true`, filter only the
+   declaration's own name-token position — keep imports/re-exports.
+2. **Body-locals leaked.** tsgo's `documentSymbol` descends into function bodies + variable
+   initializers; ts-morph's resolver does not, so a bare name collided a top-level `const` with
+   a same-named method-body local (false "ambiguous"). Fix: the bridge marks any symbol under a
+   Function/Method/Constructor/Variable/Constant ancestor as a body-local and excludes it from
+   bare-segment matches — mirroring ts-morph's `outlineDeclarations`.
+
+Both have regression tests (`bridge.test.ts`, `lsp-engine.test.ts`).
