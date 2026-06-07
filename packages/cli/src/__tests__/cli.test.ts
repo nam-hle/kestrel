@@ -1,3 +1,4 @@
+import { tmpdir } from "node:os";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
 import { join, dirname } from "node:path";
@@ -10,6 +11,7 @@ import { createRequire } from "node:module";
  * The nadle `testUnit` task depends on `build`, so this is guaranteed in CI.
  */
 import { execFile } from "node:child_process";
+import { mkdtempSync, readFileSync } from "node:fs";
 
 import { it, expect, describe } from "vitest";
 
@@ -51,6 +53,26 @@ async function run(args: string[]): Promise<{ code: number; stdout: string; stde
 			stderr: err.stderr ?? "",
 			code: typeof err.code === "number" ? err.code : 1
 		};
+	}
+}
+
+/**
+ * Run the CLI with the home dir pointed at `home` so the gain ledger lands in an
+ * isolated dir. `os.homedir()` reads `USERPROFILE` on Windows and `HOME` elsewhere,
+ * so set both.
+ */
+async function runWithHome(home: string, args: string[]): Promise<{ code: number; stdout: string; stderr: string }> {
+	try {
+		const { stdout, stderr } = await execFileAsync(process.execPath, [CLI_BIN, ...args], {
+			timeout: 20_000,
+			env: { ...process.env, HOME: home, USERPROFILE: home }
+		});
+
+		return { stdout, stderr, code: 0 };
+	} catch (error) {
+		const err = error as NodeJS.ErrnoException & { code?: number; stdout?: string; stderr?: string };
+
+		return { stdout: err.stdout ?? "", stderr: err.stderr ?? "", code: typeof err.code === "number" ? err.code : 1 };
 	}
 }
 
@@ -180,6 +202,24 @@ describe("CLI integration", () => {
 			expect(code).toBe(0);
 			expect(stdout).toContain("src/shapes.ts:makeCircle");
 			expect(stdout).not.toContain('"kind"');
+		}, 20_000);
+	});
+
+	describe("gain", () => {
+		it("records a query to the ledger and reports a summary", async () => {
+			const home = mkdtempSync(join(tmpdir(), "kestrel-gain-cli-"));
+
+			const query = await runWithHome(home, ["find", "refs", "--tsconfig", TSCONFIG, "src/shapes.ts:makeCircle"]);
+			expect(query.code).toBe(0);
+
+			const ledger = readFileSync(join(home, ".kestrel", "gain.jsonl"), "utf8").trim();
+			expect(ledger).not.toBe("");
+			expect(JSON.parse(ledger.split("\n")[0]!)).toMatchObject({ op: "find refs" });
+
+			const gain = await runWithHome(home, ["gain"]);
+			expect(gain.code).toBe(0);
+			expect(gain.stdout).toContain("queries:");
+			expect(gain.stdout).toContain("find refs");
 		}, 20_000);
 	});
 });
