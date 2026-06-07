@@ -1,6 +1,6 @@
 import { it, expect, describe } from "vitest";
 
-import { uriToRelative, lspToPosition, locationToPosition } from "../../lsp/translate.js";
+import { uriToRelative, lspToPosition, asLocationOrNull, locationToPosition } from "../../lsp/translate.js";
 
 const root = "/abs/project";
 
@@ -10,7 +10,9 @@ describe("uriToRelative", () => {
 	});
 
 	it("normalizes backslashes (Windows uris)", () => {
-		expect(uriToRelative("file:///abs/project/src/a.ts", root)).toBe("src/a.ts");
+		// A real Windows-style URI with backslashes + drive root; expect forward-slashed relative.
+		const winRoot = "C:/proj";
+		expect(uriToRelative("file:///C:\\proj\\src\\a.ts", winRoot)).toBe("src/a.ts");
 	});
 });
 
@@ -24,5 +26,28 @@ describe("locationToPosition", () => {
 	it("builds a kestrel Position from an LSP Location", () => {
 		const loc = { uri: "file:///abs/project/src/shapes.ts", range: { end: { line: 4, character: 19 }, start: { line: 4, character: 13 } } };
 		expect(locationToPosition(loc, root)).toEqual({ line: 5, col: 14, file: "src/shapes.ts" });
+	});
+});
+
+describe("asLocationOrNull", () => {
+	const range = { end: { line: 0, character: 6 }, start: { line: 0, character: 0 } };
+
+	it("passes a plain Location through", () => {
+		const loc = { range, uri: "file:///x.ts" };
+		expect(asLocationOrNull(loc)).toEqual(loc);
+	});
+
+	it("normalizes a LocationLink (targetUri/targetRange) to a Location", () => {
+		const link = { targetRange: range, targetUri: "file:///x.ts", targetSelectionRange: range };
+		expect(asLocationOrNull(link)).toEqual({ range, uri: "file:///x.ts" });
+	});
+
+	it("returns null for a lazy/rangeless location (no range, no targetUri)", () => {
+		expect(asLocationOrNull({ uri: "file:///x.ts" })).toBeNull();
+	});
+
+	it("returns null for null/undefined", () => {
+		expect(asLocationOrNull(null)).toBeNull();
+		expect(asLocationOrNull(undefined)).toBeNull();
 	});
 });

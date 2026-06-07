@@ -89,4 +89,69 @@ describe.skipIf(!binAvailable)("LspEngine", () => {
 		// True declaration lives in shapes.ts, not the barrel.
 		expect(r.symbol.position.file).toBe("src/shapes.ts");
 	}, 30_000);
+
+	it("publicSurface expands re-exports, matching the ts-morph engine", async () => {
+		// barrel.ts: export { Circle, makeCircle } + export type { Shape } + export * from square.
+		const names = (s: { qualifiedName: string }[]) => s.map((c) => c.qualifiedName.split(":")[1]!.split(".")[0]).sort();
+		const lspSurface = await lsp.publicSurface("src/barrel.ts");
+		const baseline = tsmorph.publicSurface("src/barrel.ts");
+
+		// The LSP surface must include the re-exported symbols, not be empty/own-only.
+		expect(names(lspSurface)).toContain("Circle");
+		expect(names(lspSurface)).toContain("makeCircle");
+		expect(names(lspSurface)).toContain("Square"); // via export *
+		// Same set of names as the ts-morph baseline.
+		expect([...new Set(names(lspSurface))]).toEqual([...new Set(names(baseline))]);
+	}, 30_000);
+
+	it("outlineSymbol matches the ts-morph engine for a class", async () => {
+		const r = await lsp.resolveSymbol("src/shapes.ts:Circle");
+		const b = tsmorph.resolveSymbol("src/shapes.ts:Circle");
+
+		if (r.kind !== "symbol" || b.kind !== "symbol") {
+			throw new Error("expected symbol");
+		}
+
+		const lspMembers = (await lsp.outlineSymbol(r.symbol)).map((m) => m.name).sort();
+		const tsmMembers = tsmorph
+			.outlineSymbol(b.symbol)
+			.map((m) => m.name)
+			.sort();
+
+		expect(lspMembers).toContain("area");
+		expect(lspMembers).toEqual(tsmMembers);
+	}, 30_000);
+
+	it("outlineFunction returns a statement skeleton", async () => {
+		const r = await lsp.resolveSymbol("src/consumer.ts:totalArea");
+
+		if (r.kind !== "symbol") {
+			throw new Error("expected symbol");
+		}
+
+		const skeleton = await lsp.outlineFunction(r.symbol);
+
+		expect(skeleton.length).toBeGreaterThan(0);
+		expect(skeleton.every((s) => s.position.file === "src/consumer.ts")).toBe(true);
+	}, 30_000);
+
+	it("callHierarchy finds incoming callers", async () => {
+		// averageArea is called by AreaService.compute / makeCalculators / makeSelectors.
+		const r = await lsp.resolveSymbol("src/consumer.ts:averageArea");
+
+		if (r.kind !== "symbol") {
+			throw new Error("expected symbol");
+		}
+
+		const tree = await lsp.callHierarchy(r.symbol, { depth: 1, direction: "incoming" });
+
+		expect(tree.length).toBeGreaterThan(0);
+	}, 30_000);
+
+	it("usageReport returns entries for an entry file's surface", async () => {
+		const report = await lsp.usageReport("src/shapes.ts");
+
+		expect(report.length).toBeGreaterThan(0);
+		expect(report.every((e) => typeof e.total === "number" && typeof e.consumed === "number")).toBe(true);
+	}, 30_000);
 });

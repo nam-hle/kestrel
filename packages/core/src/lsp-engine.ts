@@ -12,8 +12,8 @@ import { parseQualifiedName } from "./resolve.js";
 import { LspSymbolKind } from "./lsp/protocol.js";
 import { resolveInSymbols } from "./lsp/bridge.js";
 import type { LspLocation, LspPosition, DocumentSymbol } from "./lsp/protocol.js";
-import { lspToPosition, uriToRelative, locationToPosition } from "./lsp/translate.js";
-import { classifyAt, buildOutline, parseImports, functionSkeleton, outlineSymbolMembers } from "./lsp/syntactic.js";
+import { lspToPosition, uriToRelative, asLocationOrNull, locationToPosition } from "./lsp/translate.js";
+import { classifyAt, buildOutline, parseImports, parseReExports, functionSkeleton, outlineSymbolMembers } from "./lsp/syntactic.js";
 import type {
 	Member,
 	CallNode,
@@ -38,6 +38,27 @@ export interface LspEngineOptions {
 }
 
 const isTestFile = (file: string): boolean => /(\.test\.|\.spec\.|\/__tests__\/|\/e2e\/)/.test(file);
+
+/** An LSP call-hierarchy item (subset we use). */
+interface CallItem {
+	uri: string;
+	name: string;
+	selectionRange: { start: LspPosition };
+}
+
+/** Invariants threaded through a call-hierarchy walk. */
+interface CallWalk {
+	client: LspClient;
+	seen: Set<string>;
+	direction: "incoming" | "outgoing";
+}
+
+/** An LSP result (array | single | null) → a clean LspLocation[], LocationLinks normalized, rangeless dropped. */
+function normalizeLocations(result: unknown): LspLocation[] {
+	const raw = Array.isArray(result) ? result : result === null || result === undefined ? [] : [result];
+
+	return raw.map(asLocationOrNull).filter((loc): loc is LspLocation => loc !== null);
+}
 
 export class LspEngine {
 	#client: LspClient | undefined;
@@ -154,26 +175,35 @@ export class LspEngine {
 	/** Follow textDocument/definition from a position; returns the first result, or undefined. */
 	async #followDefinition(relPath: string, position: LspPosition): Promise<Position | undefined> {
 		const client = await this.#ready();
-		const result = (await client.request("textDocument/definition", {
+		const result = await client.request("textDocument/definition", {
 			position,
 			textDocument: { uri: this.#uri(relPath) }
-		})) as LspLocation[] | LspLocation | null;
+		});
 
-		const locs: LspLocation[] = Array.isArray(result) ? result : result !== null ? [result] : [];
+		const locs = normalizeLocations(result);
 
 		return locs.length > 0 ? locationToPosition(locs[0]!, this.#root) : undefined;
 	}
 
 	public async searchSymbol(name: string, options?: SearchOptions): Promise<Candidate[]> {
 		const client = await this.#ready();
-		const results = (await client.request("workspace/symbol", { query: name })) as { name: string; kind: number; location: LspLocation }[] | null;
+		const results = (await client.request("workspace/symbol", { query: name })) as { name: string; location: unknown }[] | null;
 		const matches = (results ?? []).filter((r) => (options?.contains === true ? r.name.toLowerCase().includes(name.toLowerCase()) : r.name === name));
+		const candidates: Candidate[] = [];
 
-		return matches.map((r) => {
-			const position = locationToPosition(r.location, this.#root);
+		for (const r of matches) {
+			// workspace/symbol may carry a lazy (rangeless) location; skip those we can't place.
+			const loc = asLocationOrNull(r.location);
 
-			return { position, kind: "unknown", qualifiedName: `${position.file}:${r.name}` };
-		});
+			if (loc === null) {
+				continue;
+			}
+
+			const position = locationToPosition(loc, this.#root);
+			candidates.push({ position, kind: "unknown", qualifiedName: `${position.file}:${r.name}` });
+		}
+
+		return candidates;
 	}
 
 	async #locations(method: string, relPath: string, segments: string[], extra: Record<string, unknown> = {}): Promise<LspLocation[]> {
@@ -182,17 +212,13 @@ export class LspEngine {
 		const all: LspLocation[] = [];
 
 		for (const hit of hits) {
-			const result = (await client.request(method, {
+			const result = await client.request(method, {
 				position: hit.position,
 				textDocument: { uri: this.#uri(relPath) },
 				...extra
-			})) as LspLocation[] | LspLocation | null;
+			});
 
-			if (Array.isArray(result)) {
-				all.push(...result);
-			} else if (result !== null) {
-				all.push(result as LspLocation);
-			}
+			all.push(...normalizeLocations(result));
 		}
 
 		return all;
@@ -238,14 +264,18 @@ export class LspEngine {
 	#nameAt(relPath: string, range: { end: LspPosition; start: LspPosition }): string | undefined {
 		try {
 			const text = this.#read(relPath);
-			const lines = text.split("\n");
+			// Split on \n then strip a trailing \r so CRLF files don't leave \r in end-of-line names.
+			const lines = text.split("\n").map((l) => (l.endsWith("\r") ? l.slice(0, -1) : l));
 			const line = lines[range.start.line];
 
 			if (line === undefined) {
 				return undefined;
 			}
 
-			return line.slice(range.start.character, range.end.character) || undefined;
+			// Name tokens are single-line; clamp the end to this line's length defensively.
+			const end = range.end.line === range.start.line ? range.end.character : line.length;
+
+			return line.slice(range.start.character, end) || undefined;
 		} catch {
 			return undefined;
 		}
@@ -302,37 +332,35 @@ export class LspEngine {
 			const items = (await client.request("textDocument/prepareCallHierarchy", {
 				position: hit.position,
 				textDocument: { uri: this.#uri(file) }
-			})) as { uri: string; name: string; selectionRange: { start: LspPosition } }[] | null;
+			})) as CallItem[] | null;
 
 			for (const item of items ?? []) {
-				out.push(await this.#walkCalls(client, item, direction, depth));
+				out.push(await this.#walkCalls({ client, direction, seen: new Set() }, item, depth));
 			}
 		}
 
 		return out;
 	}
 
-	async #walkCalls(
-		client: LspClient,
-		item: { uri: string; name: string; selectionRange: { start: LspPosition } },
-		direction: "incoming" | "outgoing",
-		depth: number
-	): Promise<CallNode> {
+	async #walkCalls(walk: CallWalk, item: CallItem, depth: number): Promise<CallNode> {
 		const position = { file: uriToRelative(item.uri, this.#root), ...lspToPosition(item.selectionRange.start) };
 		const node: CallNode = { position, calls: [], qualifiedName: `${position.file}:${item.name}` };
+		const itemKey = `${item.uri}:${item.selectionRange.start.line}:${item.selectionRange.start.character}`;
 
-		if (depth <= 0) {
+		// Stop at the depth budget, or if this item was already expanded on this path (cycle).
+		if (depth <= 0 || walk.seen.has(itemKey)) {
 			return node;
 		}
 
-		const method = direction === "incoming" ? "callHierarchy/incomingCalls" : "callHierarchy/outgoingCalls";
-		const calls = (await client.request(method, { item })) as { to?: typeof item; from?: typeof item }[] | null;
+		walk.seen.add(itemKey);
+		const method = walk.direction === "incoming" ? "callHierarchy/incomingCalls" : "callHierarchy/outgoingCalls";
+		const calls = (await walk.client.request(method, { item })) as { to?: CallItem; from?: CallItem }[] | null;
 
 		for (const call of calls ?? []) {
-			const next = direction === "incoming" ? call.from : call.to;
+			const next = walk.direction === "incoming" ? call.from : call.to;
 
 			if (next !== undefined) {
-				node.calls.push(await this.#walkCalls(client, next, direction, depth - 1));
+				node.calls.push(await this.#walkCalls(walk, next, depth - 1));
 			}
 		}
 
@@ -369,13 +397,30 @@ export class LspEngine {
 		return hits.flatMap((hit) => functionSkeleton(file, text, hit.position, options?.depth ?? 1));
 	}
 
-	/** export * + re-export expansion: parse the entry's exports, resolve each via definition. */
+	/**
+	 * Transitive public surface: the file's own top-level declarations plus everything it
+	 * re-exports (`export { X } from`, `export * from`), resolved to the true declaration —
+	 * mirroring ts-morph's getExportedDeclarations. documentSymbol alone sees only own decls.
+	 */
 	public async publicSurface(path: string): Promise<Candidate[]> {
-		const client = await this.#ready();
-		await this.#open(client, path);
-		const symbols = (await client.request("textDocument/documentSymbol", { textDocument: { uri: this.#uri(path) } })) as DocumentSymbol[] | null;
 		const seen = new Set<string>();
 		const surface: Candidate[] = [];
+		await this.#collectSurface(path, surface, seen, new Set());
+
+		return surface;
+	}
+
+	async #collectSurface(path: string, surface: Candidate[], seen: Set<string>, visitedFiles: Set<string>): Promise<void> {
+		if (visitedFiles.has(path)) {
+			return; // re-export cycle guard
+		}
+
+		visitedFiles.add(path);
+		const client = await this.#ready();
+		await this.#open(client, path);
+
+		// Own top-level declarations.
+		const symbols = (await client.request("textDocument/documentSymbol", { textDocument: { uri: this.#uri(path) } })) as DocumentSymbol[] | null;
 
 		for (const sym of symbols ?? []) {
 			const position = this.#pos(path, sym.range.start);
@@ -387,7 +432,58 @@ export class LspEngine {
 			}
 		}
 
-		return surface;
+		// Re-exports forwarded from other modules.
+		for (const re of parseReExports(path, this.#read(path))) {
+			const target = this.#resolveModule(path, re.module);
+
+			if (target === undefined) {
+				continue;
+			}
+
+			if (re.star) {
+				await this.#collectSurface(target, surface, seen, visitedFiles);
+				continue;
+			}
+
+			// Named re-export: resolve the specific symbol to its true declaration.
+			if (re.name === undefined) {
+				continue;
+			}
+
+			const resolved = await this.resolveSymbol(`${target}:${re.name}`);
+
+			if (resolved.kind === "symbol") {
+				const key = resolved.symbol.qualifiedName;
+
+				if (!seen.has(key)) {
+					seen.add(key);
+					surface.push({ kind: "unknown", qualifiedName: key, position: resolved.symbol.position });
+				}
+			}
+		}
+	}
+
+	/** Resolve a module specifier (relative to the importing file) to a root-relative .ts path. */
+	#resolveModule(fromFile: string, specifier: string): string | undefined {
+		if (!specifier.startsWith(".")) {
+			return undefined; // bare/package specifiers are out of the project surface
+		}
+
+		const fromDir = fromFile.includes("/") ? fromFile.replace(/\/[^/]*$/, "") : "";
+		const joined = resolvePath("/", fromDir, specifier).slice(1); // normalize ./ and ../ within root
+		const base = joined.replace(/\.js$/, "").replace(/\.ts$/, "");
+
+		for (const candidate of [`${base}.ts`, `${base}.tsx`, `${base}/index.ts`]) {
+			try {
+				readFileSync(`${this.#root}/${candidate}`, "utf8");
+
+				return candidate;
+			} catch {
+				continue;
+			}
+		}
+
+		return undefined;
 	}
 
 	public async usageReport(path: string, options?: UsageReportOptions): Promise<UsageReportEntry[]> {
