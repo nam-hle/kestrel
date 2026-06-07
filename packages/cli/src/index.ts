@@ -25,10 +25,6 @@ import {
 	renderCallHierarchy
 } from "@kestrel/core";
 
-function print(text: string): void {
-	process.stdout.write(`${text}\n`);
-}
-
 /** Print text via `render` by default, or pretty JSON of `value` when jsonFlag is set. */
 function output(value: unknown, render: () => string, jsonFlag: boolean | undefined): void {
 	if (jsonFlag === true) {
@@ -135,27 +131,27 @@ const viewOutline = defineCommand({
 
 const viewFile = defineCommand({
 	meta: { name: "file", description: "Token-lean whole file: outline, plus --body for each export's source" },
-	args: { engine, tsconfig, file: fileArg, body: { type: "boolean", description: "Include each export's source" } },
+	args: { json, engine, tsconfig, file: fileArg, body: { type: "boolean", description: "Include each export's source" } },
 	async run({ args }) {
 		await withEngine(args, async (e) => {
 			const outline = await e.outlineFile(args.file);
 
 			if (args.body !== true) {
-				print(renderFileOutline(args.file, outline));
+				output(outline, () => renderFileOutline(args.file, outline), args.json);
 
 				return;
 			}
 
-			const sources = await Promise.all(
-				outline.exports.map((m) =>
-					m.qualifiedName !== undefined ? e.symbolSource({ position: m.position, qualifiedName: m.qualifiedName }) : Promise.resolve([])
+			const sources = (
+				await Promise.all(
+					outline.exports.map((m) =>
+						m.qualifiedName !== undefined ? e.symbolSource({ position: m.position, qualifiedName: m.qualifiedName }) : Promise.resolve([])
+					)
 				)
-			);
-			print(renderFileOutline(args.file, outline));
-
-			for (const src of sources.flat()) {
-				print(src.source);
-			}
+			).flat();
+			const tree = renderFileOutline(args.file, outline);
+			const body = sources.map((s) => s.source).join("\n\n");
+			output({ outline, sources }, () => `${tree}\n${body}`, args.json);
 		});
 	}
 });
