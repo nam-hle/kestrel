@@ -2,9 +2,11 @@ import { fileURLToPath } from "node:url";
 
 import { test, expect, describe } from "vitest";
 
-import { Engine } from "../index.js";
+import { Engine, LspEngine } from "../index.js";
+import { tsgoBinPath } from "../lsp/tsgo-bin.js";
 
 const tsConfigPath = fileURLToPath(new URL("./fixtures/sample/tsconfig.json", import.meta.url));
+const binAvailable = tsgoBinPath() !== undefined;
 
 describe("searchSymbol", () => {
 	test("finds every declaration of a name across the repo", () => {
@@ -41,4 +43,19 @@ describe("searchSymbol", () => {
 
 		expect(engine.searchSymbol("DoesNotExistAnywhere")).toEqual([]);
 	});
+});
+
+describe.skipIf(!binAvailable)("searchSymbol (lsp engine, cold index)", () => {
+	test("finds a symbol on the first call without any file opened first", async () => {
+		// tsgo's workspace/symbol is empty until the project is indexed; searchSymbol must
+		// warm it. This is the first call on a fresh engine — nothing opened yet.
+		const lsp = new LspEngine({ tsConfigPath });
+
+		try {
+			const hits = await lsp.searchSymbol("makeCircle");
+			expect(hits.map((h) => h.qualifiedName)).toContain("src/shapes.ts:makeCircle");
+		} finally {
+			await lsp.dispose();
+		}
+	}, 30_000);
 });
