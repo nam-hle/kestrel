@@ -22,12 +22,12 @@ function emit(value: unknown): void {
 const tsconfig = { type: "string", required: true, description: "Path to the project tsconfig.json" } as const;
 const engine = { type: "string", description: "Engine backend: tsmorph (default) or lsp (tsgo)" } as const;
 
-function engineFrom(args: { engine?: string; tsconfig: string; }): AsyncSymbolEngine {
+function engineFrom(args: { engine?: string; tsconfig: string }): AsyncSymbolEngine {
 	return createEngine({ tsConfigPath: args.tsconfig, engine: args.engine as EngineKind | undefined });
 }
 
 /** Run a command body with a fresh engine, disposing it after; clean error + non-zero exit on failure. */
-async function withEngine(args: { engine?: string; tsconfig: string; }, fn: (engine: AsyncSymbolEngine) => Promise<void>): Promise<void> {
+async function withEngine(args: { engine?: string; tsconfig: string }, fn: (engine: AsyncSymbolEngine) => Promise<void>): Promise<void> {
 	const engineInstance = engineFrom(args);
 
 	try {
