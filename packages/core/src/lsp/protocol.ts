@@ -6,8 +6,8 @@ export interface LspPosition {
 }
 
 export interface LspRange {
-	start: LspPosition;
 	end: LspPosition;
+	start: LspPosition;
 }
 
 export interface LspLocation {
@@ -28,29 +28,29 @@ export enum LspSymbolKind {
 	Function = 12,
 	Variable = 13,
 	Constant = 14,
-	TypeParameter = 26,
+	TypeParameter = 26
 }
 
 /** Hierarchical document symbol (tsgo returns this nested form). */
 export interface DocumentSymbol {
 	name: string;
-	kind: LspSymbolKind;
 	range: LspRange;
+	kind: LspSymbolKind;
 	selectionRange: LspRange;
 	children?: DocumentSymbol[];
 }
 
 export interface CallHierarchyItem {
-	name: string;
-	kind: LspSymbolKind;
 	uri: string;
+	name: string;
 	range: LspRange;
+	kind: LspSymbolKind;
 	selectionRange: LspRange;
 }
 
 export interface CallHierarchyIncomingCall {
-	from: CallHierarchyItem;
 	fromRanges: LspRange[];
+	from: CallHierarchyItem;
 }
 
 export interface CallHierarchyOutgoingCall {
