@@ -61,6 +61,40 @@ export function parseImports(path: string, text: string): ImportInfo[] {
 	return imports;
 }
 
+/** A re-export the file forwards from another module. */
+export interface ReExport {
+	/** Exported name (alias when `export { a as b }`), or undefined for `export *`. */
+	name?: string;
+	/** Whether this is `export * from` (forwards the module's whole surface). */
+	star: boolean;
+	/** Module specifier, e.g. "./shapes.js". */
+	module: string;
+}
+
+/** Re-exports of a file: `export { X } from`, `export { a as b } from`, `export * from`. */
+export function parseReExports(path: string, text: string): ReExport[] {
+	const sf = parse(path, text);
+	const out: ReExport[] = [];
+
+	for (const stmt of sf.statements) {
+		if (!ts.isExportDeclaration(stmt) || stmt.moduleSpecifier === undefined || !ts.isStringLiteral(stmt.moduleSpecifier)) {
+			continue;
+		}
+
+		const module = stmt.moduleSpecifier.text;
+
+		if (stmt.exportClause === undefined) {
+			out.push({ module, star: true });
+		} else if (ts.isNamedExports(stmt.exportClause)) {
+			for (const el of stmt.exportClause.elements) {
+				out.push({ module, star: false, name: el.name.text });
+			}
+		}
+	}
+
+	return out;
+}
+
 /** Find the identifier node at an LSP (0-based) position and classify its reference kind. */
 export function classifyAt(text: string, pos: LspPosition): ReferenceKind {
 	const sf = parse("__classify.ts", text);
@@ -151,9 +185,11 @@ interface MemberArgs {
 	path: string;
 	node: ts.Node;
 	sf: ts.SourceFile;
+	/** Override for the addressable qualifiedName (defaults to `path:name`). */
+	qualified?: string;
 }
 
-function memberOf({ sf, kind, name, node, path }: MemberArgs): Member {
+function memberOf({ sf, kind, name, node, path, qualified }: MemberArgs): Member {
 	const { col, line } = posOf(sf, node.getStart(sf));
 	const tps = typeParamsOf(node);
 
@@ -162,8 +198,8 @@ function memberOf({ sf, kind, name, node, path }: MemberArgs): Member {
 		kind,
 		signature: name,
 		exported: isExported(node),
-		qualifiedName: `${path}:${name}`,
 		position: { col, line, file: path },
+		qualifiedName: qualified ?? `${path}:${name}`,
 		...(tps !== undefined ? { typeParameters: tps } : {})
 	};
 }
@@ -251,14 +287,19 @@ export function outlineSymbolMembers(path: string, text: string, pos: LspPositio
 	const prefix = ownerName !== undefined && ts.isIdentifier(ownerName) ? ownerName.text : "";
 	const members: Member[] = [];
 
-	const push = (name: string, kind: string, node: ts.Node): void => {
-		members.push(memberOf({ sf, path, kind, node, name: prefix === "" ? name : `${prefix}.${name}` }));
+	// Mirror ts-morph buildSymbolOutline: bare member `name`, owner-prefixed `qualifiedName`,
+	// and unnamed members (constructor) named by their kind ("Constructor").
+	const push = (name: string, node: ts.Node): void => {
+		const qualified = prefix === "" ? `${path}:${name}` : `${path}:${prefix}.${name}`;
+		members.push(memberOf({ sf, path, name, node, qualified, kind: ts.SyntaxKind[node.kind] }));
 	};
 
 	if (ts.isClassDeclaration(owner) || ts.isInterfaceDeclaration(owner)) {
 		for (const m of owner.members) {
 			if (m.name !== undefined && ts.isIdentifier(m.name)) {
-				push(m.name.text, ts.SyntaxKind[m.kind], m);
+				push(m.name.text, m);
+			} else if (ts.isConstructorDeclaration(m)) {
+				push("Constructor", m);
 			}
 		}
 	}

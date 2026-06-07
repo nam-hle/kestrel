@@ -15,6 +15,14 @@ export interface LspLocation {
 	range: LspRange;
 }
 
+/** Alternative result of definition/implementation requests (LSP `LocationLink`). */
+export interface LocationLink {
+	targetUri: string;
+	targetRange: LspRange;
+	targetSelectionRange: LspRange;
+	originSelectionRange?: LspRange;
+}
+
 /** LSP SymbolKind subset we map to kestrel kind names. */
 export enum LspSymbolKind {
 	File = 1,
