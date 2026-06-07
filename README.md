@@ -70,9 +70,10 @@ once it ships an embeddable find-references API.
 
 ## Usage
 
-**CLI** — one-shot semantic queries (JSON output; `view outline` prints a compact tree).
-Commands group by intent: `view` (read code) and `find` (locate/trace), plus top-level
-`resolve` / `imports` / `exports` / `usage`:
+**CLI** — one-shot semantic queries. Output is **token-lean, address-first text** by default
+(paste a `file:line:col` or `file:Name` straight into the next query); add `--json` for the
+structured form. Commands group by intent: `view` (read code) and `find` (locate/trace), plus
+top-level `resolve` / `imports` / `exports` / `usage`:
 
 ```bash
 # read code
@@ -88,7 +89,8 @@ npx @kestrel/cli find callees src/foo.ts:Bar --tsconfig tsconfig.json
 ```
 
 (After a global install — `npm i -g @kestrel/cli` — the binary is just `kestrel`.) Add
-`--engine lsp` to any command to use the tsgo-backed engine instead of the ts-morph default.
+`--engine lsp` to any command to use the tsgo-backed engine instead of the ts-morph default,
+and `--json` for structured output.
 
 **MCP** — the same operations as MCP tools over stdio, holding the project warm across calls
 (no per-call cold start). The server runs via `npx @kestrel/mcp`. Host setup:
@@ -116,7 +118,8 @@ args = ["-y", "@kestrel/mcp"]
 Tools: `view_outline`, `view_symbol`, `view_context`, `view_region`, `view_members`,
 `view_body`, `find_symbol`, `find_def`, `find_refs`, `find_impls`, `find_callers`,
 `find_callees`, `resolve`, `imports`, `exports`, `usage_report`. Each takes a `tsConfig`
-argument (engine cached per tsconfig); pass `engine: "lsp"` to opt into the tsgo backend.
+argument (engine cached per tsconfig); pass `engine: "lsp"` for the tsgo backend, or
+`json: true` for structured output instead of the default token-lean text.
 
 ## Development
 

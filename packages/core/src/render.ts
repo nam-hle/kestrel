@@ -2,7 +2,22 @@
  * Compact text rendering of outlines — a token-lean YAML-ish tree, the default
  * agent-facing format. Namespace/owner prefixes are factored out into nesting.
  */
-import type { Member, FileOutline } from "./types.js";
+import type {
+	Member,
+	Position,
+	CallNode,
+	Candidate,
+	ImportInfo,
+	FileOutline,
+	SymbolHandle,
+	UsagesResult,
+	SourceResult,
+	RegionResult,
+	ResolveResult,
+	StatementNode,
+	SymbolContext,
+	UsageReportEntry
+} from "./types.js";
 
 interface TreeNode {
 	children: Map<string, TreeNode>;
@@ -98,4 +113,161 @@ export function renderFileOutline(file: string, outline: FileOutline): string {
 	}
 
 	return lines.join("\n");
+}
+
+/** Re-feedable address of a position: file:line:col. */
+function addr(pos: Position): string {
+	return `${pos.file}:${pos.line}:${pos.col}`;
+}
+
+/** A symbol-row: qualifiedName-first (the next-query input), kind + line after. */
+function candidateRow(c: Candidate): string {
+	return `${c.qualifiedName}\t${c.kind}\tL${c.position.line}`;
+}
+
+export function renderReferences(result: UsagesResult): string {
+	if (result.references.length === 0) {
+		return "(no references)";
+	}
+
+	const rows = result.references.map((r) => {
+		const parts = [addr(r.position), r.kind, ...(r.context !== undefined ? [r.context] : []), ...(r.test === true ? ["(test)"] : [])];
+
+		return parts.join("\t");
+	});
+	const cursor = result.nextCursor !== undefined ? ` (more: cursor ${result.nextCursor})` : "";
+
+	return `${rows.join("\n")}\n${result.total} refs${cursor}`;
+}
+
+export function renderHandles(handles: SymbolHandle[]): string {
+	if (handles.length === 0) {
+		return "(none)";
+	}
+
+	return handles.map((h) => `${addr(h.position)}\t${h.qualifiedName}`).join("\n");
+}
+
+export function renderCandidates(candidates: Candidate[]): string {
+	return candidates.length === 0 ? "(none)" : candidates.map(candidateRow).join("\n");
+}
+
+export function renderResolve(result: ResolveResult): string {
+	if (result.kind === "symbol") {
+		return `${result.symbol.qualifiedName}\tL${result.symbol.position.line}`;
+	}
+
+	if (result.kind === "ambiguous") {
+		return result.candidates.map(candidateRow).join("\n");
+	}
+
+	return result.suggestions !== undefined && result.suggestions.length > 0
+		? `not found\ndid you mean: ${result.suggestions.join(", ")}`
+		: "not found";
+}
+
+export function renderSource(sources: SourceResult[]): string {
+	if (sources.length === 0) {
+		return "(no source)";
+	}
+
+	return sources.map((s) => `${addr(s.position)}\t${s.qualifiedName}\n${s.source}`).join("\n\n");
+}
+
+export function renderRegion(r: RegionResult): string {
+	return `${r.file}:${r.startLine}-${r.endLine}\n${r.source}`;
+}
+
+export function renderMembers(members: Member[]): string {
+	return members.length === 0 ? "(no members)" : members.map((m) => `${m.name}\t${m.kind}\tL${m.position.line}`).join("\n");
+}
+
+export function renderStatements(nodes: StatementNode[], indent = ""): string {
+	if (nodes.length === 0 && indent === "") {
+		return "(empty)";
+	}
+
+	const lines: string[] = [];
+
+	for (const node of nodes) {
+		lines.push(`${indent}${node.kind}\tL${node.position.line}`);
+
+		if (node.children !== undefined && node.children.length > 0) {
+			lines.push(renderStatements(node.children, `${indent}  `));
+		}
+	}
+
+	return lines.join("\n");
+}
+
+function renderCallNodes(nodes: CallNode[], indent: string, lines: string[]): void {
+	for (const node of nodes) {
+		const name = node.qualifiedName.split(":").pop() ?? node.qualifiedName;
+		lines.push(`${indent}${name}\t${addr(node.position)}`);
+		renderCallNodes(node.calls, `${indent}  `, lines);
+	}
+}
+
+export function renderCallHierarchy(tree: CallNode[]): string {
+	if (tree.length === 0) {
+		return "(none)";
+	}
+
+	const lines: string[] = [];
+	renderCallNodes(tree, "", lines);
+
+	return lines.join("\n");
+}
+
+export function renderContext(ctx: SymbolContext): string {
+	const lines = [`${addr(ctx.position)}\t${ctx.qualifiedName}`, `sig: ${ctx.signature}`];
+
+	if (ctx.typeRefs.length > 0) {
+		lines.push(`types: ${ctx.typeRefs.join(", ")}`);
+	}
+
+	if (ctx.callees.length > 0) {
+		lines.push("callees:");
+		const calleeLines: string[] = [];
+		renderCallNodes(ctx.callees, "  ", calleeLines);
+		lines.push(...calleeLines);
+	}
+
+	lines.push("---", ctx.source);
+
+	return lines.join("\n");
+}
+
+export function renderImports(imports: ImportInfo[]): string {
+	if (imports.length === 0) {
+		return "(no imports)";
+	}
+
+	return imports
+		.map((i) => {
+			const parts = [i.module];
+
+			if (i.named.length > 0) {
+				parts.push(i.named.join(", "));
+			}
+
+			if (i.default !== undefined) {
+				parts.push(`default ${i.default}`);
+			}
+
+			if (i.namespace !== undefined) {
+				parts.push(`* as ${i.namespace}`);
+			}
+
+			return parts.join("\t");
+		})
+		.join("\n");
+}
+
+export function renderUsageReport(rows: UsageReportEntry[]): string {
+	if (rows.length === 0) {
+		return "(no exports)";
+	}
+
+	return rows.map((r) => `${r.qualifiedName}\ttotal=${r.total} consumed=${r.consumed}\t${r.kind}`).join("\n");
 }
