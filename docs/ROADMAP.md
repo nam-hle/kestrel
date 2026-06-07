@@ -57,9 +57,10 @@ that gets absorbed, not market share.
 
 - **tsgo engine** — escape hatch for cold-start, not a differentiator (a competitor is already
   on tsgo; migrating wins nothing on its own). The viable route is **Door 3**: tsgo as an LSP
-  subprocess, translated to kestrel's output contract (spiked + working — see
-  [TSGO-SPIKE.md](./TSGO-SPIKE.md)). Build the opt-in `LspEngine` only when cold-start
-  complaints actually arrive; ts-morph stays default.
+  subprocess, translated to kestrel's output contract. The opt-in `LspEngine` is now **built**
+  (additive; ts-morph stays default) — see [TSGO-SPIKE.md](./TSGO-SPIKE.md) for the build notes,
+  a first real-repo A/B (≈2.9x cold load, ≈9.6x hot findUsages vs ts-morph), and an open
+  reference-count parity gap to reconcile before claiming parity.
 - **rename / move** — bridges do it adequately; reopens atomic-apply / rollback /
   stale-AST risk classes for little differentiation.
 - **multi-language own engine** — never. Expose the output contract as language-agnostic

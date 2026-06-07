@@ -118,3 +118,47 @@ back to kestrel types. Additive + opt-in; ts-morph stays default. The addressing
 **Open caveats:** preview API/protocol churn; subprocess lifecycle + shutdown; warmth (one per
 root); first query waits for project index (saw ~1.5s before references resolved on the tiny
 fixture — measure on a real repo).
+
+## LspEngine — built (2026-06-07)
+
+The opt-in `LspEngine` is implemented in `packages/core` (additive; ts-morph `Engine` stays
+the default). Design + plan: `docs/superpowers/specs/2026-06-07-lsp-engine-design.md`,
+`docs/superpowers/plans/2026-06-07-lsp-engine.md`.
+
+- **Shape:** a `SymbolEngine` interface both engines satisfy; `LspEngine` is the async form
+  (`AsyncSymbolEngine`). Semantic ops (resolve/refs/impls/definition/callHierarchy) go to a
+  warm `tsgo --lsp` subprocess; syntactic ops (imports, outline, function skeleton) go to a
+  `ts.createSourceFile` parser — the LSP can't serve those. Output stays kestrel's contract
+  (`file:Name` + 1-based positions); LSP offsets never leave the adapter.
+- **Addressing bridge:** `file:Name` → position via tsgo's own `documentSymbol` tree (no
+  second semantic engine). Re-exports: tsgo lists an `export { X } from` specifier as a
+  Variable at the barrel; a single `textDocument/definition` hop reaches the true declaration.
+- **Lifecycle:** lazy spawn, one tsgo per engine, warm for its lifetime, killed on
+  `dispose()`. Client drains stderr and times out requests (30s) so a hung subprocess can't
+  deadlock the engine.
+- **Tests:** parity tests vs the ts-morph engine on the synthetic fixtures (resolve position,
+  refs, impls, imports). All gated to skip when the tsgo bin is absent; they run in CI.
+
+### Perf — first real-repo A/B (ts-morph vs tsgo-LSP)
+
+Throwaway harness (outside the repo) on a 743-LOC real file, querying both engines through
+the public API. tsgo wins on every axis:
+
+| metric                    | ts-morph | tsgo-LSP | speedup |
+| ------------------------- | -------: | -------: | ------: |
+| cold load (first resolve) |  2786 ms |   962 ms |    2.9x |
+| findUsages (hot symbol)   |   762 ms |    79 ms |    9.6x |
+| outlineFile               |    12 ms |     3 ms |      4x |
+
+This confirms the thesis behind keeping tsgo on the table: the cold-start + heavy-refs cost is
+where ts-morph hurts, and tsgo erases most of it.
+
+### Known parity gap (open)
+
+On the same real file the two engines disagreed on reference COUNTS for some symbols (e.g. 36
+vs 26 on one interface; 6 vs 3 on a class; one `const` returned 0 refs from tsgo vs 2 from
+ts-morph). The synthetic fixtures did not expose this. Before claiming "parity", reconcile:
+whether ts-morph counts type-position / re-export-site references that tsgo's
+`textDocument/references` omits (or the reverse), and why a `const` (kind=Constant) yielded no
+references through the LSP path. This does not block the engine (opt-in; ts-morph default) but
+gates any parity claim. Track as the next investigation.
