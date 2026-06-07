@@ -5,7 +5,7 @@
  * no analysis logic. See docs/DESIGN.md Section 1.
  *
  * Tool names group by intent: view_* (read code), find_* (locate/trace), plus
- * top-level resolve/imports/exports/usage_report. Old names are kept as aliases.
+ * top-level resolve/imports/exports/usage_report.
  */
 import { z } from "zod";
 import { createEngine } from "@kestrel/core";
@@ -87,9 +87,9 @@ interface ToolSchema {
 type RegisterTool = (name: string, schema: ToolSchema, handler: (args: ToolArgs) => ToolResult | Promise<ToolResult>) => void;
 
 /**
- * Register a tool under its canonical name plus any back-compat aliases. The SDK's
- * registerTool is generic over the exact zod shape; we widen to a uniform (ToolArgs) handler
- * here — each tool's own inputSchema still validates args at the protocol boundary.
+ * Register a tool under one or more names. The SDK's registerTool is generic over the exact
+ * zod shape; we widen to a uniform (ToolArgs) handler here — each tool's own inputSchema still
+ * validates args at the protocol boundary.
  */
 const register = server.registerTool.bind(server) as unknown as RegisterTool;
 
@@ -117,7 +117,7 @@ tool(
 );
 
 tool(
-	["exports", "surface"],
+	["exports"],
 	{ inputSchema: { tsConfig, file: fileArg, engine: engineArg }, description: "Transitive public surface of an entry file (expands export *)." },
 	async ({ file, engine, tsConfig: tc }) => json(await engineFor(tc, kindOf(engine)).publicSurface(file!))
 );
@@ -134,7 +134,7 @@ tool(
 // ---- view: read code (structure + source) ----
 
 tool(
-	["view_outline", "outline_file"],
+	["view_outline"],
 	{
 		inputSchema: { tsConfig, file: fileArg, engine: engineArg, full: z.boolean().optional() },
 		description: "Structural outline of a file (compact tree by default; full JSON with full=true)."
@@ -174,13 +174,13 @@ tool(
 );
 
 tool(
-	["view_members", "outline_symbol"],
+	["view_members"],
 	{ description: "Members of a class / interface / namespace.", inputSchema: { tsConfig, engine: engineArg, symbol: symbolArg } },
 	async ({ symbol, engine, tsConfig: tc }) => json(await resolveOr(tc, kindOf(engine), symbol!, (e, s) => e.outlineSymbol(s)))
 );
 
 tool(
-	["view_body", "outline_function"],
+	["view_body"],
 	{
 		description: "Statement-level skeleton of a function body.",
 		inputSchema: { tsConfig, engine: engineArg, symbol: symbolArg, depth: z.number().optional() }
@@ -191,7 +191,7 @@ tool(
 // ---- find: locate + trace ----
 
 tool(
-	["find_symbol", "search"],
+	["find_symbol"],
 	{
 		inputSchema: { tsConfig, name: z.string(), engine: engineArg, contains: z.boolean().optional() },
 		description: "Find a symbol by name across the whole project (exact, or substring with contains)."
@@ -200,13 +200,13 @@ tool(
 );
 
 tool(
-	["find_def", "definition"],
+	["find_def"],
 	{ description: "Find the declaration site(s) of a symbol.", inputSchema: { tsConfig, engine: engineArg, symbol: symbolArg } },
 	async ({ symbol, engine, tsConfig: tc }) => json(await resolveOr(tc, kindOf(engine), symbol!, (e, s) => e.findDefinition(s)))
 );
 
 tool(
-	["find_refs", "usages"],
+	["find_refs"],
 	{
 		description: "Find references to a symbol, classified by kind; optionally exclude tests or attach context.",
 		inputSchema: {
@@ -224,7 +224,7 @@ tool(
 );
 
 tool(
-	["find_impls", "implementations"],
+	["find_impls"],
 	{ description: "Find implementations of an interface.", inputSchema: { tsConfig, engine: engineArg, symbol: symbolArg } },
 	async ({ symbol, engine, tsConfig: tc }) => json(await resolveOr(tc, kindOf(engine), symbol!, (e, s) => e.findImplementations(s)))
 );
@@ -247,23 +247,6 @@ tool(
 	},
 	async ({ depth, symbol, engine, tsConfig: tc }) =>
 		json(await resolveOr(tc, kindOf(engine), symbol!, (e, s) => e.callHierarchy(s, { depth, direction: "outgoing" })))
-);
-
-// Back-compat alias for the old combined `calls` tool (incoming by default; direction arg for outgoing).
-tool(
-	["calls"],
-	{
-		description: "(alias) Call hierarchy: callers (incoming) or callees (outgoing) of a symbol, to a depth.",
-		inputSchema: {
-			tsConfig,
-			engine: engineArg,
-			symbol: symbolArg,
-			depth: z.number().optional(),
-			direction: z.enum(["incoming", "outgoing"]).optional()
-		}
-	},
-	async ({ depth, symbol, engine, direction, tsConfig: tc }) =>
-		json(await resolveOr(tc, kindOf(engine), symbol!, (e, s) => e.callHierarchy(s, { depth, direction })))
 );
 
 // Dispose warm engines (and any tsgo subprocess) on shutdown. See #44 for fuller lifecycle.

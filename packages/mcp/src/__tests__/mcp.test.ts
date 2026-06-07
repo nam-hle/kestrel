@@ -147,11 +147,10 @@ describe("MCP server integration", () => {
 		expect(result.serverInfo?.name).toBe("kestrel");
 	}, 20_000);
 
-	it("tools/list includes the regularized names + new ops + back-compat aliases", async () => {
+	it("tools/list exposes the view_* / find_* tool names", async () => {
 		const result = (await client.request("tools/list", {})) as { tools: { name: string }[] };
 
 		const names = result.tools.map((t) => t.name);
-		// regularized + new ops
 		expect(names).toContain("view_outline");
 		expect(names).toContain("view_symbol");
 		expect(names).toContain("view_context");
@@ -160,10 +159,10 @@ describe("MCP server integration", () => {
 		expect(names).toContain("find_callers");
 		expect(names).toContain("find_callees");
 		expect(names).toContain("exports");
-		// back-compat aliases retained
-		expect(names).toContain("outline_file");
-		expect(names).toContain("usages");
-		expect(names).toContain("calls");
+		// old flat names are gone (no back-compat aliases pre-publish)
+		expect(names).not.toContain("outline_file");
+		expect(names).not.toContain("usages");
+		expect(names).not.toContain("calls");
 	}, 20_000);
 
 	it("tools/call resolve returns kind:symbol for makeCircle", async () => {
