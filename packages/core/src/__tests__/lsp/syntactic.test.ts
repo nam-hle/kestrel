@@ -68,6 +68,38 @@ describe("buildOutline", () => {
 		const o = buildOutline("src/shapes.ts", shapes);
 		expect(o.interfaces.find((m) => m.name === "Box")!.typeParameters).toEqual(["T", "U"]);
 	});
+
+	it("recurses into namespaces with dotted member names", () => {
+		const nested = `export namespace Model {
+	export interface Node { id: string; }
+	export namespace Inner {
+		export interface Node { deep: boolean; }
+	}
+}
+
+export namespace Runtime {
+	export interface Node { live: boolean; }
+}
+`;
+		const o = buildOutline("src/nested.ts", nested);
+
+		// Nested interfaces are bucketed with their dotted path (mirrors the ts-morph engine).
+		expect(o.interfaces.map((m) => m.name).sort()).toEqual(["Model.Inner.Node", "Model.Node", "Runtime.Node"]);
+		// Namespaces + members appear in exports with dotted paths.
+		expect(o.exports.map((m) => m.name).sort()).toEqual(["Model", "Model.Inner", "Model.Inner.Node", "Model.Node", "Runtime", "Runtime.Node"]);
+	});
+
+	it("buckets namespaced consts and functions by kind", () => {
+		const ns = `export namespace Events {
+	export const onClick = 1;
+	export function handle(): void {}
+}
+`;
+		const o = buildOutline("src/events.ts", ns);
+
+		expect(o.variables.map((m) => m.name)).toEqual(["Events.onClick"]);
+		expect(o.functions.map((m) => m.name)).toEqual(["Events.handle"]);
+	});
 });
 
 const barrelish = `export { Circle, makeCircle } from "./shapes.js";
