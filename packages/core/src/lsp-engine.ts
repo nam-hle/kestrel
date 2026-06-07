@@ -1,11 +1,11 @@
+import { pathToFileURL } from "node:url";
+import { resolve as resolvePath } from "node:path";
 /**
  * Opt-in engine backed by a warm tsgo LSP subprocess (semantic ops) + the typescript
  * native parser (syntactic ops). Implements AsyncSymbolEngine; translates LSP results to
  * kestrel's name-addressed contract. ts-morph `Engine` stays the sync default.
  */
-import { readFileSync } from "node:fs";
-import { pathToFileURL } from "node:url";
-import { resolve as resolvePath } from "node:path";
+import { readdirSync, readFileSync } from "node:fs";
 
 import { LspClient } from "./lsp/client.js";
 import { readRegionFrom } from "./region.js";
@@ -70,6 +70,45 @@ interface CallWalk {
 	direction: "incoming" | "outgoing";
 }
 
+/** First `.ts`/`.tsx` source file under `dir` (depth-first), as a root-relative path, or undefined. */
+function findFirstSource(dir: string, root: string): string | undefined {
+	let entries;
+
+	try {
+		entries = readdirSync(dir, { withFileTypes: true });
+	} catch {
+		return undefined;
+	}
+
+	const subdirs: string[] = [];
+
+	for (const entry of entries) {
+		if (entry.name === "node_modules" || entry.name.startsWith(".")) {
+			continue;
+		}
+
+		const full = `${dir}/${entry.name}`;
+
+		if (entry.isFile() && /\.tsx?$/.test(entry.name) && !entry.name.endsWith(".d.ts")) {
+			return full.slice(root.length + 1);
+		}
+
+		if (entry.isDirectory()) {
+			subdirs.push(full);
+		}
+	}
+
+	for (const sub of subdirs) {
+		const found = findFirstSource(sub, root);
+
+		if (found !== undefined) {
+			return found;
+		}
+	}
+
+	return undefined;
+}
+
 /** An LSP result (array | single | null) → a clean LspLocation[], LocationLinks normalized, rangeless dropped. */
 function normalizeLocations(result: unknown): LspLocation[] {
 	const raw = Array.isArray(result) ? result : result === null || result === undefined ? [] : [result];
@@ -79,6 +118,7 @@ function normalizeLocations(result: unknown): LspLocation[] {
 
 export class LspEngine {
 	#client: LspClient | undefined;
+	#warmed = false;
 	readonly #opened = new Set<string>();
 	readonly #root: string;
 
@@ -111,6 +151,26 @@ export class LspEngine {
 
 	#uri(relPath: string): string {
 		return pathToFileURL(`${this.#root}/${relPath}`).href;
+	}
+
+	/**
+	 * tsgo's `workspace/symbol` returns nothing until the project is indexed, which only
+	 * happens once a file is opened. Open one source file (once) to trigger project-wide
+	 * indexing before a repo-wide query. ts-morph has no such cold-start (it loads on construct).
+	 */
+	async #warmIndex(client: LspClient): Promise<void> {
+		if (this.#warmed) {
+			return;
+		}
+
+		this.#warmed = true;
+		const first = findFirstSource(this.#root, this.#root);
+
+		if (first !== undefined) {
+			await this.#open(client, first);
+			// Give the server a beat to index before the first workspace query.
+			await new Promise((res) => setTimeout(res, 200));
+		}
 	}
 
 	public async dispose(): Promise<void> {
@@ -204,6 +264,7 @@ export class LspEngine {
 
 	public async searchSymbol(name: string, options?: SearchOptions): Promise<Candidate[]> {
 		const client = await this.#ready();
+		await this.#warmIndex(client);
 		const results = (await client.request("workspace/symbol", { query: name })) as { name: string; location: unknown }[] | null;
 		const matches = (results ?? []).filter((r) => (options?.contains === true ? r.name.toLowerCase().includes(name.toLowerCase()) : r.name === name));
 		const candidates: Candidate[] = [];
