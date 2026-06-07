@@ -63,6 +63,9 @@ importers:
       '@types/node':
         specifier: ^24.13.1
         version: 24.13.1
+      vitest:
+        specifier: ^4.1.8
+        version: 4.1.8(@types/node@24.13.1)(@vitest/coverage-v8@4.1.8)(vite@8.0.16(@types/node@24.13.1)(esbuild@0.27.7)(jiti@2.7.0))
 
   packages/core:
     dependencies:
@@ -98,6 +101,9 @@ importers:
       '@types/node':
         specifier: ^24.13.1
         version: 24.13.1
+      vitest:
+        specifier: ^4.1.8
+        version: 4.1.8(@types/node@24.13.1)(@vitest/coverage-v8@4.1.8)(vite@8.0.16(@types/node@24.13.1)(esbuild@0.27.7)(jiti@2.7.0))
 
 packages:
 
@@ -393,7 +399,7 @@ packages:
       eslint: ^9.30.1
 
   '@nadle/kernel@https://pkg.pr.new/nadlejs/nadle/@nadle/kernel@2cdb0153ad1c7c68e03c2971a717f955a5589e77':
-    resolution: {tarball: https://pkg.pr.new/nadlejs/nadle/@nadle/kernel@2cdb0153ad1c7c68e03c2971a717f955a5589e77}
+    resolution: {integrity: sha512-pat7Q24UcPNgEAGEHcE47DE0f663pYDJT2+F9ZUi5NOlmUkLJllvRmqxR9z1rrKO2Vb2jI7VyiMw5sAkIdcftQ==, tarball: https://pkg.pr.new/nadlejs/nadle/@nadle/kernel@2cdb0153ad1c7c68e03c2971a717f955a5589e77}
     version: 0.0.1
     engines: {node: '>=22'}
 
@@ -404,7 +410,7 @@ packages:
       prettier: ^3.6.2
 
   '@nadle/project-resolver@https://pkg.pr.new/nadlejs/nadle/@nadle/project-resolver@2cdb0153ad1c7c68e03c2971a717f955a5589e77':
-    resolution: {tarball: https://pkg.pr.new/nadlejs/nadle/@nadle/project-resolver@2cdb0153ad1c7c68e03c2971a717f955a5589e77}
+    resolution: {integrity: sha512-mag6+hB2flxK8OzRYHJmuBosCp/0SXJ1VytlxwxXmiyUbK1zz21IFkk7W+IVpsd/b08dhkP8LSp8PjpLYKpRNw==, tarball: https://pkg.pr.new/nadlejs/nadle/@nadle/project-resolver@2cdb0153ad1c7c68e03c2971a717f955a5589e77}
     version: 0.0.1
     engines: {node: '>=22'}
     hasBin: true
@@ -1973,7 +1979,7 @@ packages:
     resolution: {integrity: sha512-z81GNO7nnYMEhrGh9LeymoE4+Yr0Wn5McHIZMK5cfQCl+NDX08sCZgUc9/6MHni9IWuFLm1Z3HTCXu2z9fN62Q==}
 
   nadle@https://pkg.pr.new/nadle@2cdb015:
-    resolution: {tarball: https://pkg.pr.new/nadle@2cdb015}
+    resolution: {integrity: sha512-mfrDfzfwUehVWOsxjNvD+jXy60vwQPrZKdX1rZ66xfnnVaeM1Qy0uPSwgDuo2rZ4txrNewJkOuN9fLfyhRE3DQ==, tarball: https://pkg.pr.new/nadle@2cdb015}
     version: 0.5.1
     engines: {node: '>=22'}
     hasBin: true
