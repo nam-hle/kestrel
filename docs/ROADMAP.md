@@ -55,9 +55,11 @@ that gets absorbed, not market share.
 
 ## Deliberately deferred
 
-- **tsgo migration** — escape hatch for cold-start, not a differentiator (a competitor is
-  already on tsgo; migrating wins nothing on its own). Revisit only when cold-start
-  complaints actually arrive. See the Door-2 spike: [TSGO-SPIKE.md](./TSGO-SPIKE.md).
+- **tsgo engine** — escape hatch for cold-start, not a differentiator (a competitor is already
+  on tsgo; migrating wins nothing on its own). The viable route is **Door 3**: tsgo as an LSP
+  subprocess, translated to kestrel's output contract (spiked + working — see
+  [TSGO-SPIKE.md](./TSGO-SPIKE.md)). Build the opt-in `LspEngine` only when cold-start
+  complaints actually arrive; ts-morph stays default.
 - **rename / move** — bridges do it adequately; reopens atomic-apply / rollback /
   stale-AST risk classes for little differentiation.
 - **multi-language own engine** — never. Expose the output contract as language-agnostic

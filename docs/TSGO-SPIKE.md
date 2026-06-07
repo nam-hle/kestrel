@@ -13,8 +13,11 @@ option warm / when cold-start complaints arrive.
   stable Go embedding API (discussion only). Stays deferred.
 - **Door 2** — programmatic API from Node via `@typescript/native-preview`. The sleeper —
   this spike.
-- **Door 3** — tsgo as an LSP server. Usable now (lsmcp uses it) but reintroduces byte
-  offsets/verbose payloads internally; makes tsgo a backend, not a win. Rejected.
+- **Door 3** — tsgo as an LSP server (subprocess). **CHOSEN.** Spiked + works (see Door-3
+  Results). Byte offsets stay internal, translated to kestrel's contract at the boundary —
+  tsgo-as-backend is correct (engine is swappable; the differentiator is the output layer).
+  This is how every tsgo-based tool (e.g. lsmcp) actually gets refs/impls; the embeddable API
+  cannot (Door 2 Results). Earlier "rejected" note was wrong.
 
 ## Package reality (verify at spike time)
 
@@ -88,3 +91,30 @@ running until #1 passes.
 **Decision: keep ts-morph. Door 2 deferred.** Re-run this spike on a future preview; the gate
 is the programmatic API exposing references + implementations without spawning an LSP process.
 Branch + dep torn down (not merged).
+
+## Door 3 — Results (2026-06-07): PASS, this is the path
+
+Spiked `tsgo --lsp --stdio` end-to-end on the kestrel fixtures.
+
+- **Transport works.** Spawn the `tsgo` bin (from `@typescript/native-preview`) with
+  `--lsp --stdio`, speak LSP over stdio (Content-Length framing + JSON-RPC).
+- **Capabilities advertised on initialize:** `referencesProvider`, `implementationProvider`,
+  `definitionProvider`, `callHierarchyProvider`, `documentSymbolProvider`,
+  `workspaceSymbolProvider`, `renameProvider`, and more — the full kestrel op set, plus rename
+  for a future modify phase.
+- **References verified live.** initialize → (answer the server's `workspace/configuration` +
+  `client/registerCapability` requests — NOT answering them hangs the handshake) → initialized
+  → `textDocument/didOpen` → `textDocument/references` at the symbol position → real locations
+  matching the ts-morph engine's result (e.g. `makeCircle` → consumer.ts + e2e/usage.ts).
+- **Output maps cleanly to kestrel's contract:** strip `file://<root>/` for the relative path;
+  LSP 0-based line/char → kestrel 1-based. Byte offsets never leave the adapter.
+
+**Architecture for the LspEngine** (next build session, see /tmp/kestrel-door3-handoff.md):
+spawn one warm tsgo LSP per project root; bridge `file:Name` → a position (cheap: parse the
+file / reuse a light AST pass to find the name's location) → LSP request → translate locations
+back to kestrel types. Additive + opt-in; ts-morph stays default. The addressing bridge
+(name → position) is the main design choice.
+
+**Open caveats:** preview API/protocol churn; subprocess lifecycle + shutdown; warmth (one per
+root); first query waits for project index (saw ~1.5s before references resolved on the tiny
+fixture — measure on a real repo).
