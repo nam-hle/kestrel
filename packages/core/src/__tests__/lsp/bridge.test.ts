@@ -28,7 +28,13 @@ describe("resolveInSymbols", () => {
 	it("resolves a top-level name to its selectionRange start", () => {
 		const hits = resolveInSymbols(tree, ["Circle"]);
 		expect(hits).toHaveLength(1);
-		expect(hits[0]).toEqual({ name: "Circle", path: "Circle", kind: LspSymbolKind.Class, position: { line: 4, character: 13 } });
+		expect(hits[0]).toEqual({
+			name: "Circle",
+			path: "Circle",
+			kind: LspSymbolKind.Class,
+			position: { line: 4, character: 13 },
+			rangeStart: { line: 4, character: 0 }
+		});
 	});
 
 	it("resolves a dotted member path exactly", () => {

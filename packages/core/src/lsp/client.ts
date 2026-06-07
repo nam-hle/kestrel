@@ -49,9 +49,13 @@ export class LspClient {
 		child.on("exit", () => this.#rejectAll(new Error("tsgo exited")));
 
 		const result = (await this.request("initialize", {
-			capabilities: {},
 			processId: process.pid,
-			rootUri: pathToFileURL(this.root).href
+			rootUri: pathToFileURL(this.root).href,
+			capabilities: {
+				textDocument: {
+					documentSymbol: { hierarchicalDocumentSymbolSupport: true }
+				}
+			}
 		})) as { capabilities: Record<string, unknown> };
 
 		this.notify("initialized", {});

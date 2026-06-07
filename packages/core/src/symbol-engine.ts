@@ -36,3 +36,8 @@ export interface SymbolEngine {
 	callHierarchy(symbol: SymbolHandle, options?: CallHierarchyOptions): CallNode[];
 	outlineFunction(symbol: SymbolHandle, options?: OutlineFunctionOptions): StatementNode[];
 }
+
+/** Async form of SymbolEngine — every method returns a Promise. For the LSP engine. */
+export type AsyncSymbolEngine = {
+	[K in keyof SymbolEngine]: (...args: Parameters<SymbolEngine[K]>) => Promise<ReturnType<SymbolEngine[K]>>;
+};

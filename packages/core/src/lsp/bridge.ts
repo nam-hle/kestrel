@@ -12,6 +12,8 @@ export interface SymbolHit {
 	kind: LspSymbolKind;
 	/** selectionRange.start — points at the name token, the position to send to LSP. */
 	position: LspPosition;
+	/** range.start — points at the declaration start (matches ts-morph `node.getStart()`). */
+	rangeStart: LspPosition;
 }
 
 /** Flatten the tree to (path, hit) pairs, depth-first. */
@@ -20,7 +22,7 @@ function flatten(symbols: DocumentSymbol[], prefix: string): SymbolHit[] {
 
 	for (const sym of symbols) {
 		const path = prefix === "" ? sym.name : `${prefix}.${sym.name}`;
-		out.push({ path, name: sym.name, kind: sym.kind, position: sym.selectionRange.start });
+		out.push({ path, name: sym.name, kind: sym.kind, rangeStart: sym.range.start, position: sym.selectionRange.start });
 
 		if (sym.children !== undefined && sym.children.length > 0) {
 			out.push(...flatten(sym.children, path));
