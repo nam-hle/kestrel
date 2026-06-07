@@ -13,17 +13,26 @@ packages/
   cli/    CLI adapter (citty subcommands, JSON output)
 ```
 
-Tests live in `packages/core/src/__tests__/` (excluded from the build via `tsconfig.json`,
-type-aware-linted via `tsconfig.eslint.json`). Fixtures under `__tests__/fixtures/`.
+Tests live in `packages/core/src/__tests__/`. Fixtures under `__tests__/fixtures/`.
 
 ## Tooling
 
 - Node 24+, pnpm, ESM throughout. `@types/node` pinned to v24 to match the runtime.
-- Task runner: **nadle** (`nadle.config.ts`). Engine: **ts-morph**.
-- `pnpm build` (`nadle build`, tsc -b) · `pnpm test` (`nadle test`, vitest) ·
-  `pnpm exec nadle check` (eslint + prettier) · `pnpm exec nadle clean`.
+- Task runner: **nadle** (`nadle.config.ts`) — the only runner; packages carry no scripts.
+  Engine: **ts-morph**. Bundler for the cli/mcp bins: **tsup** (one root `tsup.config.ts`).
+- Single root config per concern: `tsconfig.check.json` (whole-repo `noEmit`, used by both
+  ESLint and `typecheck`), `vitest.config.ts`, `eslint.config.ts`, `tsup.config.ts`. tsconfig
+  inheritance: `base` (noEmit) → `src` (composite emit, excludes tests) → per-package.
 - Lint/format configs are shared `@nadle/*` packages. Prettier uses **tabs**, printWidth 150.
 - Run the CLI locally via `./packages/cli/dist/index.js` (pnpm does not link workspace bins).
+
+### Scripts (all via `pnpm exec nadle <task>`; `build`/`test` also as `pnpm <task>`)
+
+- `build` — `emit` (`tsc -b`, type-checks + emits every src) + `typecheck`
+  (`tsc -p tsconfig.check.json --noEmit`, the only pass covering tests) + `bundle` (tsup).
+- `test` (vitest) · `check` (eslint + prettier) · `format` (fix) · `clean`.
+- Run vitest with `--reporter=agent` for token-lean, agent-readable output, e.g.
+  `pnpm exec vitest run --reporter=agent`.
 
 ## Conventions
 

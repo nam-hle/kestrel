@@ -28,17 +28,9 @@
 	"files": [
 		"dist"
 	],
-	"scripts": {
-		"build": "tsup",
-		"typecheck": "tsc -b"
-	},
 	"dependencies": {
 		"@kestrel/core": "workspace:*",
 		"@modelcontextprotocol/sdk": "1.27.1",
 		"zod": "3.25.76"
-	},
-	"devDependencies": {
-		"@types/node": "^24.13.1",
-		"vitest": "^4.1.8"
 	}
 }

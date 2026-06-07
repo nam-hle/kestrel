@@ -1,15 +1,33 @@
 import { tasks, ExecTask, DeleteTask } from "nadle";
 
 // --- Building ---
+//
+// `emit` runs tsc -b over the project references: it type-checks and emits every
+// package's src (composite). `typecheck` is a separate whole-repo pass that also
+// covers test files (excluded from the emit). `bundle` then re-emits the cli/mcp
+// bins as single files via tsup. `build` ties the three together.
 
-tasks.register("build", ExecTask, { args: ["-b"], command: "tsc" }).config({
+tasks.register("emit", ExecTask, { command: "tsc", args: ["-b"] }).config({
 	group: "Building",
-	description: "Build all packages (tsc project references)"
+	description: "Type-check and emit every package's src (tsc project references)"
 });
 
-tasks.register("typecheck", ExecTask, { args: ["-b"], command: "tsc" }).config({
+tasks.register("typecheck", ExecTask, { command: "tsc", args: ["-p", "tsconfig.check.json", "--noEmit"] }).config({
 	group: "Building",
-	description: "Type-check all project references"
+	dependsOn: ["emit"],
+	description: "Type-check every package including tests (resolves @kestrel/core from its emitted dist)"
+});
+
+tasks.register("bundle", ExecTask, { command: "tsup" }).config({
+	group: "Building",
+	dependsOn: ["emit"],
+	description: "Bundle the cli and mcp bins (tsup, one root config)"
+});
+
+tasks.register("build").config({
+	group: "Building",
+	dependsOn: ["emit", "typecheck", "bundle"],
+	description: "Type-check, emit, and bundle every package"
 });
 
 // --- Testing ---

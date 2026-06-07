@@ -27,16 +27,8 @@
 	"files": [
 		"dist"
 	],
-	"scripts": {
-		"build": "tsup",
-		"typecheck": "tsc -b"
-	},
 	"dependencies": {
 		"@kestrel/core": "workspace:*",
 		"citty": "^0.2.2"
-	},
-	"devDependencies": {
-		"@types/node": "^24.13.1",
-		"vitest": "^4.1.8"
 	}
 }
