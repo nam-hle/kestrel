@@ -70,10 +70,58 @@ describe("buildOutline", () => {
 	});
 });
 
+const barrelish = `export { Circle, makeCircle } from "./shapes.js";
+export type { Shape } from "./shapes.js";
+export * from "./square.js";
+
+export function localFn(): void {}
+`;
+
+describe("buildOutline exports", () => {
+	it("contains re-exported specifiers with correct kinds", () => {
+		const o = buildOutline("src/barrel.ts", barrelish);
+		const names = o.exports.map((m) => m.name);
+		expect(names).toContain("Circle");
+		expect(names).toContain("makeCircle");
+		expect(names).toContain("Shape");
+		expect(names).toContain("* from ./square.js");
+		expect(names).toContain("localFn");
+	});
+
+	it("assigns ExportSpecifier kind to non-type re-exports", () => {
+		const o = buildOutline("src/barrel.ts", barrelish);
+		expect(o.exports.find((m) => m.name === "Circle")!.kind).toBe("ExportSpecifier");
+		expect(o.exports.find((m) => m.name === "makeCircle")!.kind).toBe("ExportSpecifier");
+	});
+
+	it("assigns ExportSpecifier (type) kind to type-only re-exports", () => {
+		const o = buildOutline("src/barrel.ts", barrelish);
+		expect(o.exports.find((m) => m.name === "Shape")!.kind).toBe("ExportSpecifier (type)");
+	});
+
+	it("assigns ExportDeclaration kind to export-star", () => {
+		const o = buildOutline("src/barrel.ts", barrelish);
+		expect(o.exports.find((m) => m.name === "* from ./square.js")!.kind).toBe("ExportDeclaration");
+	});
+
+	it("includes exported local declarations", () => {
+		const o = buildOutline("src/barrel.ts", barrelish);
+		const localFn = o.exports.find((m) => m.name === "localFn");
+		expect(localFn).toBeDefined();
+		expect(localFn!.kind).toBe("FunctionDeclaration");
+	});
+});
+
 describe("functionSkeleton", () => {
 	it("returns the top-level statement kinds of a function body", () => {
 		// Line 10 (0-based), character 16 lands on "makeCircle" (after "export function ").
-		const o = functionSkeleton(shapes, { line: 10, character: 16 }, 1);
+		const o = functionSkeleton("src/shapes.ts", shapes, { line: 10, character: 16 }, 1);
 		expect(o.map((s) => s.kind)).toContain("ReturnStatement");
+	});
+
+	it("stamps the real path on returned StatementNode positions", () => {
+		const o = functionSkeleton("src/shapes.ts", shapes, { line: 10, character: 16 }, 1);
+		expect(o.length).toBeGreaterThan(0);
+		expect(o[0]!.position.file).toBe("src/shapes.ts");
 	});
 });

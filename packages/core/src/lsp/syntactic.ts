@@ -173,18 +173,64 @@ export function buildOutline(path: string, text: string): FileOutline {
 	const outline: FileOutline = { classes: [], exports: [], functions: [], variables: [], interfaces: [] };
 
 	for (const stmt of sf.statements) {
+		let member: Member | undefined;
+
 		if (ts.isClassDeclaration(stmt) && stmt.name !== undefined) {
-			outline.classes.push(memberOf({ sf, path, node: stmt, name: stmt.name.text, kind: "ClassDeclaration" }));
+			member = memberOf({ sf, path, node: stmt, name: stmt.name.text, kind: "ClassDeclaration" });
+			outline.classes.push(member);
 		} else if (ts.isInterfaceDeclaration(stmt)) {
-			outline.interfaces.push(memberOf({ sf, path, node: stmt, name: stmt.name.text, kind: "InterfaceDeclaration" }));
+			member = memberOf({ sf, path, node: stmt, name: stmt.name.text, kind: "InterfaceDeclaration" });
+			outline.interfaces.push(member);
 		} else if (ts.isFunctionDeclaration(stmt) && stmt.name !== undefined) {
-			outline.functions.push(memberOf({ sf, path, node: stmt, name: stmt.name.text, kind: "FunctionDeclaration" }));
+			member = memberOf({ sf, path, node: stmt, name: stmt.name.text, kind: "FunctionDeclaration" });
+			outline.functions.push(member);
 		} else if (ts.isVariableStatement(stmt)) {
 			for (const decl of stmt.declarationList.declarations) {
 				if (ts.isIdentifier(decl.name)) {
-					outline.variables.push(memberOf({ sf, path, node: stmt, name: decl.name.text, kind: "VariableDeclaration" }));
+					const vm = memberOf({ sf, path, node: stmt, name: decl.name.text, kind: "VariableDeclaration" });
+					outline.variables.push(vm);
+
+					if (isExported(stmt)) {
+						outline.exports.push(vm);
+					}
 				}
 			}
+		} else if (ts.isExportDeclaration(stmt) && stmt.moduleSpecifier !== undefined && ts.isStringLiteral(stmt.moduleSpecifier)) {
+			const fromModule = stmt.moduleSpecifier.text;
+
+			if (stmt.exportClause === undefined) {
+				// export * from "mod"
+				const { col, line } = posOf(sf, stmt.getStart(sf));
+				const sig = stmt.getText().replace(/\s+/g, " ");
+				outline.exports.push({
+					signature: sig,
+					kind: "ExportDeclaration",
+					name: `* from ${fromModule}`,
+					position: { col, line, file: path }
+				});
+			} else if (ts.isNamedExports(stmt.exportClause)) {
+				const declTypeOnly = stmt.isTypeOnly;
+
+				for (const spec of stmt.exportClause.elements) {
+					const typeOnly = declTypeOnly || spec.isTypeOnly;
+					const exportedName = spec.name.text;
+					const { col, line } = posOf(sf, spec.getStart(sf));
+					const specText = spec.getText();
+					outline.exports.push({
+						name: exportedName,
+						position: { col, line, file: path },
+						signature: `export { ${specText} } from "${fromModule}"`,
+						kind: typeOnly ? "ExportSpecifier (type)" : "ExportSpecifier"
+					});
+				}
+			}
+
+			// skip adding `member` for export declarations — handled above
+			continue;
+		}
+
+		if (member !== undefined && isExported(stmt)) {
+			outline.exports.push(member);
 		}
 	}
 
@@ -240,8 +286,8 @@ function ownerAt(sf: ts.SourceFile, offset: number): ts.Node | undefined {
 	return found;
 }
 
-export function functionSkeleton(text: string, pos: LspPosition, depth: number): StatementNode[] {
-	const sf = parse("__fn.ts", text);
+export function functionSkeleton(path: string, text: string, pos: LspPosition, depth: number): StatementNode[] {
+	const sf = parse(path, text);
 	const offset = sf.getPositionOfLineAndCharacter(pos.line, pos.character);
 	const fn = functionAt(sf, offset);
 	const body = fn !== undefined ? fnBody(fn) : undefined;
