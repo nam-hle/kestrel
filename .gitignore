@@ -5,3 +5,6 @@ coverage/
 *.tsbuildinfo
 .DS_Store
 .idea/
+
+# Local gain ledger (written to the home dir at runtime; never committed)
+.kestrel/

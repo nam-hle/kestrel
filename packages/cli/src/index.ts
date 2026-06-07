@@ -25,13 +25,23 @@ import {
 	renderCallHierarchy
 } from "@kestrel/core";
 
-/** Print text via `render` by default, or pretty JSON of `value` when jsonFlag is set. */
-function output(value: unknown, render: () => string, jsonFlag: boolean | undefined): void {
-	if (jsonFlag === true) {
-		process.stdout.write(`${JSON.stringify(value, null, 2)}\n`);
-	} else {
-		process.stdout.write(`${render()}\n`);
-	}
+import { gain } from "./gain/command.js";
+import { recordGain } from "./gain/track.js";
+
+/** Identifies the query for the gain ledger: its op label and the project tsconfig. */
+interface GainMeta {
+	op: string;
+	tsconfig: string;
+}
+
+/**
+ * Print text via `render` by default, or pretty JSON of `value` when jsonFlag is set,
+ * then record the query's estimated token savings to the gain ledger (on by default).
+ */
+function output(gain: GainMeta, value: unknown, render: () => string, jsonFlag: boolean | undefined): void {
+	const emitted = jsonFlag === true ? `${JSON.stringify(value, null, 2)}\n` : `${render()}\n`;
+	process.stdout.write(emitted);
+	recordGain(gain.op, value, emitted, gain.tsconfig);
 }
 
 const tsconfig = { type: "string", required: true, description: "Path to the project tsconfig.json" } as const;
@@ -78,7 +88,7 @@ const resolve = defineCommand({
 	async run({ args }) {
 		await withEngine(args, async (e) => {
 			const r = await e.resolveSymbol(args.symbol);
-			output(r, () => renderResolve(r), args.json);
+			output({ op: "resolve", tsconfig: args.tsconfig }, r, () => renderResolve(r), args.json);
 		});
 	}
 });
@@ -89,7 +99,7 @@ const imports = defineCommand({
 	async run({ args }) {
 		await withEngine(args, async (e) => {
 			const imps = await e.listImports(args.file);
-			output(imps, () => renderImports(imps), args.json);
+			output({ op: "imports", tsconfig: args.tsconfig }, imps, () => renderImports(imps), args.json);
 		});
 	}
 });
@@ -100,7 +110,7 @@ const exportsCmd = defineCommand({
 	async run({ args }) {
 		await withEngine(args, async (e) => {
 			const surf = await e.publicSurface(args.file);
-			output(surf, () => renderCandidates(surf), args.json);
+			output({ op: "exports", tsconfig: args.tsconfig }, surf, () => renderCandidates(surf), args.json);
 		});
 	}
 });
@@ -111,7 +121,7 @@ const usage = defineCommand({
 	async run({ args }) {
 		await withEngine(args, async (e) => {
 			const report = await e.usageReport(args.file, { excludeTests: args["exclude-tests"] === true });
-			output(report, () => renderUsageReport(report), args.json);
+			output({ op: "usage", tsconfig: args.tsconfig }, report, () => renderUsageReport(report), args.json);
 		});
 	}
 });
@@ -124,7 +134,7 @@ const viewOutline = defineCommand({
 	async run({ args }) {
 		await withEngine(args, async (e) => {
 			const outline = await e.outlineFile(args.file);
-			output(outline, () => renderFileOutline(args.file, outline), args.json);
+			output({ op: "view outline", tsconfig: args.tsconfig }, outline, () => renderFileOutline(args.file, outline), args.json);
 		});
 	}
 });
@@ -137,7 +147,7 @@ const viewFile = defineCommand({
 			const outline = await e.outlineFile(args.file);
 
 			if (args.body !== true) {
-				output(outline, () => renderFileOutline(args.file, outline), args.json);
+				output({ op: "view file", tsconfig: args.tsconfig }, outline, () => renderFileOutline(args.file, outline), args.json);
 
 				return;
 			}
@@ -151,7 +161,7 @@ const viewFile = defineCommand({
 			).flat();
 			const tree = renderFileOutline(args.file, outline);
 			const body = sources.map((s) => s.source).join("\n\n");
-			output({ outline, sources }, () => `${tree}\n${body}`, args.json);
+			output({ op: "view file", tsconfig: args.tsconfig }, { outline, sources }, () => `${tree}\n${body}`, args.json);
 		});
 	}
 });
@@ -162,7 +172,7 @@ const viewSymbol = defineCommand({
 	async run({ args }) {
 		await withEngine(args, async (e) => {
 			const src = await e.symbolSource(await resolveSymbolOrThrow(e, args.symbol));
-			output(src, () => renderSource(src), args.json);
+			output({ op: "view symbol", tsconfig: args.tsconfig }, src, () => renderSource(src), args.json);
 		});
 	}
 });
@@ -173,7 +183,7 @@ const viewMembers = defineCommand({
 	async run({ args }) {
 		await withEngine(args, async (e) => {
 			const members = await e.outlineSymbol(await resolveSymbolOrThrow(e, args.symbol));
-			output(members, () => renderMembers(members), args.json);
+			output({ op: "view members", tsconfig: args.tsconfig }, members, () => renderMembers(members), args.json);
 		});
 	}
 });
@@ -185,7 +195,7 @@ const viewBody = defineCommand({
 		await withEngine(args, async (e) => {
 			const symbol = await resolveSymbolOrThrow(e, args.symbol);
 			const stmts = await e.outlineFunction(symbol, { depth: args.depth ? Number(args.depth) : undefined });
-			output(stmts, () => renderStatements(stmts), args.json);
+			output({ op: "view body", tsconfig: args.tsconfig }, stmts, () => renderStatements(stmts), args.json);
 		});
 	}
 });
@@ -202,7 +212,7 @@ const viewRegion = defineCommand({
 			}
 
 			const region = await e.readRegion(m[1]!, Number(m[2]), Number(m[3]));
-			output(region, () => renderRegion(region), args.json);
+			output({ op: "view region", tsconfig: args.tsconfig }, region, () => renderRegion(region), args.json);
 		});
 	}
 });
@@ -213,7 +223,7 @@ const viewContext = defineCommand({
 	async run({ args }) {
 		await withEngine(args, async (e) => {
 			const ctx = await e.symbolContext(await resolveSymbolOrThrow(e, args.symbol));
-			output(ctx, () => renderContext(ctx), args.json);
+			output({ op: "view context", tsconfig: args.tsconfig }, ctx, () => renderContext(ctx), args.json);
 		});
 	}
 });
@@ -222,18 +232,18 @@ const viewContext = defineCommand({
 
 const findSymbol = defineCommand({
 	meta: { name: "symbol", description: "Search for a symbol by name across the whole project" },
-	async run({ args }) {
-		await withEngine(args, async (e) => {
-			const cands = await e.searchSymbol(args.name, { contains: args.contains });
-			output(cands, () => renderCandidates(cands), args.json);
-		});
-	},
 	args: {
 		json,
 		engine,
 		tsconfig,
 		name: { required: true, type: "positional", description: "Symbol name" },
 		contains: { type: "boolean", description: "Match the name as a substring (case-insensitive)" }
+	},
+	async run({ args }) {
+		await withEngine(args, async (e) => {
+			const cands = await e.searchSymbol(args.name, { contains: args.contains });
+			output({ op: "find symbol", tsconfig: args.tsconfig }, cands, () => renderCandidates(cands), args.json);
+		});
 	}
 });
 
@@ -243,7 +253,7 @@ const findDef = defineCommand({
 	async run({ args }) {
 		await withEngine(args, async (e) => {
 			const handles = await e.findDefinition(await resolveSymbolOrThrow(e, args.symbol));
-			output(handles, () => renderHandles(handles), args.json);
+			output({ op: "find def", tsconfig: args.tsconfig }, handles, () => renderHandles(handles), args.json);
 		});
 	}
 });
@@ -269,7 +279,7 @@ const findRefs = defineCommand({
 				limit: args.limit ? Number(args.limit) : undefined,
 				context: args.context as "none" | "snippet" | "block" | undefined
 			});
-			output(usages, () => renderReferences(usages), args.json);
+			output({ op: "find refs", tsconfig: args.tsconfig }, usages, () => renderReferences(usages), args.json);
 		});
 	}
 });
@@ -280,7 +290,7 @@ const findImpls = defineCommand({
 	async run({ args }) {
 		await withEngine(args, async (e) => {
 			const handles = await e.findImplementations(await resolveSymbolOrThrow(e, args.symbol));
-			output(handles, () => renderHandles(handles), args.json);
+			output({ op: "find impls", tsconfig: args.tsconfig }, handles, () => renderHandles(handles), args.json);
 		});
 	}
 });
@@ -292,7 +302,7 @@ const findCallers = defineCommand({
 		await withEngine(args, async (e) => {
 			const symbol = await resolveSymbolOrThrow(e, args.symbol);
 			const tree = await e.callHierarchy(symbol, { direction: "incoming", depth: args.depth ? Number(args.depth) : undefined });
-			output(tree, () => renderCallHierarchy(tree), args.json);
+			output({ op: "find callers", tsconfig: args.tsconfig }, tree, () => renderCallHierarchy(tree), args.json);
 		});
 	}
 });
@@ -304,7 +314,7 @@ const findCallees = defineCommand({
 		await withEngine(args, async (e) => {
 			const symbol = await resolveSymbolOrThrow(e, args.symbol);
 			const tree = await e.callHierarchy(symbol, { direction: "outgoing", depth: args.depth ? Number(args.depth) : undefined });
-			output(tree, () => renderCallHierarchy(tree), args.json);
+			output({ op: "find callees", tsconfig: args.tsconfig }, tree, () => renderCallHierarchy(tree), args.json);
 		});
 	}
 });
@@ -328,7 +338,7 @@ const find = defineCommand({
 });
 
 const main = defineCommand({
-	subCommands: { view, find, usage, resolve, imports, exports: exportsCmd },
+	subCommands: { view, find, gain, usage, resolve, imports, exports: exportsCmd },
 	meta: { name: "kestrel", description: "Semantic symbol queries for TypeScript" }
 });
 

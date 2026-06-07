@@ -121,6 +121,26 @@ Tools: `view_outline`, `view_symbol`, `view_context`, `view_region`, `view_membe
 argument (engine cached per tsconfig); pass `engine: "lsp"` for the tsgo backend, or
 `json: true` for structured output instead of the default token-lean text.
 
+### Token savings (`gain`)
+
+Every CLI query records an estimated token saving — the size of kestrel's structured
+output vs. the cost of reading the raw files the result referenced — to a local ledger
+at `~/.kestrel/gain.jsonl`. `kestrel gain` reports the cumulative total:
+
+```bash
+kestrel gain                # summary: queries, kestrel vs baseline tokens, % saved, top ops
+kestrel gain --history      # recent queries, one per line
+kestrel gain --by-project   # totals grouped by project directory
+kestrel gain --json         # machine-readable aggregate
+```
+
+All figures are `~`-prefixed estimates (`ceil(bytes / 4)`, no tokenizer); the baseline
+counts only the files each result referenced, never the whole project.
+
+**Privacy:** tracking is always on (no opt-out) and writes project paths and op names to
+`~/.kestrel/gain.jsonl`. The ledger is local only — nothing is transmitted. Delete it any
+time; a missing ledger just resets the totals.
+
 ## Development
 
 Requires Node.js 24+ and pnpm. The repo uses [nadle](https://nadle.dev) as its task runner.

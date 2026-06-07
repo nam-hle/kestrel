@@ -27,9 +27,10 @@ baseline.
   accuracy gain not worth a dependency — see issue #69 on minimizing deps).
 - **Ledger location** = `~/.kestrel/gain.jsonl`, global across projects (like rtk),
   each entry tagged with `cwd` so `gain` can group by project.
-- **Tracking default** = ON, opt-out. Every query appends one ledger line. Opt out
-  via `KESTREL_GAIN=0` (or `KESTREL_NO_GAIN=1`). Documented in `--help` and README
-  with a privacy note (project paths and op names are written to the home dir).
+- **Tracking default** = ON, **no opt-out**. Every query appends one ledger line.
+  (Superseded an earlier `KESTREL_GAIN=0` opt-out — dropped for simplicity; the ledger
+  is local to the home dir and the figures are estimates only.) Documented in `--help`
+  and README with a privacy note (project paths and op names are written to the home dir).
 
 ## Scope
 
@@ -109,10 +110,11 @@ All numbers `~`-prefixed.
 emitted, if tracking is enabled, compute `filesIn(result)`, sum their byte sizes →
 `baselineTokens`, take the emitted JSON byte length → `kestrelTokens`, and
 `record(...)`. This requires `withEngine` (or `emit`) to see the result object and the
-op name. Plan detail: thread the op label + captured result into the recording step;
-keep the hook a single call so query paths are untouched otherwise.
+op name. Implemented by threading the op label into `output()`, which after emitting
+calls `recordGain(op, value, emitted)`; the emitted string's byte length is the
+`kestrelTokens` count, guaranteeing it matches what was actually printed.
 
-Tracking enabled = `KESTREL_GAIN` not in `{"0","false"}` and `KESTREL_NO_GAIN` unset.
+Tracking is always on; there is no opt-out env var.
 
 ## Error handling
 
@@ -143,8 +145,8 @@ Tracking enabled = `KESTREL_GAIN` not in `{"0","false"}` and `KESTREL_NO_GAIN` u
 - Every reported figure `~`-prefixed.
 - Baseline = result files only; never whole project.
 - chars/4 documented as an estimate in `gain --help` and README.
-- Privacy note in README: tracking is on by default and writes project paths + op
-  names to `~/.kestrel/gain.jsonl`; disable with `KESTREL_GAIN=0`.
+- Privacy note in README: tracking is always on and writes project paths + op names
+  to `~/.kestrel/gain.jsonl` (local only, never transmitted).
 
 ## Out of scope
 
