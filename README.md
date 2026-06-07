@@ -90,11 +90,6 @@ npx @kestrel/cli find callees src/foo.ts:Bar --tsconfig tsconfig.json
 (After a global install — `npm i -g @kestrel/cli` — the binary is just `kestrel`.) Add
 `--engine lsp` to any command to use the tsgo-backed engine instead of the ts-morph default.
 
-_Renamed in 0.1:_ `outline-file → view outline`, `outline-symbol → view members`,
-`outline-fn → view body`, `search → find symbol`, `def/refs/impls → find def/refs/impls`,
-`calls → find callers` (`--outgoing → find callees`), `surface → exports`. The old flat names
-still work as hidden aliases.
-
 **MCP** — the same operations as MCP tools over stdio, holding the project warm across calls
 (no per-call cold start). The server runs via `npx @kestrel/mcp`. Host setup:
 
@@ -121,8 +116,7 @@ args = ["-y", "@kestrel/mcp"]
 Tools: `view_outline`, `view_symbol`, `view_context`, `view_region`, `view_members`,
 `view_body`, `find_symbol`, `find_def`, `find_refs`, `find_impls`, `find_callers`,
 `find_callees`, `resolve`, `imports`, `exports`, `usage_report`. Each takes a `tsConfig`
-argument (engine cached per tsconfig); pass `engine: "lsp"` to opt into the tsgo backend. The
-old tool names (`outline_file`, `search`, `usages`, `calls`, `surface`, …) remain as aliases.
+argument (engine cached per tsconfig); pass `engine: "lsp"` to opt into the tsgo backend.
 
 ## Development
 

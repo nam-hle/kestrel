@@ -84,15 +84,6 @@ describe("CLI integration", () => {
 		}, 20_000);
 	});
 
-	describe("outline-file", () => {
-		it("exits 0 and emits a compact tree containing Circle", async () => {
-			const { code, stdout } = await run(["outline-file", "--tsconfig", TSCONFIG, "src/shapes.ts"]);
-
-			expect(code).toBe(0);
-			expect(stdout).toContain("Circle");
-		}, 20_000);
-	});
-
 	describe("view family", () => {
 		it("view outline prints the compact tree", async () => {
 			const { code, stdout } = await run(["view", "outline", "--tsconfig", TSCONFIG, "src/shapes.ts"]);
@@ -137,21 +128,6 @@ describe("CLI integration", () => {
 
 			expect(code).toBe(0);
 			expect(stdout).toContain("makeCircle");
-		}, 20_000);
-	});
-
-	describe("back-compat aliases", () => {
-		it("outline-file alias still works", async () => {
-			const { code, stdout } = await run(["outline-file", "--tsconfig", TSCONFIG, "src/shapes.ts"]);
-
-			expect(code).toBe(0);
-			expect(stdout).toContain("Circle");
-		}, 20_000);
-
-		it("calls --outgoing alias maps to callees", async () => {
-			const { code } = await run(["calls", "--tsconfig", TSCONFIG, "--outgoing", "src/consumer.ts:totalArea"]);
-
-			expect(code).toBe(0);
 		}, 20_000);
 	});
 

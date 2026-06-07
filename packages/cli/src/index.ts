@@ -5,8 +5,7 @@ import { createEngine } from "@kestrel/core";
  * results. No analysis logic. See docs/DESIGN.md Section 1.
  *
  * Commands group by agent intent: `view` (read code) and `find` (locate/trace),
- * plus top-level addressing / whole-file facts. Old flat names remain as hidden
- * aliases for back-compat.
+ * plus top-level addressing / whole-file facts.
  */
 import { runMain, defineCommand } from "citty";
 import type { EngineKind, SymbolHandle, AsyncSymbolEngine } from "@kestrel/core";
@@ -261,30 +260,6 @@ const findCallees = defineCommand({
 	}
 });
 
-// ---- back-compat alias: old `calls [--outgoing] [--depth]` ----
-
-const callsAlias = defineCommand({
-	meta: { name: "calls", description: "(alias) Call hierarchy; --outgoing for callees" },
-	args: {
-		engine,
-		tsconfig,
-		symbol: symbolArg,
-		depth: { type: "string", description: "Levels to walk (default 2)" },
-		outgoing: { type: "boolean", description: "Show callees instead of callers" }
-	},
-	async run({ args }) {
-		await withEngine(args, async (e) => {
-			const symbol = await resolveSymbolOrThrow(e, args.symbol);
-			emit(
-				await e.callHierarchy(symbol, {
-					depth: args.depth ? Number(args.depth) : undefined,
-					direction: args.outgoing === true ? "outgoing" : "incoming"
-				})
-			);
-		});
-	}
-});
-
 const view = defineCommand({
 	meta: { name: "view", description: "Read code: structure + source" },
 	subCommands: {
@@ -304,25 +279,8 @@ const find = defineCommand({
 });
 
 const main = defineCommand({
-	meta: { name: "kestrel", description: "Semantic symbol queries for TypeScript" },
-	subCommands: {
-		view,
-		find,
-		usage,
-		resolve,
-		imports,
-		def: findDef,
-		refs: findRefs,
-		impls: findImpls,
-		calls: callsAlias,
-		search: findSymbol,
-		exports: exportsCmd,
-		surface: exportsCmd,
-		"outline-fn": viewBody,
-		// hidden back-compat aliases — same command objects under the old flat names:
-		"outline-file": viewOutline,
-		"outline-symbol": viewMembers
-	}
+	subCommands: { view, find, usage, resolve, imports, exports: exportsCmd },
+	meta: { name: "kestrel", description: "Semantic symbol queries for TypeScript" }
 });
 
 void runMain(main);
