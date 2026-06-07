@@ -2,7 +2,22 @@
  * Compact text rendering of outlines — a token-lean YAML-ish tree, the default
  * agent-facing format. Namespace/owner prefixes are factored out into nesting.
  */
-import type { Member, Position, Candidate, FileOutline, SymbolHandle, UsagesResult, ResolveResult, SourceResult, RegionResult, StatementNode, SymbolContext, CallNode, ImportInfo, UsageReportEntry } from "./types.js";
+import type {
+	Member,
+	Position,
+	CallNode,
+	Candidate,
+	ImportInfo,
+	FileOutline,
+	SymbolHandle,
+	UsagesResult,
+	SourceResult,
+	RegionResult,
+	ResolveResult,
+	StatementNode,
+	SymbolContext,
+	UsageReportEntry
+} from "./types.js";
 
 interface TreeNode {
 	children: Map<string, TreeNode>;

@@ -116,19 +116,21 @@ describe("renderResolve", () => {
 	});
 });
 
-import { renderSource, renderRegion, renderMembers, renderStatements } from "../render.js";
 import type { SourceResult, RegionResult, StatementNode } from "../types.js";
+import { renderSource, renderRegion, renderMembers, renderStatements } from "../render.js";
 
 describe("renderSource", () => {
 	test("header line + verbatim source with real newlines", () => {
-		const s: SourceResult[] = [{ qualifiedName: "src/a.ts:f", position: { file: "src/a.ts", line: 1, col: 1 }, source: "function f() {\n\treturn 1;\n}" }];
+		const s: SourceResult[] = [
+			{ qualifiedName: "src/a.ts:f", source: "function f() {\n\treturn 1;\n}", position: { col: 1, line: 1, file: "src/a.ts" } }
+		];
 		expect(renderSource(s)).toBe("src/a.ts:1:1\tsrc/a.ts:f\nfunction f() {\n\treturn 1;\n}");
 	});
 
 	test("multiple declarations separated by a blank line", () => {
 		const s: SourceResult[] = [
-			{ qualifiedName: "a:X", position: { file: "a", line: 1, col: 1 }, source: "A" },
-			{ qualifiedName: "a:X", position: { file: "a", line: 5, col: 1 }, source: "B" }
+			{ source: "A", qualifiedName: "a:X", position: { col: 1, line: 1, file: "a" } },
+			{ source: "B", qualifiedName: "a:X", position: { col: 1, line: 5, file: "a" } }
 		];
 		expect(renderSource(s)).toBe("a:1:1\ta:X\nA\n\na:5:1\ta:X\nB");
 	});
@@ -136,14 +138,14 @@ describe("renderSource", () => {
 
 describe("renderRegion", () => {
 	test("header + verbatim slice", () => {
-		const r: RegionResult = { file: "src/a.ts", startLine: 2, endLine: 3, source: "b\nc" };
+		const r: RegionResult = { endLine: 3, startLine: 2, source: "b\nc", file: "src/a.ts" };
 		expect(renderRegion(r)).toBe("src/a.ts:2-3\nb\nc");
 	});
 });
 
 describe("renderMembers", () => {
 	test("name / kind / line rows", () => {
-		const m: Member[] = [{ name: "Circle.area", kind: "MethodDeclaration", signature: "area", position: { file: "a", line: 6, col: 1 } }];
+		const m: Member[] = [{ signature: "area", name: "Circle.area", kind: "MethodDeclaration", position: { col: 1, line: 6, file: "a" } }];
 		expect(renderMembers(m)).toBe("Circle.area\tMethodDeclaration\tL6");
 	});
 });
@@ -151,9 +153,89 @@ describe("renderMembers", () => {
 describe("renderStatements", () => {
 	test("statement-kind tree, 2-space indent per depth", () => {
 		const s: StatementNode[] = [
-			{ kind: "ReturnStatement", position: { file: "a", line: 2, col: 1 } },
-			{ kind: "IfStatement", position: { file: "a", line: 3, col: 1 }, children: [{ kind: "ReturnStatement", position: { file: "a", line: 4, col: 1 } }] }
+			{ kind: "ReturnStatement", position: { col: 1, line: 2, file: "a" } },
+			{
+				kind: "IfStatement",
+				position: { col: 1, line: 3, file: "a" },
+				children: [{ kind: "ReturnStatement", position: { col: 1, line: 4, file: "a" } }]
+			}
 		];
 		expect(renderStatements(s)).toBe("ReturnStatement\tL2\nIfStatement\tL3\n  ReturnStatement\tL4");
+	});
+});
+
+import type { CallNode, ImportInfo, SymbolContext, UsageReportEntry } from "../types.js";
+import { renderImports, renderContext, renderUsageReport, renderCallHierarchy } from "../render.js";
+
+describe("renderCallHierarchy", () => {
+	test("indented tree: name + address, 2 spaces per level", () => {
+		const tree: CallNode[] = [
+			{
+				qualifiedName: "a:totalArea",
+				position: { col: 1, line: 3, file: "a" },
+				calls: [{ calls: [], qualifiedName: "a:avg", position: { col: 1, line: 12, file: "a" } }]
+			}
+		];
+		expect(renderCallHierarchy(tree)).toBe("totalArea\ta:3:1\n  avg\ta:12:1");
+	});
+
+	test("empty → marker", () => {
+		expect(renderCallHierarchy([])).toBe("(none)");
+	});
+});
+
+describe("renderContext", () => {
+	test("labeled sections + source after a divider", () => {
+		const ctx: SymbolContext = {
+			qualifiedName: "a:f",
+			typeRefs: ["Circle"],
+			signature: "function f(): number",
+			position: { col: 1, line: 3, file: "a" },
+			source: "function f() {\n\treturn 1;\n}",
+			callees: [{ calls: [], qualifiedName: "a:g", position: { col: 5, line: 9, file: "a" } }]
+		};
+		const out = renderContext(ctx);
+		expect(out).toContain("a:3:1\ta:f");
+		expect(out).toContain("sig: function f(): number");
+		expect(out).toContain("types: Circle");
+		expect(out).toContain("callees:");
+		expect(out).toContain("  g\ta:9:5");
+		expect(out).toContain("---");
+		expect(out).toContain("function f() {");
+	});
+
+	test("omits empty sections", () => {
+		const ctx: SymbolContext = {
+			callees: [],
+			typeRefs: [],
+			qualifiedName: "a:f",
+			signature: "const f",
+			source: "const f = 1",
+			position: { col: 1, line: 1, file: "a" }
+		};
+		const out = renderContext(ctx);
+		expect(out).not.toContain("types:");
+		expect(out).not.toContain("callees:");
+	});
+});
+
+describe("renderImports", () => {
+	test("module + named", () => {
+		const imps: ImportInfo[] = [{ module: "./shapes.js", named: ["makeCircle", "Circle"], position: { col: 1, line: 1, file: "a" } }];
+		expect(renderImports(imps)).toBe("./shapes.js\tmakeCircle, Circle");
+	});
+
+	test("default + namespace annotated", () => {
+		const imps: ImportInfo[] = [{ named: [], module: "react", namespace: "ns", default: "React", position: { col: 1, line: 1, file: "a" } }];
+		expect(renderImports(imps)).toBe("react\tdefault React\t* as ns");
+	});
+});
+
+describe("renderUsageReport", () => {
+	test("name + counts + kind", () => {
+		const rows: UsageReportEntry[] = [
+			{ total: 5, consumed: 3, qualifiedName: "a:Foo", kind: "ClassDeclaration", position: { col: 1, line: 1, file: "a" } }
+		];
+		expect(renderUsageReport(rows)).toBe("a:Foo\ttotal=5 consumed=3\tClassDeclaration");
 	});
 });
