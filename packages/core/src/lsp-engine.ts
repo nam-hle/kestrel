@@ -13,7 +13,7 @@ import { LspSymbolKind } from "./lsp/protocol.js";
 import { resolveInSymbols } from "./lsp/bridge.js";
 import type { LspLocation, LspPosition, DocumentSymbol } from "./lsp/protocol.js";
 import { lspToPosition, uriToRelative, asLocationOrNull, locationToPosition } from "./lsp/translate.js";
-import { classifyAt, buildOutline, parseImports, parseReExports, functionSkeleton, outlineSymbolMembers } from "./lsp/syntactic.js";
+import { classifyAt, buildOutline, parseImports, parseReExports, topLevelExports, functionSkeleton, outlineSymbolMembers } from "./lsp/syntactic.js";
 import type {
 	Member,
 	CallNode,
@@ -416,49 +416,46 @@ export class LspEngine {
 		}
 
 		visitedFiles.add(path);
-		const client = await this.#ready();
-		await this.#open(client, path);
+		const text = this.#read(path);
 
-		// Own top-level declarations.
-		const symbols = (await client.request("textDocument/documentSymbol", { textDocument: { uri: this.#uri(path) } })) as DocumentSymbol[] | null;
-
-		for (const sym of symbols ?? []) {
-			const position = this.#pos(path, sym.range.start);
-			const key = `${position.file}:${sym.name}`;
+		// Own top-level EXPORTED declarations, from the parser. documentSymbol lists ALL
+		// top-level decls (imports, internals) and would massively over-count; an exported
+		// namespace counts as one surface entry, not its members (mirrors getExportedDeclarations).
+		for (const member of topLevelExports(path, text)) {
+			const key = `${path}:${member.name}`;
 
 			if (!seen.has(key)) {
 				seen.add(key);
-				surface.push({ position, kind: "unknown", qualifiedName: key });
+				surface.push({ kind: member.kind, qualifiedName: key, position: member.position });
 			}
 		}
 
-		// Re-exports forwarded from other modules.
-		for (const re of parseReExports(path, this.#read(path))) {
+		// Re-exports forwarded from other modules. Named specifiers resolve concurrently to
+		// their true declaration; `export *` recurses into the target's surface.
+		const reExports = parseReExports(path, text);
+		const named = reExports.filter((re) => !re.star && re.name !== undefined);
+		const stars = reExports.filter((re) => re.star);
+
+		const resolved = await Promise.all(
+			named.map(async (re) => {
+				const target = this.#resolveModule(path, re.module);
+
+				return target === undefined ? undefined : this.resolveSymbol(`${target}:${re.name!}`);
+			})
+		);
+
+		for (const r of resolved) {
+			if (r?.kind === "symbol" && !seen.has(r.symbol.qualifiedName)) {
+				seen.add(r.symbol.qualifiedName);
+				surface.push({ kind: "unknown", position: r.symbol.position, qualifiedName: r.symbol.qualifiedName });
+			}
+		}
+
+		for (const re of stars) {
 			const target = this.#resolveModule(path, re.module);
 
-			if (target === undefined) {
-				continue;
-			}
-
-			if (re.star) {
+			if (target !== undefined) {
 				await this.#collectSurface(target, surface, seen, visitedFiles);
-				continue;
-			}
-
-			// Named re-export: resolve the specific symbol to its true declaration.
-			if (re.name === undefined) {
-				continue;
-			}
-
-			const resolved = await this.resolveSymbol(`${target}:${re.name}`);
-
-			if (resolved.kind === "symbol") {
-				const key = resolved.symbol.qualifiedName;
-
-				if (!seen.has(key)) {
-					seen.add(key);
-					surface.push({ kind: "unknown", qualifiedName: key, position: resolved.symbol.position });
-				}
 			}
 		}
 	}

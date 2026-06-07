@@ -212,6 +212,47 @@ export function buildOutline(path: string, text: string): FileOutline {
 	return outline;
 }
 
+/**
+ * Top-level EXPORTED declarations only (class/interface/function/type-alias/namespace/var) —
+ * NOT namespace members. This is the public *surface* of a file's own code, mirroring
+ * ts-morph's getExportedDeclarations: an exported namespace counts as one entry, not its
+ * members. (outlineFile, by contrast, recurses into members.)
+ */
+export function topLevelExports(path: string, text: string): Member[] {
+	const sf = parse(path, text);
+	const out: Member[] = [];
+
+	const push = (name: string, kind: string, node: ts.Node): void => {
+		out.push(memberOf({ sf, path, name, kind, node }));
+	};
+
+	for (const stmt of sf.statements) {
+		if (!isExported(stmt)) {
+			continue;
+		}
+
+		if (ts.isClassDeclaration(stmt) && stmt.name !== undefined) {
+			push(stmt.name.text, "ClassDeclaration", stmt);
+		} else if (ts.isInterfaceDeclaration(stmt)) {
+			push(stmt.name.text, "InterfaceDeclaration", stmt);
+		} else if (ts.isFunctionDeclaration(stmt) && stmt.name !== undefined) {
+			push(stmt.name.text, "FunctionDeclaration", stmt);
+		} else if (ts.isTypeAliasDeclaration(stmt)) {
+			push(stmt.name.text, "TypeAliasDeclaration", stmt);
+		} else if (ts.isModuleDeclaration(stmt) && ts.isIdentifier(stmt.name)) {
+			push(stmt.name.text, "ModuleDeclaration", stmt);
+		} else if (ts.isVariableStatement(stmt)) {
+			for (const decl of stmt.declarationList.declarations) {
+				if (ts.isIdentifier(decl.name)) {
+					push(decl.name.text, "VariableDeclaration", stmt);
+				}
+			}
+		}
+	}
+
+	return out;
+}
+
 /** Invariants threaded through the outline walk. */
 interface OutlineWalk {
 	path: string;
