@@ -1,22 +1,36 @@
 # kestrel
 
-> Semantic symbol intelligence for TypeScript, shaped for AI agents.
+> Code navigation for TypeScript whose output is built for an agent's token budget and
+> address model.
 
-kestrel answers "where is symbol X used / what implements X / where is it defined" with
-**compiler-accurate** semantics, returning token-lean, name-addressed results an AI agent can
-act on. It borrows the TypeScript compiler (via [ts-morph](https://ts-morph.com/)) for the hard
-part — type resolution — and builds the agent ergonomics on top.
+An AI agent has no cursor and a finite context window. kestrel answers code-navigation
+questions ("where is X used / what implements it / what's the public surface here") with
+results that are **name-addressed** (`file.ts:Class.method`, never a byte offset an agent
+can't compute) and **token-lean** (a compact tree, not a verbose payload). Compiler-accurate
+underneath (TypeScript via [ts-morph](https://ts-morph.com/)) — but accuracy is table stakes;
+the **output contract is the point**.
 
-**Status:** early development. The read-only core engine is implemented; the MCP and CLI
-adapters are scaffolded.
+**Status:** early development. Read-only core engine + CLI + MCP server all working.
 
-## Why
+## Why not just an LSP→MCP bridge?
 
-AI coding agents answer "how is this symbol used" with `grep` — textual, not semantic.
-Same-named symbols, overloads, shadowing, and type-only references all produce false hits or
-misses. The semantic engine to do this correctly already exists; the gap is **agent-shaped
-packaging**: existing tools use byte offsets (agents have no cursor) and emit verbose LSP
-payloads (burning tokens). kestrel closes that gap.
+Several tools already bridge a language server to MCP — they give compiler-accurate
+references, implementations, even rename. But they pipe **raw LSP** through: byte-offset
+positions (an agent has no cursor to resolve them) and verbose payloads (burning the context
+window). They answer the question, then make the agent pay to parse and re-address the answer.
+
+kestrel is the layer those bridges skip:
+
+- **Name-addressing** — every result is a qualified name you feed straight into the next
+  query. No offsets, no position bookkeeping.
+- **Token-lean output** — compact tree outlines; classified, paginated refs; no LSP noise.
+- **Synthesized ops with no LSP equivalent** — `outline_function` (statement skeleton),
+  `public_surface` (transitively expands `export *`), bounded `call_hierarchy`,
+  `usage_report` (dead-code in one call). A bridge wrapping a language server can't produce
+  these by pass-through.
+
+The engine (ts-morph today, maybe tsgo later) is commoditized. The output contract is the
+durable part — see [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## What it does (v1, read-only)
 
