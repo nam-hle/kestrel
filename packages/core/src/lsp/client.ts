@@ -16,6 +16,9 @@ interface PendingResolve {
 }
 
 export class LspClient {
+	/** Per-request ceiling; on timeout the pending promise rejects (see `request`). */
+	static readonly #REQUEST_TIMEOUT_MS = 30_000;
+
 	#child: ChildProcessWithoutNullStreams | undefined;
 	#buffer = Buffer.alloc(0);
 	#nextId = 1;
@@ -41,6 +44,8 @@ export class LspClient {
 		const child = spawn(process.execPath, [bin, "--lsp", "--stdio"], { cwd: this.root });
 		this.#child = child;
 		child.stdout.on("data", (chunk: Buffer) => this.#onData(chunk));
+		// Drain stderr so a full OS pipe buffer can never block tsgo's stdin processing.
+		child.stderr.resume();
 		child.on("exit", () => this.#rejectAll(new Error("tsgo exited")));
 
 		const result = (await this.request("initialize", {
@@ -56,7 +61,16 @@ export class LspClient {
 
 	public request(method: string, params: unknown): Promise<unknown> {
 		const id = this.#nextId++;
-		const promise = new Promise<unknown>((resolve, reject) => this.#pending.set(id, { reject, resolve }));
+		const promise = new Promise<unknown>((resolve, reject) => {
+			this.#pending.set(id, { reject, resolve });
+			// Bound the wait so a hung subprocess rejects instead of hanging the engine forever.
+			const timer = setTimeout(() => {
+				if (this.#pending.delete(id)) {
+					reject(new Error(`tsgo LSP request timed out: ${method}`));
+				}
+			}, LspClient.#REQUEST_TIMEOUT_MS);
+			timer.unref();
+		});
 		this.#send({ id, method, params, jsonrpc: "2.0" });
 
 		return promise;
