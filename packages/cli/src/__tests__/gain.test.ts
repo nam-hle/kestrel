@@ -69,6 +69,11 @@ describe("ledger", () => {
 		expect(read(join(tmpdir(), "kestrel-gain-does-not-exist", "gain.jsonl"))).toEqual([]);
 	});
 
+	it("no-ops on a null path (no home dir) instead of writing cwd-relative", () => {
+		expect(() => record(entry(), null)).not.toThrow();
+		expect(read(null)).toEqual([]);
+	});
+
 	it("aggregates sums and percent saved", () => {
 		const agg = aggregate([entry({ kestrelTokens: 10, baselineTokens: 100 }), entry({ kestrelTokens: 20, baselineTokens: 100 })]);
 		expect(agg.queries).toBe(2);

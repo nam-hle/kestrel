@@ -51,13 +51,24 @@ export interface Aggregate {
 	topOps: Array<[string, number]>;
 }
 
-/** Absolute path to the gain ledger (`~/.kestrel/gain.jsonl`). */
-export function ledgerPath(): string {
-	return join(homedir(), ".kestrel", "gain.jsonl");
+/**
+ * Absolute path to the gain ledger (`~/.kestrel/gain.jsonl`), or null when the
+ * home dir cannot be resolved. `homedir()` returns "" when `$HOME` is unset (CI,
+ * containers, cron) — joining that yields a cwd-relative path that would scatter
+ * `.kestrel/` into whatever directory the query ran from, so guard against it.
+ */
+export function ledgerPath(): string | null {
+	const home = homedir();
+
+	return home === "" ? null : join(home, ".kestrel", "gain.jsonl");
 }
 
 /** Append one entry as a JSON line. All I/O failures are swallowed. */
-export function record(entry: GainEntry, path: string = ledgerPath()): void {
+export function record(entry: GainEntry, path: string | null = ledgerPath()): void {
+	if (path === null) {
+		return;
+	}
+
 	try {
 		mkdirSync(dirname(path), { recursive: true });
 		appendFileSync(path, `${JSON.stringify(entry)}\n`);
@@ -66,8 +77,12 @@ export function record(entry: GainEntry, path: string = ledgerPath()): void {
 	}
 }
 
-/** Read all entries, skipping malformed lines. Missing file → []. */
-export function read(path: string = ledgerPath()): GainEntry[] {
+/** Read all entries, skipping malformed lines. Missing file or no home dir → []. */
+export function read(path: string | null = ledgerPath()): GainEntry[] {
+	if (path === null) {
+		return [];
+	}
+
 	let raw: string;
 
 	try {
