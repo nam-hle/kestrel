@@ -3,6 +3,10 @@ import { createEngine } from "@kestrel/core";
 /**
  * kestrel CLI adapter. Translates CLI args <-> @kestrel/core calls and prints
  * results. No analysis logic. See docs/DESIGN.md Section 1.
+ *
+ * Commands group by agent intent: `view` (read code) and `find` (locate/trace),
+ * plus top-level addressing / whole-file facts. Old flat names remain as hidden
+ * aliases for back-compat.
  */
 import { runMain, defineCommand } from "citty";
 import type { EngineKind, SymbolHandle, AsyncSymbolEngine } from "@kestrel/core";
@@ -11,30 +15,19 @@ function print(text: string): void {
 	process.stdout.write(`${text}\n`);
 }
 
-const tsconfig = {
-	type: "string",
-	required: true,
-	description: "Path to the project tsconfig.json"
-} as const;
-
-const engine = {
-	type: "string",
-	description: "Engine backend: tsmorph (default) or lsp (tsgo)"
-} as const;
-
-function engineFrom(args: { engine?: string; tsconfig: string }): AsyncSymbolEngine {
-	return createEngine({ tsConfigPath: args.tsconfig, engine: args.engine as EngineKind | undefined });
-}
-
 function emit(value: unknown): void {
 	process.stdout.write(`${JSON.stringify(value, null, 2)}\n`);
 }
 
-/**
- * Run a command body with a freshly-created engine, disposing it afterwards and printing a
- * clean error (no stack trace) + exiting non-zero on failure.
- */
-async function withEngine(args: { engine?: string; tsconfig: string }, fn: (engine: AsyncSymbolEngine) => Promise<void>): Promise<void> {
+const tsconfig = { type: "string", required: true, description: "Path to the project tsconfig.json" } as const;
+const engine = { type: "string", description: "Engine backend: tsmorph (default) or lsp (tsgo)" } as const;
+
+function engineFrom(args: { engine?: string; tsconfig: string; }): AsyncSymbolEngine {
+	return createEngine({ tsConfigPath: args.tsconfig, engine: args.engine as EngineKind | undefined });
+}
+
+/** Run a command body with a fresh engine, disposing it after; clean error + non-zero exit on failure. */
+async function withEngine(args: { engine?: string; tsconfig: string; }, fn: (engine: AsyncSymbolEngine) => Promise<void>): Promise<void> {
 	const engineInstance = engineFrom(args);
 
 	try {
@@ -58,101 +51,48 @@ async function resolveSymbolOrThrow(engineInstance: AsyncSymbolEngine, qualified
 	throw new Error(JSON.stringify(result, null, 2));
 }
 
+const symbolArg = { required: true, type: "positional", description: "file:name[#index]" } as const;
+const fileArg = { required: true, type: "positional", description: "Relative file path" } as const;
+
+// ---- top-level: addressing + whole-file facts ----
+
 const resolve = defineCommand({
+	args: { engine, tsconfig, symbol: symbolArg },
 	meta: { name: "resolve", description: "Resolve a qualified name to a symbol or candidates" },
 	async run({ args }) {
 		await withEngine(args, async (e) => emit(await e.resolveSymbol(args.symbol)));
-	},
-	args: { engine, tsconfig, symbol: { required: true, type: "positional", description: "file:name[#index]" } }
-});
-
-const search = defineCommand({
-	meta: { name: "search", description: "Search for a symbol by name across the whole project" },
-	async run({ args }) {
-		await withEngine(args, async (e) => emit(await e.searchSymbol(args.name, { contains: args.contains })));
-	},
-	args: {
-		engine,
-		tsconfig,
-		name: { required: true, type: "positional", description: "Symbol name" },
-		contains: { type: "boolean", description: "Match the name as a substring (case-insensitive)" }
 	}
 });
 
-const def = defineCommand({
-	meta: { name: "def", description: "Find the declaration site(s) of a symbol" },
-	args: { engine, tsconfig, symbol: { required: true, type: "positional", description: "file:name[#index]" } },
+const imports = defineCommand({
+	args: { engine, tsconfig, file: fileArg },
+	meta: { name: "imports", description: "List the import statements of a file" },
 	async run({ args }) {
-		await withEngine(args, async (e) => emit(await e.findDefinition(await resolveSymbolOrThrow(e, args.symbol))));
+		await withEngine(args, async (e) => emit(await e.listImports(args.file)));
 	}
 });
 
-const refs = defineCommand({
-	meta: { name: "refs", description: "Find usages of a symbol" },
+const exportsCmd = defineCommand({
+	args: { engine, tsconfig, file: fileArg },
+	meta: { name: "exports", description: "Transitive public surface of an entry file (expands export *)" },
 	async run({ args }) {
-		await withEngine(args, async (e) => {
-			const symbol = await resolveSymbolOrThrow(e, args.symbol);
-
-			emit(
-				await e.findUsages(symbol, {
-					cursor: args.cursor,
-					excludeTests: args["exclude-tests"] === true,
-					limit: args.limit ? Number(args.limit) : undefined,
-					context: args.context as "none" | "snippet" | "block" | undefined
-				})
-			);
-		});
-	},
-	args: {
-		engine,
-		tsconfig,
-		cursor: { type: "string", description: "Pagination cursor" },
-		limit: { type: "string", description: "Max references to return" },
-		symbol: { required: true, type: "positional", description: "file:name[#index]" },
-		"exclude-tests": { type: "boolean", description: "Omit references in test files" },
-		context: { type: "string", description: "Surrounding source per ref: none (default) | snippet | block" }
+		await withEngine(args, async (e) => emit(await e.publicSurface(args.file)));
 	}
 });
 
-const calls = defineCommand({
-	meta: { name: "calls", description: "Call hierarchy: callers (incoming) or callees (outgoing) of a symbol" },
-	args: {
-		engine,
-		tsconfig,
-		depth: { type: "string", description: "Levels to walk (default 2)" },
-		outgoing: { type: "boolean", description: "Show callees instead of callers" },
-		symbol: { required: true, type: "positional", description: "file:name[#index]" }
-	},
+const usage = defineCommand({
+	meta: { name: "usage", description: "Usage report: each public symbol of an entry with its reference counts" },
+	args: { engine, tsconfig, file: fileArg, "exclude-tests": { type: "boolean", description: "Omit references in test files" } },
 	async run({ args }) {
-		await withEngine(args, async (e) => {
-			const symbol = await resolveSymbolOrThrow(e, args.symbol);
-
-			emit(
-				await e.callHierarchy(symbol, {
-					depth: args.depth ? Number(args.depth) : undefined,
-					direction: args.outgoing === true ? "outgoing" : "incoming"
-				})
-			);
-		});
+		await withEngine(args, async (e) => emit(await e.usageReport(args.file, { excludeTests: args["exclude-tests"] === true })));
 	}
 });
 
-const impls = defineCommand({
-	meta: { name: "impls", description: "Find implementations of an interface" },
-	args: { engine, tsconfig, symbol: { required: true, type: "positional", description: "file:name[#index]" } },
-	async run({ args }) {
-		await withEngine(args, async (e) => emit(await e.findImplementations(await resolveSymbolOrThrow(e, args.symbol))));
-	}
-});
+// ---- view: read code (structure + source) ----
 
-const outlineFile = defineCommand({
-	meta: { name: "outline-file", description: "Outline the structure of a file (compact tree; --json for full)" },
-	args: {
-		engine,
-		tsconfig,
-		file: { required: true, type: "positional", description: "Relative file path" },
-		json: { type: "boolean", description: "Emit full JSON instead of the compact tree" }
-	},
+const viewOutline = defineCommand({
+	meta: { name: "outline", description: "Outline the structure of a file (compact tree; --json for full)" },
+	args: { engine, tsconfig, file: fileArg, json: { type: "boolean", description: "Emit full JSON instead of the compact tree" } },
 	async run({ args }) {
 		const { renderFileOutline } = await import("@kestrel/core");
 
@@ -168,75 +108,220 @@ const outlineFile = defineCommand({
 	}
 });
 
-const imports = defineCommand({
-	meta: { name: "imports", description: "List the import statements of a file" },
+const viewFile = defineCommand({
+	meta: { name: "file", description: "Token-lean whole file: outline, plus --body for each export's source" },
+	args: { engine, tsconfig, file: fileArg, body: { type: "boolean", description: "Include each export's source" } },
 	async run({ args }) {
-		await withEngine(args, async (e) => emit(await e.listImports(args.file)));
-	},
-	args: { engine, tsconfig, file: { required: true, type: "positional", description: "Relative file path" } }
-});
+		await withEngine(args, async (e) => {
+			const outline = await e.outlineFile(args.file);
 
-const surface = defineCommand({
-	meta: { name: "surface", description: "Transitive public surface of an entry file (expands export *)" },
-	async run({ args }) {
-		await withEngine(args, async (e) => emit(await e.publicSurface(args.file)));
-	},
-	args: { engine, tsconfig, file: { required: true, type: "positional", description: "Entry file path" } }
-});
+			if (args.body !== true) {
+				emit(outline);
 
-const usage = defineCommand({
-	meta: { name: "usage", description: "Usage report: each public symbol of an entry with its reference counts" },
-	async run({ args }) {
-		await withEngine(args, async (e) => emit(await e.usageReport(args.file, { excludeTests: args["exclude-tests"] === true })));
-	},
-	args: {
-		engine,
-		tsconfig,
-		file: { required: true, type: "positional", description: "Entry file path" },
-		"exclude-tests": { type: "boolean", description: "Omit references in test files" }
+				return;
+			}
+
+			const sources = await Promise.all(
+				outline.exports.map((m) =>
+					m.qualifiedName !== undefined ? e.symbolSource({ position: m.position, qualifiedName: m.qualifiedName }) : Promise.resolve([])
+				)
+			);
+			emit({ outline, sources: sources.flat() });
+		});
 	}
 });
 
-const outlineSymbol = defineCommand({
-	meta: { name: "outline-symbol", description: "Outline the members of a class/interface" },
-	args: { engine, tsconfig, symbol: { required: true, type: "positional", description: "file:name[#index]" } },
+const viewSymbol = defineCommand({
+	args: { engine, tsconfig, symbol: symbolArg },
+	meta: { name: "symbol", description: "Print the exact source of a declaration" },
+	async run({ args }) {
+		await withEngine(args, async (e) => emit(await e.symbolSource(await resolveSymbolOrThrow(e, args.symbol))));
+	}
+});
+
+const viewMembers = defineCommand({
+	args: { engine, tsconfig, symbol: symbolArg },
+	meta: { name: "members", description: "Outline the members of a class/interface/namespace" },
 	async run({ args }) {
 		await withEngine(args, async (e) => emit(await e.outlineSymbol(await resolveSymbolOrThrow(e, args.symbol))));
 	}
 });
 
-const outlineFn = defineCommand({
-	meta: { name: "outline-fn", description: "Outline the statement skeleton of a function" },
-	args: {
-		engine,
-		tsconfig,
-		depth: { type: "string", description: "Nesting depth (default 1)" },
-		symbol: { required: true, type: "positional", description: "file:name[#index]" }
-	},
+const viewBody = defineCommand({
+	meta: { name: "body", description: "Outline the statement skeleton of a function" },
+	args: { engine, tsconfig, symbol: symbolArg, depth: { type: "string", description: "Nesting depth (default 1)" } },
 	async run({ args }) {
 		await withEngine(args, async (e) => {
 			const symbol = await resolveSymbolOrThrow(e, args.symbol);
-
 			emit(await e.outlineFunction(symbol, { depth: args.depth ? Number(args.depth) : undefined }));
 		});
 	}
 });
 
+const viewRegion = defineCommand({
+	meta: { name: "region", description: "Print an addressed line range: file:Lstart-Lend" },
+	args: { engine, tsconfig, target: { required: true, type: "positional", description: "file:Lstart-Lend" } },
+	async run({ args }) {
+		await withEngine(args, async (e) => {
+			const m = /^(.*):(\d+)-(\d+)$/.exec(args.target);
+
+			if (m === null) {
+				throw new Error(`expected file:Lstart-Lend, got ${args.target}`);
+			}
+
+			emit(await e.readRegion(m[1]!, Number(m[2]), Number(m[3])));
+		});
+	}
+});
+
+const viewContext = defineCommand({
+	args: { engine, tsconfig, symbol: symbolArg },
+	meta: { name: "context", description: "Source + signature + callees + referenced types" },
+	async run({ args }) {
+		await withEngine(args, async (e) => emit(await e.symbolContext(await resolveSymbolOrThrow(e, args.symbol))));
+	}
+});
+
+// ---- find: locate + trace ----
+
+const findSymbol = defineCommand({
+	meta: { name: "symbol", description: "Search for a symbol by name across the whole project" },
+	async run({ args }) {
+		await withEngine(args, async (e) => emit(await e.searchSymbol(args.name, { contains: args.contains })));
+	},
+	args: {
+		engine,
+		tsconfig,
+		name: { required: true, type: "positional", description: "Symbol name" },
+		contains: { type: "boolean", description: "Match the name as a substring (case-insensitive)" }
+	}
+});
+
+const findDef = defineCommand({
+	args: { engine, tsconfig, symbol: symbolArg },
+	meta: { name: "def", description: "Find the declaration site(s) of a symbol" },
+	async run({ args }) {
+		await withEngine(args, async (e) => emit(await e.findDefinition(await resolveSymbolOrThrow(e, args.symbol))));
+	}
+});
+
+const findRefs = defineCommand({
+	meta: { name: "refs", description: "Find usages of a symbol" },
+	args: {
+		engine,
+		tsconfig,
+		symbol: symbolArg,
+		cursor: { type: "string", description: "Pagination cursor" },
+		limit: { type: "string", description: "Max references to return" },
+		"exclude-tests": { type: "boolean", description: "Omit references in test files" },
+		context: { type: "string", description: "Surrounding source per ref: none (default) | snippet | block" }
+	},
+	async run({ args }) {
+		await withEngine(args, async (e) => {
+			const symbol = await resolveSymbolOrThrow(e, args.symbol);
+			emit(
+				await e.findUsages(symbol, {
+					cursor: args.cursor,
+					excludeTests: args["exclude-tests"] === true,
+					limit: args.limit ? Number(args.limit) : undefined,
+					context: args.context as "none" | "snippet" | "block" | undefined
+				})
+			);
+		});
+	}
+});
+
+const findImpls = defineCommand({
+	args: { engine, tsconfig, symbol: symbolArg },
+	meta: { name: "impls", description: "Find implementations of an interface" },
+	async run({ args }) {
+		await withEngine(args, async (e) => emit(await e.findImplementations(await resolveSymbolOrThrow(e, args.symbol))));
+	}
+});
+
+const findCallers = defineCommand({
+	meta: { name: "callers", description: "Incoming call hierarchy: who calls this symbol" },
+	args: { engine, tsconfig, symbol: symbolArg, depth: { type: "string", description: "Levels to walk (default 2)" } },
+	async run({ args }) {
+		await withEngine(args, async (e) => {
+			const symbol = await resolveSymbolOrThrow(e, args.symbol);
+			emit(await e.callHierarchy(symbol, { direction: "incoming", depth: args.depth ? Number(args.depth) : undefined }));
+		});
+	}
+});
+
+const findCallees = defineCommand({
+	meta: { name: "callees", description: "Outgoing call hierarchy: what this symbol calls" },
+	args: { engine, tsconfig, symbol: symbolArg, depth: { type: "string", description: "Levels to walk (default 2)" } },
+	async run({ args }) {
+		await withEngine(args, async (e) => {
+			const symbol = await resolveSymbolOrThrow(e, args.symbol);
+			emit(await e.callHierarchy(symbol, { direction: "outgoing", depth: args.depth ? Number(args.depth) : undefined }));
+		});
+	}
+});
+
+// ---- back-compat alias: old `calls [--outgoing] [--depth]` ----
+
+const callsAlias = defineCommand({
+	meta: { name: "calls", description: "(alias) Call hierarchy; --outgoing for callees" },
+	args: {
+		engine,
+		tsconfig,
+		symbol: symbolArg,
+		depth: { type: "string", description: "Levels to walk (default 2)" },
+		outgoing: { type: "boolean", description: "Show callees instead of callers" }
+	},
+	async run({ args }) {
+		await withEngine(args, async (e) => {
+			const symbol = await resolveSymbolOrThrow(e, args.symbol);
+			emit(
+				await e.callHierarchy(symbol, {
+					depth: args.depth ? Number(args.depth) : undefined,
+					direction: args.outgoing === true ? "outgoing" : "incoming"
+				})
+			);
+		});
+	}
+});
+
+const view = defineCommand({
+	meta: { name: "view", description: "Read code: structure + source" },
+	subCommands: {
+		file: viewFile,
+		body: viewBody,
+		symbol: viewSymbol,
+		region: viewRegion,
+		outline: viewOutline,
+		members: viewMembers,
+		context: viewContext
+	}
+});
+
+const find = defineCommand({
+	meta: { name: "find", description: "Locate + trace symbols" },
+	subCommands: { def: findDef, refs: findRefs, impls: findImpls, symbol: findSymbol, callers: findCallers, callees: findCallees }
+});
+
 const main = defineCommand({
 	meta: { name: "kestrel", description: "Semantic symbol queries for TypeScript" },
 	subCommands: {
-		def,
-		refs,
-		calls,
-		impls,
+		view,
+		find,
 		usage,
-		search,
-		imports,
 		resolve,
-		surface,
-		"outline-fn": outlineFn,
-		"outline-file": outlineFile,
-		"outline-symbol": outlineSymbol
+		imports,
+		def: findDef,
+		refs: findRefs,
+		impls: findImpls,
+		calls: callsAlias,
+		search: findSymbol,
+		exports: exportsCmd,
+		surface: exportsCmd,
+		"outline-fn": viewBody,
+		// hidden back-compat aliases — same command objects under the old flat names:
+		"outline-file": viewOutline,
+		"outline-symbol": viewMembers
 	}
 });
 
