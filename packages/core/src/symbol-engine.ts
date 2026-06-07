@@ -11,9 +11,12 @@ import type {
 	FileOutline,
 	SymbolHandle,
 	UsagesResult,
+	SourceResult,
+	RegionResult,
 	ResolveResult,
 	SearchOptions,
 	StatementNode,
+	SymbolContext,
 	UsageReportEntry,
 	FindUsagesOptions,
 	UsageReportOptions,
@@ -27,10 +30,13 @@ export interface SymbolEngine {
 	listImports(path: string): ImportInfo[];
 	publicSurface(path: string): Candidate[];
 	outlineSymbol(symbol: SymbolHandle): Member[];
+	symbolSource(symbol: SymbolHandle): SourceResult[];
+	symbolContext(symbol: SymbolHandle): SymbolContext;
 	resolveSymbol(qualifiedName: string): ResolveResult;
 	findDefinition(symbol: SymbolHandle): SymbolHandle[];
 	findImplementations(symbol: SymbolHandle): SymbolHandle[];
 	searchSymbol(name: string, options?: SearchOptions): Candidate[];
+	readRegion(file: string, startLine: number, endLine: number): RegionResult;
 	findUsages(symbol: SymbolHandle, options?: FindUsagesOptions): UsagesResult;
 	usageReport(path: string, options?: UsageReportOptions): UsageReportEntry[];
 	callHierarchy(symbol: SymbolHandle, options?: CallHierarchyOptions): CallNode[];

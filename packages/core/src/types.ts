@@ -48,6 +48,36 @@ export interface SymbolHandle {
 	qualifiedName: string;
 }
 
+/** Exact source text of one declaration of a resolved symbol. */
+export interface SourceResult {
+	/** The declaration's source, from its start to its end (signature + body). */
+	source: string;
+	position: Position;
+	qualifiedName: string;
+}
+
+/** A verbatim slice of a file by 1-based inclusive line range. */
+export interface RegionResult {
+	file: string;
+	source: string;
+	endLine: number;
+	startLine: number;
+}
+
+/** A symbol's full local context: source, signature, what it calls, and types it references. */
+export interface SymbolContext {
+	/** Full declaration source (= symbolSource). */
+	source: string;
+	/** Declaration head up to the body (single line, whitespace-collapsed). */
+	signature: string;
+	position: Position;
+	/** Distinct named types referenced in the declaration (syntactic, names only). */
+	typeRefs: string[];
+	/** Symbols this declaration calls (outgoing call hierarchy, depth 1). */
+	callees: CallNode[];
+	qualifiedName: string;
+}
+
 /** Context detail level for query output. */
 export type ContextLevel = "none" | "snippet" | "block";
 

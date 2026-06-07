@@ -4,7 +4,7 @@
 
 **Goal:** Regroup kestrel's CLI + MCP surface into `view` (read code) and `find` (locate/trace) families plus top-level addressing/whole-file commands, and add three source-reading ops — `view symbol`, `view region`, `view context` — with old names kept as hidden aliases. ts-morph stays the default engine.
 
-**Architecture:** Add three engine ops to core (`symbolSource`, `readRegion`, `symbolContext`) on the shared `SymbolEngine` interface + both engines, with new result types. Then restructure the CLI into citty parent commands, regularize the MCP tool names, and keep old names as aliases. Engine *semantics* of existing ops are untouched — only names/grouping change.
+**Architecture:** Add three engine ops to core (`symbolSource`, `readRegion`, `symbolContext`) on the shared `SymbolEngine` interface + both engines, with new result types. Then restructure the CLI into citty parent commands, regularize the MCP tool names, and keep old names as aliases. Engine _semantics_ of existing ops are untouched — only names/grouping change.
 
 **Tech Stack:** TypeScript 6, ts-morph (default engine), tsgo LSP + `typescript` parser (opt-in engine), citty (CLI), `@modelcontextprotocol/sdk` + zod (MCP), vitest, nadle.
 
@@ -43,6 +43,7 @@ README.md                  (modify) new command names + renamed-commands note
 ## Task 1: Core op `symbolSource` (exact declaration source)
 
 **Files:**
+
 - Modify: `packages/core/src/types.ts`
 - Modify: `packages/core/src/symbol-engine.ts`
 - Modify: `packages/core/src/engine.ts`
@@ -236,6 +237,7 @@ git commit -m "Add symbolSource: exact declaration source by name"
 ## Task 2: Core op `readRegion` (addressed line range)
 
 **Files:**
+
 - Modify: `packages/core/src/types.ts`, `symbol-engine.ts`, `engine.ts`, `lsp-engine.ts`, `create-engine.ts`
 - Test: `packages/core/src/__tests__/read-region.test.ts`
 
@@ -366,6 +368,7 @@ git commit -m "Add readRegion: verbatim line-range slice by address"
 ## Task 3: Core op `symbolContext` (sig + body + callees + type refs)
 
 **Files:**
+
 - Modify: `packages/core/src/types.ts`, `symbol-engine.ts`, `engine.ts`, `lsp-engine.ts`, `create-engine.ts`, `lsp/syntactic.ts`
 - Test: `packages/core/src/__tests__/symbol-context.test.ts`
 
@@ -535,6 +538,7 @@ git commit -m "Add symbolContext: source + signature + callees + type refs"
 ## Task 4: Restructure the CLI into view / find families + aliases
 
 **Files:**
+
 - Rewrite: `packages/cli/src/index.ts`
 - Test: `packages/cli/src/__tests__/cli.test.ts` (add cases)
 
@@ -638,7 +642,11 @@ const viewFile = defineCommand({
 				emit(outline);
 				return;
 			}
-			const sources = await Promise.all(outline.exports.map((m) => (m.qualifiedName !== undefined ? e.symbolSource({ qualifiedName: m.qualifiedName, position: m.position }) : Promise.resolve([]))));
+			const sources = await Promise.all(
+				outline.exports.map((m) =>
+					m.qualifiedName !== undefined ? e.symbolSource({ qualifiedName: m.qualifiedName, position: m.position }) : Promise.resolve([])
+				)
+			);
 			emit({ outline, sources: sources.flat() });
 		});
 	}
@@ -692,10 +700,12 @@ Run: `pnpm build` then `pnpm exec nadle test`. Expected: new view/find tests pas
 - [ ] **Step 5: Smoke both engines**
 
 Run:
+
 ```bash
 node ./packages/cli/dist/index.js view symbol --tsconfig packages/core/src/__tests__/fixtures/sample/tsconfig.json src/shapes.ts:makeCircle
 node ./packages/cli/dist/index.js view context --engine lsp --tsconfig packages/core/src/__tests__/fixtures/sample/tsconfig.json src/consumer.ts:totalArea
 ```
+
 Expected: source JSON; context JSON with callees/typeRefs. Paste both.
 
 - [ ] **Step 6: Check + commit**
@@ -710,6 +720,7 @@ git commit -m "Restructure CLI into view/find families with aliases"
 ## Task 5: Regularize MCP tool names + new tools + aliases
 
 **Files:**
+
 - Modify: `packages/mcp/src/index.ts`
 - Test: `packages/mcp/src/__tests__/mcp.test.ts` (add cases)
 
@@ -780,6 +791,7 @@ git commit -m "Regularize MCP tool names + add view_symbol/region/context"
 ## Task 6: README + final verification
 
 **Files:**
+
 - Modify: `README.md`
 
 - [ ] **Step 1: Update the README** Usage section to the new command names (CLI `view`/`find` families, the new ops) and the MCP tool list. Add a short "Renamed commands" note mapping old → new (outline-file → view outline, search → find symbol, surface → exports, calls → find callers/callees, def/refs/impls → find def/refs/impls) and that old names remain as aliases.
@@ -787,11 +799,13 @@ git commit -m "Regularize MCP tool names + add view_symbol/region/context"
 - [ ] **Step 2: Full verification**
 
 Run:
+
 ```bash
 pnpm build
 KESTREL_REQUIRE_LSP=1 pnpm exec nadle testCoverage
 pnpm exec nadle check
 ```
+
 Expected: all pass; coverage thresholds (lines/functions/statements 80, branches 70) hold.
 
 - [ ] **Step 3: Commit + push + PR**
@@ -801,6 +815,7 @@ git add README.md
 git commit -m "Document the view/find command redesign"
 git push -u origin feat/cli-redesign
 ```
+
 Open a PR titled "Redesign CLI into view/find families + source-reading ops", body summarizing the new commands, the three new ops, and the aliases; note "Closes" for any tracked issue (this implements the agent-file-read use cases; reference the spec). Let CI run all three OS.
 
 ---

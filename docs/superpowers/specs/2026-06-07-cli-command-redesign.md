@@ -21,35 +21,35 @@ Invocation: `kestrel <command> [subcommand] <target> --tsconfig <path> [--engine
 
 ### `view` — read code (structure + source)
 
-| Subcommand | Target | Output | Status |
-| --- | --- | --- | --- |
-| `view outline` | `<file>` | structural TOC (compact tree; `--json` full) | rename of `outline-file` |
-| `view file` | `<file>` | token-lean whole file: outline by default, `--body` adds source | NEW |
-| `view symbol` | `<file:Name>` | exact source of a declaration (signature + body) | NEW |
-| `view members` | `<file:Name>` | members of a class/interface/namespace | rename of `outline-symbol` |
-| `view body` | `<file:Name>` | function statement skeleton (`--depth`) | rename of `outline-fn` |
-| `view region` | `<file:L1-L2>` | an addressed line range, verbatim | NEW |
-| `view context` | `<file:Name>` | signature + body + resolved callees + referenced types | NEW (differentiator) |
+| Subcommand     | Target         | Output                                                          | Status                     |
+| -------------- | -------------- | --------------------------------------------------------------- | -------------------------- |
+| `view outline` | `<file>`       | structural TOC (compact tree; `--json` full)                    | rename of `outline-file`   |
+| `view file`    | `<file>`       | token-lean whole file: outline by default, `--body` adds source | NEW                        |
+| `view symbol`  | `<file:Name>`  | exact source of a declaration (signature + body)                | NEW                        |
+| `view members` | `<file:Name>`  | members of a class/interface/namespace                          | rename of `outline-symbol` |
+| `view body`    | `<file:Name>`  | function statement skeleton (`--depth`)                         | rename of `outline-fn`     |
+| `view region`  | `<file:L1-L2>` | an addressed line range, verbatim                               | NEW                        |
+| `view context` | `<file:Name>`  | signature + body + resolved callees + referenced types          | NEW (differentiator)       |
 
 ### `find` — locate + trace
 
-| Subcommand | Target | Output | Status |
-| --- | --- | --- | --- |
-| `find symbol` | `<name>` | repo-wide search (`--contains`) | rename of `search` |
-| `find def` | `<file:Name>` | declaration site(s) | rename of `def` |
-| `find refs` | `<file:Name>` | usages, classified (`--context`, `--exclude-tests`, `--limit`, `--cursor`) | rename of `refs` |
-| `find impls` | `<file:Name>` | implementors of an interface | rename of `impls` |
-| `find callers` | `<file:Name>` | incoming call hierarchy (`--depth`) | was `calls` (incoming) |
-| `find callees` | `<file:Name>` | outgoing call hierarchy (`--depth`) | was `calls --outgoing` |
+| Subcommand     | Target        | Output                                                                     | Status                 |
+| -------------- | ------------- | -------------------------------------------------------------------------- | ---------------------- |
+| `find symbol`  | `<name>`      | repo-wide search (`--contains`)                                            | rename of `search`     |
+| `find def`     | `<file:Name>` | declaration site(s)                                                        | rename of `def`        |
+| `find refs`    | `<file:Name>` | usages, classified (`--context`, `--exclude-tests`, `--limit`, `--cursor`) | rename of `refs`       |
+| `find impls`   | `<file:Name>` | implementors of an interface                                               | rename of `impls`      |
+| `find callers` | `<file:Name>` | incoming call hierarchy (`--depth`)                                        | was `calls` (incoming) |
+| `find callees` | `<file:Name>` | outgoing call hierarchy (`--depth`)                                        | was `calls --outgoing` |
 
 ### top-level — addressing + whole-file facts
 
-| Command | Target | Output | Status |
-| --- | --- | --- | --- |
-| `resolve` | `<file:Name>` | name → symbol \| candidates \| not-found | unchanged |
-| `imports` | `<file>` | import statements | unchanged |
-| `exports` | `<file>` | transitive public surface (expands `export *`) | rename of `surface` |
-| `usage` | `<file>` | per-export reference-count / dead-code report | unchanged |
+| Command   | Target        | Output                                         | Status              |
+| --------- | ------------- | ---------------------------------------------- | ------------------- |
+| `resolve` | `<file:Name>` | name → symbol \| candidates \| not-found       | unchanged           |
+| `imports` | `<file>`      | import statements                              | unchanged           |
+| `exports` | `<file>`      | transitive public surface (expands `export *`) | rename of `surface` |
+| `usage`   | `<file>`      | per-export reference-count / dead-code report  | unchanged           |
 
 Total: 7 `view` + 6 `find` + 4 top-level = **17 commands**.
 
@@ -97,7 +97,7 @@ call. If a section is empty (e.g. no callees), it is returned as an empty array,
 ## Architecture
 
 - **Core** gains: `symbolSource(symbol): SourceResult[]`, `readRegion(file, l1, l2):
-  RegionResult`, `symbolContext(symbol): SymbolContext`. All three added to the `SymbolEngine`
+RegionResult`, `symbolContext(symbol): SymbolContext`. All three added to the `SymbolEngine`
   interface (and the async `LspEngine`). New result types in `types.ts`.
 - **CLI** (`packages/cli`): restructure into `view` and `find` parent commands (citty
   `subCommands`), each with the subcommands above; `resolve`/`imports`/`exports`/`usage` stay
@@ -137,7 +137,7 @@ avoid breaking the scripts/docs that exist:
 
 ## Non-goals
 
-- No change to the query *semantics* (refs classification, surface expansion, call hierarchy
+- No change to the query _semantics_ (refs classification, surface expansion, call hierarchy
   depth) — only names/grouping + the three new read ops.
 - No `view context` configurability in v1 (fixed sections); revisit if agents need it.
 - rename/modify ops remain out of scope (read-only v1).
