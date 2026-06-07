@@ -469,9 +469,24 @@ export class LspEngine {
 			return undefined; // bare/package specifiers are out of the project surface
 		}
 
-		const fromDir = fromFile.includes("/") ? fromFile.replace(/\/[^/]*$/, "") : "";
-		const joined = resolvePath("/", fromDir, specifier).slice(1); // normalize ./ and ../ within root
-		const base = joined.replace(/\.js$/, "").replace(/\.ts$/, "");
+		// Root-relative paths are always forward-slashed; resolve POSIX-style (never the OS
+		// resolver, which prepends a drive root on Windows and breaks the math).
+		const fromDir = fromFile.includes("/") ? fromFile.slice(0, fromFile.lastIndexOf("/")) : "";
+		const segments: string[] = fromDir === "" ? [] : fromDir.split("/");
+
+		for (const part of specifier.split("/")) {
+			if (part === "" || part === ".") {
+				continue;
+			}
+
+			if (part === "..") {
+				segments.pop();
+			} else {
+				segments.push(part);
+			}
+		}
+
+		const base = segments.join("/").replace(/\.js$/, "").replace(/\.ts$/, "");
 
 		for (const candidate of [`${base}.ts`, `${base}.tsx`, `${base}/index.ts`]) {
 			try {
