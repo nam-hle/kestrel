@@ -94,6 +94,10 @@ importers:
       zod:
         specifier: 3.25.76
         version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: ^24.13.1
+        version: 24.13.1
 
 packages:
 
