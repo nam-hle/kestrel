@@ -13,11 +13,21 @@ import { LspSymbolKind } from "./lsp/protocol.js";
 import { resolveInSymbols } from "./lsp/bridge.js";
 import type { LspLocation, LspPosition, DocumentSymbol } from "./lsp/protocol.js";
 import { lspToPosition, uriToRelative, asLocationOrNull, locationToPosition } from "./lsp/translate.js";
-import { classifyAt, buildOutline, parseImports, parseReExports, topLevelExports, functionSkeleton, outlineSymbolMembers } from "./lsp/syntactic.js";
+import {
+	contextAt,
+	classifyAt,
+	buildOutline,
+	parseImports,
+	parseReExports,
+	topLevelExports,
+	functionSkeleton,
+	outlineSymbolMembers
+} from "./lsp/syntactic.js";
 import type {
 	Member,
 	CallNode,
 	Position,
+	Reference,
 	Candidate,
 	ImportInfo,
 	FileOutline,
@@ -290,6 +300,7 @@ export class LspEngine {
 		const declKeys = new Set(hits.map((h) => `${file}:${h.position.line + 1}:${h.position.character + 1}`));
 		const locs = await this.#locations("textDocument/references", file, segments, { context: { includeDeclaration: true } });
 
+		const level = options?.context ?? "none";
 		const seen = new Set<string>();
 		const all = [];
 
@@ -310,14 +321,21 @@ export class LspEngine {
 				continue;
 			}
 
-			all.push({ kind, test, position });
+			// Keep the start + text so context is computed for the page only.
+			all.push({ kind, test, text, position, start: loc.range.start });
 		}
 
 		const offset = options?.cursor ? Number(options.cursor) : 0;
-		const page = options?.limit === undefined ? all.slice(offset) : all.slice(offset, offset + options.limit);
-		const nextOffset = offset + page.length;
+		const pageRecords = options?.limit === undefined ? all.slice(offset) : all.slice(offset, offset + options.limit);
+		const nextOffset = offset + pageRecords.length;
 
-		return { references: page, total: all.length, nextCursor: nextOffset < all.length ? String(nextOffset) : undefined };
+		const references: Reference[] = pageRecords.map(({ kind, test, text, start, position }) => {
+			const ctx = level === "none" ? undefined : contextAt(text, start, level);
+
+			return { kind, test, position, ...(ctx !== undefined ? { context: ctx } : {}) };
+		});
+
+		return { references, total: all.length, nextCursor: nextOffset < all.length ? String(nextOffset) : undefined };
 	}
 
 	public async callHierarchy(symbol: SymbolHandle, options?: CallHierarchyOptions): Promise<CallNode[]> {

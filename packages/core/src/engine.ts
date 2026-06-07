@@ -25,8 +25,10 @@ import type {
 	Member,
 	CallNode,
 	Candidate,
+	Reference,
 	ImportInfo,
 	FileOutline,
+	ContextLevel,
 	SymbolHandle,
 	UsagesResult,
 	ResolveResult,
@@ -47,6 +49,29 @@ export interface EngineOptions {
 /** Heuristic: is this file path a test file? */
 function isTestFile(file: string): boolean {
 	return /(\.test\.|\.spec\.|\/__tests__\/|\/e2e\/)/.test(file);
+}
+
+/**
+ * Surrounding source for a reference node at the requested detail level:
+ * `none` → undefined; `snippet` → the node's own line, trimmed; `block` → the enclosing
+ * statement's text (whitespace-collapsed), falling back to the snippet.
+ */
+function contextFor(node: Node, level: ContextLevel): string | undefined {
+	if (level === "none") {
+		return undefined;
+	}
+
+	const sourceFile = node.getSourceFile();
+	const { line } = sourceFile.getLineAndColumnAtPos(node.getStart());
+	const snippet = (sourceFile.getFullText().split("\n")[line - 1] ?? "").trim();
+
+	if (level === "snippet") {
+		return snippet;
+	}
+
+	const statement = node.getFirstAncestor((a) => Node.isStatement(a));
+
+	return statement !== undefined ? statement.getText().replace(/\s+/g, " ") : snippet;
 }
 
 /** Nearest ancestor (incl. self) that is a named, addressable declaration. */
@@ -227,15 +252,17 @@ export class Engine implements SymbolEngine {
 	public findUsages(symbol: SymbolHandle, options?: FindUsagesOptions): UsagesResult {
 		const decls = this.#declarationsFor(symbol);
 		const base = this.#baseDir();
+		const context = options?.context ?? "none";
 
 		const seen = new Set<string>();
+		// Keep the node alongside the record so context can be computed for the page only.
 		const all = decls
 			.filter((decl) => Node.isReferenceFindable(decl))
 			.flatMap((decl) => decl.findReferencesAsNodes())
 			.map((node) => {
 				const pos = position(node, base);
 
-				return { position: pos, test: isTestFile(pos.file), kind: classifyReference(node) };
+				return { node, position: pos, test: isTestFile(pos.file), kind: classifyReference(node) };
 			})
 			.filter((ref) => {
 				const key = `${ref.position.file}:${ref.position.line}:${ref.position.col}`;
@@ -251,9 +278,15 @@ export class Engine implements SymbolEngine {
 
 		const offset = options?.cursor ? Number(options.cursor) : 0;
 		const limit = options?.limit;
-		const page = limit === undefined ? all.slice(offset) : all.slice(offset, offset + limit);
-		const nextOffset = offset + page.length;
+		const pageRecords = limit === undefined ? all.slice(offset) : all.slice(offset, offset + limit);
+		const nextOffset = offset + pageRecords.length;
 		const nextCursor = nextOffset < all.length ? String(nextOffset) : undefined;
+
+		const page: Reference[] = pageRecords.map(({ node, test, kind, position: pos }) => {
+			const ctx = contextFor(node, context);
+
+			return { test, kind, position: pos, ...(ctx !== undefined ? { context: ctx } : {}) };
+		});
 
 		return { nextCursor, references: page, total: all.length };
 	}

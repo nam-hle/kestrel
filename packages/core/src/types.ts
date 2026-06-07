@@ -17,6 +17,11 @@ export type ReferenceKind = "call" | "import" | "re-export" | "type-ref" | "read
 export interface Reference {
 	/** Whether the reference is in a test file. */
 	test?: boolean;
+	/**
+	 * Surrounding source, present only when `context` was requested:
+	 * `snippet` → the reference's own line (trimmed); `block` → the enclosing statement's text.
+	 */
+	context?: string;
 	position: Position;
 	kind: ReferenceKind;
 }

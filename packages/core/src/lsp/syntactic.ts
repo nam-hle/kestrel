@@ -95,6 +95,40 @@ export function parseReExports(path: string, text: string): ReExport[] {
 	return out;
 }
 
+/**
+ * Surrounding source at an LSP (0-based) position, at the requested level:
+ * `snippet` → that line, trimmed; `block` → the enclosing statement's text
+ * (whitespace-collapsed), falling back to the snippet.
+ */
+export function contextAt(text: string, pos: LspPosition, level: "snippet" | "block"): string {
+	const lines = text.split("\n").map((l) => (l.endsWith("\r") ? l.slice(0, -1) : l));
+	const snippet = (lines[pos.line] ?? "").trim();
+
+	if (level === "snippet") {
+		return snippet;
+	}
+
+	const sf = parse("__ctx.ts", text);
+	const offset = sf.getPositionOfLineAndCharacter(pos.line, pos.character);
+	let statement: ts.Node | undefined;
+
+	const visit = (node: ts.Node): void => {
+		if (offset < node.getStart(sf) || offset >= node.getEnd()) {
+			return;
+		}
+
+		if (ts.isStatement(node)) {
+			statement = node;
+		}
+
+		node.forEachChild(visit);
+	};
+
+	visit(sf);
+
+	return statement !== undefined ? statement.getText(sf).replace(/\s+/g, " ") : snippet;
+}
+
 /** Find the identifier node at an LSP (0-based) position and classify its reference kind. */
 export function classifyAt(text: string, pos: LspPosition): ReferenceKind {
 	const sf = parse("__classify.ts", text);
