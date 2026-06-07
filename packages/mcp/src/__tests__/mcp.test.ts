@@ -165,10 +165,22 @@ describe("MCP server integration", () => {
 		expect(names).not.toContain("calls");
 	}, 20_000);
 
-	it("tools/call resolve returns kind:symbol for makeCircle", async () => {
+	it("tools/call resolve returns text by default (address-first)", async () => {
 		const result = (await client.request("tools/call", {
 			name: "resolve",
 			arguments: { tsConfig: TSCONFIG, symbol: "src/shapes.ts:makeCircle" }
+		})) as { content: { type: string; text: string }[] };
+
+		expect(result.content[0]?.type).toBe("text");
+		// text format: qualifiedName<TAB>L<line>
+		expect(result.content[0]!.text).toContain("src/shapes.ts:makeCircle");
+		expect(result.content[0]!.text).not.toContain("{");
+	}, 20_000);
+
+	it("tools/call resolve with json:true returns kind:symbol", async () => {
+		const result = (await client.request("tools/call", {
+			name: "resolve",
+			arguments: { json: true, tsConfig: TSCONFIG, symbol: "src/shapes.ts:makeCircle" }
 		})) as { content: { type: string; text: string }[] };
 
 		expect(result.content[0]?.type).toBe("text");
@@ -183,5 +195,23 @@ describe("MCP server integration", () => {
 		})) as { content: { type: string; text: string }[] };
 
 		expect(result.content[0]!.text).toContain("makeCircle");
+	}, 20_000);
+
+	it("tools/call find_refs returns text by default", async () => {
+		const result = (await client.request("tools/call", {
+			name: "find_refs",
+			arguments: { tsConfig: TSCONFIG, symbol: "src/shapes.ts:makeCircle" }
+		})) as { content: { type: string; text: string }[] };
+		expect(result.content[0]!.text).toMatch(/src\/consumer\.ts:\d+:\d+\t/);
+		expect(result.content[0]!.text).not.toContain("{");
+	}, 20_000);
+
+	it("tools/call find_refs with json:true returns JSON", async () => {
+		const result = (await client.request("tools/call", {
+			name: "find_refs",
+			arguments: { json: true, tsConfig: TSCONFIG, symbol: "src/shapes.ts:makeCircle" }
+		})) as { content: { type: string; text: string }[] };
+		const parsed = JSON.parse(result.content[0]!.text) as { references: unknown[] };
+		expect(Array.isArray(parsed.references)).toBe(true);
 	}, 20_000);
 });

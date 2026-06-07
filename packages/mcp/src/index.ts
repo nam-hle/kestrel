@@ -8,10 +8,40 @@
  * top-level resolve/imports/exports/usage_report.
  */
 import { z } from "zod";
-import { createEngine } from "@kestrel/core";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import type { EngineKind, SymbolHandle, ResolveResult, AsyncSymbolEngine } from "@kestrel/core";
+import type {
+	Member,
+	CallNode,
+	Candidate,
+	EngineKind,
+	ImportInfo,
+	SymbolHandle,
+	UsagesResult,
+	SourceResult,
+	RegionResult,
+	ResolveResult,
+	StatementNode,
+	SymbolContext,
+	UsageReportEntry,
+	AsyncSymbolEngine
+} from "@kestrel/core";
+import {
+	createEngine,
+	renderSource,
+	renderRegion,
+	renderResolve,
+	renderHandles,
+	renderMembers,
+	renderContext,
+	renderImports,
+	renderReferences,
+	renderCandidates,
+	renderStatements,
+	renderUsageReport,
+	renderFileOutline,
+	renderCallHierarchy
+} from "@kestrel/core";
 
 type ToolResult = { content: { type: "text"; text: string }[] };
 
@@ -38,7 +68,19 @@ function text(value: string): ToolResult {
 	return { content: [{ text: value, type: "text" }] };
 }
 
-/** Resolve a symbol then run an op; if not a single symbol, return the resolve result as JSON. */
+/** Text content by default, or pretty JSON when jsonFlag is set. */
+function out(value: unknown, rendered: string, jsonFlag: boolean | undefined): ToolResult {
+	return jsonFlag === true ? json(value) : text(rendered);
+}
+
+/** Guard: distinguishes a ResolveResult (not-found/ambiguous) from an op result. */
+function isResolveResult(x: unknown): x is ResolveResult {
+	return (
+		typeof x === "object" && x !== null && "kind" in x && ((x as ResolveResult).kind === "not-found" || (x as ResolveResult).kind === "ambiguous")
+	);
+}
+
+/** Resolve a symbol then run an op; if not a single symbol, return the resolve result. */
 async function resolveOr(
 	tc: string,
 	kind: EngineKind,
@@ -55,6 +97,7 @@ const tsConfig = z.string().describe("Path to the project tsconfig.json");
 const engineArg = z.enum(["tsmorph", "lsp"]).optional().describe("Engine backend (default tsmorph)");
 const symbolArg = z.string().describe("Qualified name: relPath:Name (dotted for namespaces/members, Name#index to disambiguate)");
 const fileArg = z.string().describe("Source file path, relative to the tsconfig directory");
+const jsonArg = z.boolean().optional().describe("Return structured JSON instead of text");
 
 const kindOf = (engine: EngineKind | undefined): EngineKind => engine ?? "tsmorph";
 
@@ -64,9 +107,9 @@ const server = new McpServer({ name: "kestrel", version: "0.1.0" });
 interface ToolArgs {
 	name?: string;
 	file?: string;
+	json?: boolean;
 	limit?: number;
 	depth?: number;
-	full?: boolean;
 	symbol?: string;
 	cursor?: string;
 	tsConfig: string;
@@ -104,31 +147,50 @@ function tool(names: string[], schema: ToolSchema, handler: (args: ToolArgs) => 
 tool(
 	["resolve"],
 	{
-		inputSchema: { tsConfig, engine: engineArg, symbol: symbolArg },
+		inputSchema: { tsConfig, json: jsonArg, engine: engineArg, symbol: symbolArg },
 		description: "Resolve a qualified name to a symbol, or candidates if ambiguous."
 	},
-	async ({ symbol, engine, tsConfig: tc }) => json(await engineFor(tc, kindOf(engine)).resolveSymbol(symbol!))
+	async ({ symbol, engine, json: j, tsConfig: tc }) => {
+		const r = await engineFor(tc, kindOf(engine)).resolveSymbol(symbol!);
+
+		return out(r, renderResolve(r), j);
+	}
 );
 
 tool(
 	["imports"],
-	{ inputSchema: { tsConfig, file: fileArg, engine: engineArg }, description: "The import statements of a file (module wiring)." },
-	async ({ file, engine, tsConfig: tc }) => json(await engineFor(tc, kindOf(engine)).listImports(file!))
+	{ description: "The import statements of a file (module wiring).", inputSchema: { tsConfig, file: fileArg, json: jsonArg, engine: engineArg } },
+	async ({ file, engine, json: j, tsConfig: tc }) => {
+		const r = await engineFor(tc, kindOf(engine)).listImports(file!);
+
+		return out(r, renderImports(r as ImportInfo[]), j);
+	}
 );
 
 tool(
 	["exports"],
-	{ inputSchema: { tsConfig, file: fileArg, engine: engineArg }, description: "Transitive public surface of an entry file (expands export *)." },
-	async ({ file, engine, tsConfig: tc }) => json(await engineFor(tc, kindOf(engine)).publicSurface(file!))
+	{
+		inputSchema: { tsConfig, file: fileArg, json: jsonArg, engine: engineArg },
+		description: "Transitive public surface of an entry file (expands export *)."
+	},
+	async ({ file, engine, json: j, tsConfig: tc }) => {
+		const r = await engineFor(tc, kindOf(engine)).publicSurface(file!);
+
+		return out(r, renderCandidates(r as Candidate[]), j);
+	}
 );
 
 tool(
 	["usage_report"],
 	{
-		inputSchema: { tsConfig, file: fileArg, engine: engineArg, excludeTests: z.boolean().optional() },
-		description: "Each public symbol of an entry with its reference counts (for dead-code analysis)."
+		description: "Each public symbol of an entry with its reference counts (for dead-code analysis).",
+		inputSchema: { tsConfig, file: fileArg, json: jsonArg, engine: engineArg, excludeTests: z.boolean().optional() }
 	},
-	async ({ file, engine, tsConfig: tc, excludeTests }) => json(await engineFor(tc, kindOf(engine)).usageReport(file!, { excludeTests }))
+	async ({ file, engine, json: j, tsConfig: tc, excludeTests }) => {
+		const r = await engineFor(tc, kindOf(engine)).usageReport(file!, { excludeTests });
+
+		return out(r, renderUsageReport(r as UsageReportEntry[]), j);
+	}
 );
 
 // ---- view: read code (structure + source) ----
@@ -136,56 +198,76 @@ tool(
 tool(
 	["view_outline"],
 	{
-		inputSchema: { tsConfig, file: fileArg, engine: engineArg, full: z.boolean().optional() },
-		description: "Structural outline of a file (compact tree by default; full JSON with full=true)."
+		inputSchema: { tsConfig, file: fileArg, json: jsonArg, engine: engineArg },
+		description: "Structural outline of a file (compact tree by default; full JSON with json=true)."
 	},
-	async ({ file, full, engine, tsConfig: tc }) => {
+	async ({ file, engine, json: j, tsConfig: tc }) => {
 		const outline = await engineFor(tc, kindOf(engine)).outlineFile(file!);
 
-		if (full === true) {
-			return json(outline);
-		}
-
-		const { renderFileOutline } = await import("@kestrel/core");
-
-		return text(renderFileOutline(file!, outline));
+		return out(outline, renderFileOutline(file!, outline), j);
 	}
 );
 
 tool(
 	["view_symbol"],
-	{ inputSchema: { tsConfig, engine: engineArg, symbol: symbolArg }, description: "Exact source of a declaration (signature + body)." },
-	async ({ symbol, engine, tsConfig: tc }) => json(await resolveOr(tc, kindOf(engine), symbol!, (e, s) => e.symbolSource(s)))
+	{
+		description: "Exact source of a declaration (signature + body).",
+		inputSchema: { tsConfig, json: jsonArg, engine: engineArg, symbol: symbolArg }
+	},
+	async ({ symbol, engine, json: j, tsConfig: tc }) => {
+		const r = await resolveOr(tc, kindOf(engine), symbol!, (e, s) => e.symbolSource(s));
+
+		return out(r, isResolveResult(r) ? renderResolve(r) : renderSource(r as SourceResult[]), j);
+	}
 );
 
 tool(
 	["view_context"],
-	{ inputSchema: { tsConfig, engine: engineArg, symbol: symbolArg }, description: "Source + signature + outgoing callees + referenced type names." },
-	async ({ symbol, engine, tsConfig: tc }) => json(await resolveOr(tc, kindOf(engine), symbol!, (e, s) => e.symbolContext(s)))
+	{
+		description: "Source + signature + outgoing callees + referenced type names.",
+		inputSchema: { tsConfig, json: jsonArg, engine: engineArg, symbol: symbolArg }
+	},
+	async ({ symbol, engine, json: j, tsConfig: tc }) => {
+		const r = await resolveOr(tc, kindOf(engine), symbol!, (e, s) => e.symbolContext(s));
+
+		return out(r, isResolveResult(r) ? renderResolve(r) : renderContext(r as SymbolContext), j);
+	}
 );
 
 tool(
 	["view_region"],
 	{
 		description: "A verbatim file slice by 1-based inclusive line range.",
-		inputSchema: { tsConfig, file: fileArg, engine: engineArg, endLine: z.number(), startLine: z.number() }
+		inputSchema: { tsConfig, file: fileArg, json: jsonArg, engine: engineArg, endLine: z.number(), startLine: z.number() }
 	},
-	async ({ file, engine, endLine, startLine, tsConfig: tc }) => json(await engineFor(tc, kindOf(engine)).readRegion(file!, startLine!, endLine!))
+	async ({ file, engine, endLine, json: j, startLine, tsConfig: tc }) => {
+		const r = await engineFor(tc, kindOf(engine)).readRegion(file!, startLine!, endLine!);
+
+		return out(r, renderRegion(r as RegionResult), j);
+	}
 );
 
 tool(
 	["view_members"],
-	{ description: "Members of a class / interface / namespace.", inputSchema: { tsConfig, engine: engineArg, symbol: symbolArg } },
-	async ({ symbol, engine, tsConfig: tc }) => json(await resolveOr(tc, kindOf(engine), symbol!, (e, s) => e.outlineSymbol(s)))
+	{ description: "Members of a class / interface / namespace.", inputSchema: { tsConfig, json: jsonArg, engine: engineArg, symbol: symbolArg } },
+	async ({ symbol, engine, json: j, tsConfig: tc }) => {
+		const r = await resolveOr(tc, kindOf(engine), symbol!, (e, s) => e.outlineSymbol(s));
+
+		return out(r, isResolveResult(r) ? renderResolve(r) : renderMembers(r as Member[]), j);
+	}
 );
 
 tool(
 	["view_body"],
 	{
 		description: "Statement-level skeleton of a function body.",
-		inputSchema: { tsConfig, engine: engineArg, symbol: symbolArg, depth: z.number().optional() }
+		inputSchema: { tsConfig, json: jsonArg, engine: engineArg, symbol: symbolArg, depth: z.number().optional() }
 	},
-	async ({ depth, symbol, engine, tsConfig: tc }) => json(await resolveOr(tc, kindOf(engine), symbol!, (e, s) => e.outlineFunction(s, { depth })))
+	async ({ depth, symbol, engine, json: j, tsConfig: tc }) => {
+		const r = await resolveOr(tc, kindOf(engine), symbol!, (e, s) => e.outlineFunction(s, { depth }));
+
+		return out(r, isResolveResult(r) ? renderResolve(r) : renderStatements(r as StatementNode[]), j);
+	}
 );
 
 // ---- find: locate + trace ----
@@ -193,16 +275,24 @@ tool(
 tool(
 	["find_symbol"],
 	{
-		inputSchema: { tsConfig, name: z.string(), engine: engineArg, contains: z.boolean().optional() },
-		description: "Find a symbol by name across the whole project (exact, or substring with contains)."
+		description: "Find a symbol by name across the whole project (exact, or substring with contains).",
+		inputSchema: { tsConfig, json: jsonArg, name: z.string(), engine: engineArg, contains: z.boolean().optional() }
 	},
-	async ({ name, engine, contains, tsConfig: tc }) => json(await engineFor(tc, kindOf(engine)).searchSymbol(name!, { contains }))
+	async ({ name, engine, json: j, contains, tsConfig: tc }) => {
+		const r = await engineFor(tc, kindOf(engine)).searchSymbol(name!, { contains });
+
+		return out(r, renderCandidates(r as Candidate[]), j);
+	}
 );
 
 tool(
 	["find_def"],
-	{ description: "Find the declaration site(s) of a symbol.", inputSchema: { tsConfig, engine: engineArg, symbol: symbolArg } },
-	async ({ symbol, engine, tsConfig: tc }) => json(await resolveOr(tc, kindOf(engine), symbol!, (e, s) => e.findDefinition(s)))
+	{ description: "Find the declaration site(s) of a symbol.", inputSchema: { tsConfig, json: jsonArg, engine: engineArg, symbol: symbolArg } },
+	async ({ symbol, engine, json: j, tsConfig: tc }) => {
+		const r = await resolveOr(tc, kindOf(engine), symbol!, (e, s) => e.findDefinition(s));
+
+		return out(r, isResolveResult(r) ? renderResolve(r) : renderHandles(r as SymbolHandle[]), j);
+	}
 );
 
 tool(
@@ -211,6 +301,7 @@ tool(
 		description: "Find references to a symbol, classified by kind; optionally exclude tests or attach context.",
 		inputSchema: {
 			tsConfig,
+			json: jsonArg,
 			engine: engineArg,
 			symbol: symbolArg,
 			limit: z.number().optional(),
@@ -219,34 +310,47 @@ tool(
 			context: z.enum(["none", "snippet", "block"]).optional().describe("Surrounding source per ref (default none)")
 		}
 	},
-	async ({ limit, symbol, cursor, engine, context, tsConfig: tc, excludeTests }) =>
-		json(await resolveOr(tc, kindOf(engine), symbol!, (e, s) => e.findUsages(s, { limit, cursor, context, excludeTests })))
+	async ({ limit, symbol, cursor, engine, context, json: j, tsConfig: tc, excludeTests }) => {
+		const r = await resolveOr(tc, kindOf(engine), symbol!, (e, s) => e.findUsages(s, { limit, cursor, context, excludeTests }));
+
+		return out(r, isResolveResult(r) ? renderResolve(r) : renderReferences(r as UsagesResult), j);
+	}
 );
 
 tool(
 	["find_impls"],
-	{ description: "Find implementations of an interface.", inputSchema: { tsConfig, engine: engineArg, symbol: symbolArg } },
-	async ({ symbol, engine, tsConfig: tc }) => json(await resolveOr(tc, kindOf(engine), symbol!, (e, s) => e.findImplementations(s)))
+	{ description: "Find implementations of an interface.", inputSchema: { tsConfig, json: jsonArg, engine: engineArg, symbol: symbolArg } },
+	async ({ symbol, engine, json: j, tsConfig: tc }) => {
+		const r = await resolveOr(tc, kindOf(engine), symbol!, (e, s) => e.findImplementations(s));
+
+		return out(r, isResolveResult(r) ? renderResolve(r) : renderHandles(r as SymbolHandle[]), j);
+	}
 );
 
 tool(
 	["find_callers"],
 	{
 		description: "Incoming call hierarchy: who calls this symbol, to a depth.",
-		inputSchema: { tsConfig, engine: engineArg, symbol: symbolArg, depth: z.number().optional() }
+		inputSchema: { tsConfig, json: jsonArg, engine: engineArg, symbol: symbolArg, depth: z.number().optional() }
 	},
-	async ({ depth, symbol, engine, tsConfig: tc }) =>
-		json(await resolveOr(tc, kindOf(engine), symbol!, (e, s) => e.callHierarchy(s, { depth, direction: "incoming" })))
+	async ({ depth, symbol, engine, json: j, tsConfig: tc }) => {
+		const r = await resolveOr(tc, kindOf(engine), symbol!, (e, s) => e.callHierarchy(s, { depth, direction: "incoming" }));
+
+		return out(r, isResolveResult(r) ? renderResolve(r) : renderCallHierarchy(r as CallNode[]), j);
+	}
 );
 
 tool(
 	["find_callees"],
 	{
 		description: "Outgoing call hierarchy: what this symbol calls, to a depth.",
-		inputSchema: { tsConfig, engine: engineArg, symbol: symbolArg, depth: z.number().optional() }
+		inputSchema: { tsConfig, json: jsonArg, engine: engineArg, symbol: symbolArg, depth: z.number().optional() }
 	},
-	async ({ depth, symbol, engine, tsConfig: tc }) =>
-		json(await resolveOr(tc, kindOf(engine), symbol!, (e, s) => e.callHierarchy(s, { depth, direction: "outgoing" })))
+	async ({ depth, symbol, engine, json: j, tsConfig: tc }) => {
+		const r = await resolveOr(tc, kindOf(engine), symbol!, (e, s) => e.callHierarchy(s, { depth, direction: "outgoing" }));
+
+		return out(r, isResolveResult(r) ? renderResolve(r) : renderCallHierarchy(r as CallNode[]), j);
+	}
 );
 
 // Dispose warm engines (and any tsgo subprocess) on shutdown. See #44 for fuller lifecycle.
