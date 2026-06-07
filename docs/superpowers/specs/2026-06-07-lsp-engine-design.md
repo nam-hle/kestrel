@@ -10,14 +10,14 @@ the default. See [TSGO-SPIKE.md](../../TSGO-SPIKE.md) (Door 3 spike: PASS) and
 
 ## Decisions (settled in brainstorming)
 
-| Question | Decision |
-| --- | --- |
-| Addressing bridge (`file:Name` → position) | **tsgo `documentSymbol`** — no second engine for resolution |
-| Packaging | Same package (`packages/core`), opt-in; ts-morph default |
-| Op scope | **Full parity** — all 13 ops |
-| Ops LSP can't serve (imports, outline detail, fn bodies) | **Light parser** — `typescript` native `ts.createSourceFile` |
-| Parser choice | `typescript` package, raw AST (not ts-morph) |
-| Subprocess lifecycle | **Lazy**, one tsgo per engine, warm for lifetime, killed on `dispose()` / exit |
+| Question                                                 | Decision                                                                       |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| Addressing bridge (`file:Name` → position)               | **tsgo `documentSymbol`** — no second engine for resolution                    |
+| Packaging                                                | Same package (`packages/core`), opt-in; ts-morph default                       |
+| Op scope                                                 | **Full parity** — all 13 ops                                                   |
+| Ops LSP can't serve (imports, outline detail, fn bodies) | **Light parser** — `typescript` native `ts.createSourceFile`                   |
+| Parser choice                                            | `typescript` package, raw AST (not ts-morph)                                   |
+| Subprocess lifecycle                                     | **Lazy**, one tsgo per engine, warm for lifetime, killed on `dispose()` / exit |
 
 ## Architecture
 
@@ -71,21 +71,21 @@ file's own declarations. It does NOT follow re-export chains or `export *`. Two 
 
 ## Op → mechanism map
 
-| Op | Mechanism |
-| --- | --- |
-| resolveSymbol | documentSymbol bridge (+ workspaceSymbol/definition fallback for re-exports) |
-| searchSymbol | `workspace/symbol` |
-| findDefinition | `textDocument/definition` |
-| findUsages | `textDocument/references` (+ kind classification, see below) |
-| findImplementations | `textDocument/implementation` |
-| callHierarchy | `callHierarchy/prepare` → `incomingCalls`/`outgoingCalls`, bounded depth walk |
-| outlineFile | parser (`ts.createSourceFile`) — buckets, signatures, typeParameters, exported flag |
-| outlineSymbol | parser — members of a class/interface/namespace |
-| outlineFunction | parser — statement skeleton of a body (LSP can't descend into bodies) |
-| listImports | parser — import declarations |
-| publicSurface | parser (find re-exports) + `definition` to resolve true decls |
-| usageReport | publicSurface + findUsages loop (composed, same as today) |
-| refreshIfStale | re-`didOpen` changed files (LSP `didChange` or close+open) |
+| Op                  | Mechanism                                                                           |
+| ------------------- | ----------------------------------------------------------------------------------- |
+| resolveSymbol       | documentSymbol bridge (+ workspaceSymbol/definition fallback for re-exports)        |
+| searchSymbol        | `workspace/symbol`                                                                  |
+| findDefinition      | `textDocument/definition`                                                           |
+| findUsages          | `textDocument/references` (+ kind classification, see below)                        |
+| findImplementations | `textDocument/implementation`                                                       |
+| callHierarchy       | `callHierarchy/prepare` → `incomingCalls`/`outgoingCalls`, bounded depth walk       |
+| outlineFile         | parser (`ts.createSourceFile`) — buckets, signatures, typeParameters, exported flag |
+| outlineSymbol       | parser — members of a class/interface/namespace                                     |
+| outlineFunction     | parser — statement skeleton of a body (LSP can't descend into bodies)               |
+| listImports         | parser — import declarations                                                        |
+| publicSurface       | parser (find re-exports) + `definition` to resolve true decls                       |
+| usageReport         | publicSurface + findUsages loop (composed, same as today)                           |
+| refreshIfStale      | re-`didOpen` changed files (LSP `didChange` or close+open)                          |
 
 ### Reference-kind classification
 
@@ -111,7 +111,7 @@ Lifecycle: lazy spawn on first semantic op; warm for engine lifetime; `dispose()
 - LSP `uri` (`file://<root>/...`) → strip to relative path against the project root.
 - LSP 0-based `line`/`character` → kestrel 1-based `line`/`col`.
 - Byte offsets / LSP positions never leave the adapter — the public surface stays `file:Name`
-  + 1-based `Position`, identical to the ts-morph engine.
+  - 1-based `Position`, identical to the ts-morph engine.
 
 ## Error handling
 

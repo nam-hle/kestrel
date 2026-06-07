@@ -41,29 +41,67 @@ Conventions (from CLAUDE.md): prettier = TABS, printWidth 150; ESM, `.js` import
 ## Task 0: Add the tsgo dependency
 
 **Files:**
+
 - Modify: `packages/core/package.json` (dependencies)
 
 - [ ] **Step 1: Add the dep** (pnpm `--filter add` no-ops here; cd into the package)
 
 Run:
+
 ```bash
 cd packages/core && pnpm add @typescript/native-preview@7.0.0-dev.20260606.1 && pnpm add -D typescript@^6.0.3
 ```
+
 (`typescript` may already be transitively present via ts-morph; the explicit devDep pins the native-API surface used by `syntactic.ts`.)
 
 - [ ] **Step 2: Verify the bin resolves**
 
-Run:
+NOTE (verified 2026-06-07): `bin/tsgo.js` is NOT in the package's `exports`, so
+`require.resolve('@typescript/native-preview/bin/tsgo.js')` throws
+`ERR_PACKAGE_PATH_NOT_EXPORTED`. Resolve via the package.json dir instead:
+
 ```bash
-node -e "console.log(require.resolve('@typescript/native-preview/bin/tsgo.js'))"
+node -e "const p=require.resolve('@typescript/native-preview/package.json'); console.log(require('path').join(require('path').dirname(p),'bin','tsgo.js'))"
 ```
-Expected: prints an absolute path ending `@typescript/native-preview/bin/tsgo.js`. If it fails, the engine cannot spawn — stop and fix the dep before continuing.
 
-- [ ] **Step 3: Commit**
+Expected: prints an absolute path ending `.../@typescript/native-preview/bin/tsgo.js`. The
+file exists and `node <that path> --version` prints `Version 7.0.0-dev.20260606.1`.
+
+- [ ] **Step 3: Add a shared bin-resolver helper**
+
+Create `packages/core/src/lsp/tsgo-bin.ts` — single source of truth for the bin path, used
+by `client.ts` and the test-gating in `client.test.ts` / `lsp-engine.test.ts`:
+
+```typescript
+/** Resolve the tsgo launcher path. The bin is not in the package `exports`, so resolve
+ * via the package.json directory rather than a bin subpath. Returns undefined if the
+ * dep is absent (tests gate on this). */
+import { join, dirname } from "node:path";
+import { createRequire } from "node:module";
+
+const require = createRequire(import.meta.url);
+
+export function tsgoBinPath(): string | undefined {
+	try {
+		const pkg = require.resolve("@typescript/native-preview/package.json");
+
+		return join(dirname(pkg), "bin", "tsgo.js");
+	} catch {
+		return undefined;
+	}
+}
+```
+
+Wherever the plan's later tasks show `require.resolve('@typescript/native-preview/bin/tsgo.js')`
+(client spawn, test gating), use `tsgoBinPath()` instead — spawn with
+`spawn(process.execPath, [binPath, "--lsp", "--stdio"], …)`, and gate tests with
+`const binAvailable = tsgoBinPath() !== undefined;`.
+
+- [ ] **Step 4: Commit**
 
 ```bash
-git add packages/core/package.json pnpm-lock.yaml
-git commit -m "Add @typescript/native-preview dep for the LSP engine"
+git add packages/core/package.json packages/core/src/lsp/tsgo-bin.ts pnpm-lock.yaml
+git commit -m "Add @typescript/native-preview dep + tsgo bin resolver"
 ```
 
 ---
@@ -73,6 +111,7 @@ git commit -m "Add @typescript/native-preview dep for the LSP engine"
 Extract an interface from `Engine`'s public method shapes so both engines are interchangeable. `Engine` only gains an `implements` clause — no behavior change.
 
 **Files:**
+
 - Create: `packages/core/src/symbol-engine.ts`
 - Modify: `packages/core/src/engine.ts:71` (class declaration)
 - Test: `packages/core/src/__tests__/symbol-engine.test.ts`
@@ -160,6 +199,7 @@ Expected: PASS. If TS complains `Engine` is missing a member, the interface drif
 - [ ] **Step 6: Export the type**
 
 In `packages/core/src/index.ts` add:
+
 ```typescript
 export type { SymbolEngine } from "./symbol-engine.js";
 ```
@@ -178,6 +218,7 @@ git commit -m "Extract SymbolEngine interface implemented by Engine"
 A tiny hand-written subset of the LSP types/enums used here. No `vscode-languageserver` dependency.
 
 **Files:**
+
 - Create: `packages/core/src/lsp/protocol.ts`
 
 (No test of its own — it is type-only + enum constants, exercised by translate/bridge tests.)
@@ -260,6 +301,7 @@ git commit -m "Add minimal LSP protocol types for the LSP engine"
 Pure functions converting LSP wire shapes to kestrel types. No subprocess — fully unit-testable.
 
 **Files:**
+
 - Create: `packages/core/src/lsp/translate.ts`
 - Test: `packages/core/src/__tests__/lsp/translate.test.ts`
 
@@ -350,6 +392,7 @@ git commit -m "Add LSP-to-kestrel translation helpers"
 Pure function: given a parsed name (segments + optional index) and a `DocumentSymbol[]` tree, return the matching symbols' positions. This is the key design choice — name → position via tsgo's own symbol tree, no second semantic engine.
 
 **Files:**
+
 - Create: `packages/core/src/lsp/bridge.ts`
 - Test: `packages/core/src/__tests__/lsp/bridge.test.ts`
 
@@ -369,11 +412,17 @@ const sel = (line: number, character: number) => ({ start: { line, character }, 
 // Shape interface (line 0) with member area; Circle class (line 4) with member area.
 const tree: DocumentSymbol[] = [
 	{
-		name: "Shape", kind: LspSymbolKind.Interface, range: sel(0, 0), selectionRange: sel(0, 17),
+		name: "Shape",
+		kind: LspSymbolKind.Interface,
+		range: sel(0, 0),
+		selectionRange: sel(0, 17),
 		children: [{ name: "area", kind: LspSymbolKind.Method, range: sel(1, 1), selectionRange: sel(1, 1) }]
 	},
 	{
-		name: "Circle", kind: LspSymbolKind.Class, range: sel(4, 0), selectionRange: sel(4, 13),
+		name: "Circle",
+		kind: LspSymbolKind.Class,
+		range: sel(4, 0),
+		selectionRange: sel(4, 13),
 		children: [{ name: "area", kind: LspSymbolKind.Method, range: sel(6, 1), selectionRange: sel(6, 1) }]
 	}
 ];
@@ -478,9 +527,10 @@ git commit -m "Add documentSymbol addressing bridge (name -> LSP position)"
 
 ## Task 5: Syntactic walkers (typescript native API)
 
-Pure functions over `ts.SourceFile` for ops the LSP cannot serve: imports, file outline, function-body skeleton, and reference-kind classification by position. Each takes file *text* (so the engine can pass tsgo-open buffers or disk reads) and a file path.
+Pure functions over `ts.SourceFile` for ops the LSP cannot serve: imports, file outline, function-body skeleton, and reference-kind classification by position. Each takes file _text_ (so the engine can pass tsgo-open buffers or disk reads) and a file path.
 
 **Files:**
+
 - Create: `packages/core/src/lsp/syntactic.ts`
 - Test: `packages/core/src/__tests__/lsp/syntactic.test.ts`
 
@@ -687,6 +737,7 @@ git commit -m "Add syntactic walkers (imports + reference classification)"
 Extend `syntactic.ts` with `outlineFile`, `outlineSymbolMembers`, and `functionSkeleton`, matching the ts-morph engine's `FileOutline` / `Member` / `StatementNode` shapes. Tested for parity against the ts-morph `Engine` on the same fixture in Task 7; here we test shape directly.
 
 **Files:**
+
 - Modify: `packages/core/src/lsp/syntactic.ts`
 - Test: `packages/core/src/__tests__/lsp/syntactic.test.ts` (add cases)
 
@@ -922,6 +973,7 @@ git commit -m "Add syntactic outline + function skeleton walkers"
 Spawn `tsgo --lsp --stdio`, speak JSON-RPC over stdio, answer the server→client requests that otherwise hang the handshake (proven necessary in the spike), expose `request`/`notify`/`dispose`. Lazy: nothing spawns until `start()` is awaited.
 
 **Files:**
+
 - Create: `packages/core/src/lsp/client.ts`
 - Test: `packages/core/src/__tests__/lsp/client.test.ts`
 
@@ -1147,6 +1199,7 @@ git commit -m "Add tsgo LSP client (subprocess transport)"
 Wire client + bridge + translate + syntactic into the `SymbolEngine` surface. Semantic ops go to tsgo; syntactic ops go to the parser. Tests assert parity against the ts-morph `Engine` on the shared fixture.
 
 **Files:**
+
 - Create: `packages/core/src/lsp-engine.ts`
 - Modify: `packages/core/src/index.ts`
 - Test: `packages/core/src/__tests__/lsp-engine.test.ts`
@@ -1279,7 +1332,9 @@ export class LspEngine {
 	readonly #root: string;
 
 	public constructor(private readonly options: LspEngineOptions) {
-		this.#root = resolvePath(options.tsConfigPath).replace(/\\/g, "/").replace(/\/[^/]*$/, "");
+		this.#root = resolvePath(options.tsConfigPath)
+			.replace(/\\/g, "/")
+			.replace(/\/[^/]*$/, "");
 	}
 
 	async #ready(): Promise<LspClient> {
@@ -1339,9 +1394,7 @@ export class LspEngine {
 		if (index !== undefined) {
 			const picked = hits[index];
 
-			return picked === undefined
-				? { kind: "not-found" }
-				: { kind: "symbol", symbol: { qualifiedName, position: this.#pos(file, picked.position) } };
+			return picked === undefined ? { kind: "not-found" } : { kind: "symbol", symbol: { qualifiedName, position: this.#pos(file, picked.position) } };
 		}
 
 		if (hits.length > 1) {
@@ -1583,6 +1636,7 @@ export class LspEngine {
 - [ ] **Step 4: Export from index**
 
 In `packages/core/src/index.ts`:
+
 ```typescript
 export { LspEngine } from "./lsp-engine.js";
 export type { LspEngineOptions } from "./lsp-engine.js";
@@ -1608,6 +1662,7 @@ git commit -m "Add LspEngine: tsgo semantic ops + parser syntactic ops"
 `documentSymbol` sees only a file's own declarations, so `resolveSymbol("barrel.ts:Circle")` (re-exported from shapes.ts) returns nothing. Fall back to `workspace/symbol` + `textDocument/definition` to land on the true declaration. (Spec: "known fidelity gap, documented not hidden".)
 
 **Files:**
+
 - Modify: `packages/core/src/lsp-engine.ts` (`resolveSymbol` / `#hits`)
 - Test: `packages/core/src/__tests__/lsp-engine.test.ts` (add a case)
 
@@ -1682,6 +1737,7 @@ git commit -m "Resolve re-exported symbols via workspace/symbol fallback"
 ## Task 9: Full verification + docs
 
 **Files:**
+
 - Modify: `docs/TSGO-SPIKE.md` (mark the LspEngine built), `docs/ROADMAP.md` (deferred-engine note)
 
 - [ ] **Step 1: Run the full CI command**
@@ -1692,10 +1748,12 @@ Expected: ALL pass, including the gated LSP suites (the dep is installed locally
 - [ ] **Step 2: Lint + format + build**
 
 Run:
+
 ```bash
 pnpm exec nadle check
 pnpm build
 ```
+
 Expected: clean — no eslint/prettier errors, tsc -b succeeds.
 
 - [ ] **Step 3: Update docs** — in `docs/TSGO-SPIKE.md` add a short note under Door-3 Results that the `LspEngine` is now implemented (opt-in, `packages/core`), and in `docs/ROADMAP.md` change the deferred-engine line from "build … only when cold-start complaints arrive" to note the engine exists behind the opt-in and the remaining work is the benchmark (Phase 0). Keep it factual, no company references.
