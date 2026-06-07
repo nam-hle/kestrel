@@ -2,7 +2,7 @@
  * Compact text rendering of outlines — a token-lean YAML-ish tree, the default
  * agent-facing format. Namespace/owner prefixes are factored out into nesting.
  */
-import type { Member, Position, Candidate, FileOutline, SymbolHandle, UsagesResult, ResolveResult } from "./types.js";
+import type { Member, Position, Candidate, FileOutline, SymbolHandle, UsagesResult, ResolveResult, SourceResult, RegionResult, StatementNode, SymbolContext, CallNode, ImportInfo, UsageReportEntry } from "./types.js";
 
 interface TreeNode {
 	children: Map<string, TreeNode>;
@@ -149,4 +149,110 @@ export function renderResolve(result: ResolveResult): string {
 	return result.suggestions !== undefined && result.suggestions.length > 0
 		? `not found\ndid you mean: ${result.suggestions.join(", ")}`
 		: "not found";
+}
+
+export function renderSource(sources: SourceResult[]): string {
+	if (sources.length === 0) {
+		return "(no source)";
+	}
+
+	return sources.map((s) => `${addr(s.position)}\t${s.qualifiedName}\n${s.source}`).join("\n\n");
+}
+
+export function renderRegion(r: RegionResult): string {
+	return `${r.file}:${r.startLine}-${r.endLine}\n${r.source}`;
+}
+
+export function renderMembers(members: Member[]): string {
+	return members.length === 0 ? "(no members)" : members.map((m) => `${m.name}\t${m.kind}\tL${m.position.line}`).join("\n");
+}
+
+export function renderStatements(nodes: StatementNode[], indent = ""): string {
+	if (nodes.length === 0 && indent === "") {
+		return "(empty)";
+	}
+
+	const lines: string[] = [];
+
+	for (const node of nodes) {
+		lines.push(`${indent}${node.kind}\tL${node.position.line}`);
+
+		if (node.children !== undefined && node.children.length > 0) {
+			lines.push(renderStatements(node.children, `${indent}  `));
+		}
+	}
+
+	return lines.join("\n");
+}
+
+function renderCallNodes(nodes: CallNode[], indent: string, lines: string[]): void {
+	for (const node of nodes) {
+		const name = node.qualifiedName.split(":").pop() ?? node.qualifiedName;
+		lines.push(`${indent}${name}\t${addr(node.position)}`);
+		renderCallNodes(node.calls, `${indent}  `, lines);
+	}
+}
+
+export function renderCallHierarchy(tree: CallNode[]): string {
+	if (tree.length === 0) {
+		return "(none)";
+	}
+
+	const lines: string[] = [];
+	renderCallNodes(tree, "", lines);
+
+	return lines.join("\n");
+}
+
+export function renderContext(ctx: SymbolContext): string {
+	const lines = [`${addr(ctx.position)}\t${ctx.qualifiedName}`, `sig: ${ctx.signature}`];
+
+	if (ctx.typeRefs.length > 0) {
+		lines.push(`types: ${ctx.typeRefs.join(", ")}`);
+	}
+
+	if (ctx.callees.length > 0) {
+		lines.push("callees:");
+		const calleeLines: string[] = [];
+		renderCallNodes(ctx.callees, "  ", calleeLines);
+		lines.push(...calleeLines);
+	}
+
+	lines.push("---", ctx.source);
+
+	return lines.join("\n");
+}
+
+export function renderImports(imports: ImportInfo[]): string {
+	if (imports.length === 0) {
+		return "(no imports)";
+	}
+
+	return imports
+		.map((i) => {
+			const parts = [i.module];
+
+			if (i.named.length > 0) {
+				parts.push(i.named.join(", "));
+			}
+
+			if (i.default !== undefined) {
+				parts.push(`default ${i.default}`);
+			}
+
+			if (i.namespace !== undefined) {
+				parts.push(`* as ${i.namespace}`);
+			}
+
+			return parts.join("\t");
+		})
+		.join("\n");
+}
+
+export function renderUsageReport(rows: UsageReportEntry[]): string {
+	if (rows.length === 0) {
+		return "(no exports)";
+	}
+
+	return rows.map((r) => `${r.qualifiedName}\ttotal=${r.total} consumed=${r.consumed}\t${r.kind}`).join("\n");
 }

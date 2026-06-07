@@ -115,3 +115,45 @@ describe("renderResolve", () => {
 		expect(renderResolve(r)).toBe("src/a.ts:X\tClassDeclaration\tL1");
 	});
 });
+
+import { renderSource, renderRegion, renderMembers, renderStatements } from "../render.js";
+import type { SourceResult, RegionResult, StatementNode } from "../types.js";
+
+describe("renderSource", () => {
+	test("header line + verbatim source with real newlines", () => {
+		const s: SourceResult[] = [{ qualifiedName: "src/a.ts:f", position: { file: "src/a.ts", line: 1, col: 1 }, source: "function f() {\n\treturn 1;\n}" }];
+		expect(renderSource(s)).toBe("src/a.ts:1:1\tsrc/a.ts:f\nfunction f() {\n\treturn 1;\n}");
+	});
+
+	test("multiple declarations separated by a blank line", () => {
+		const s: SourceResult[] = [
+			{ qualifiedName: "a:X", position: { file: "a", line: 1, col: 1 }, source: "A" },
+			{ qualifiedName: "a:X", position: { file: "a", line: 5, col: 1 }, source: "B" }
+		];
+		expect(renderSource(s)).toBe("a:1:1\ta:X\nA\n\na:5:1\ta:X\nB");
+	});
+});
+
+describe("renderRegion", () => {
+	test("header + verbatim slice", () => {
+		const r: RegionResult = { file: "src/a.ts", startLine: 2, endLine: 3, source: "b\nc" };
+		expect(renderRegion(r)).toBe("src/a.ts:2-3\nb\nc");
+	});
+});
+
+describe("renderMembers", () => {
+	test("name / kind / line rows", () => {
+		const m: Member[] = [{ name: "Circle.area", kind: "MethodDeclaration", signature: "area", position: { file: "a", line: 6, col: 1 } }];
+		expect(renderMembers(m)).toBe("Circle.area\tMethodDeclaration\tL6");
+	});
+});
+
+describe("renderStatements", () => {
+	test("statement-kind tree, 2-space indent per depth", () => {
+		const s: StatementNode[] = [
+			{ kind: "ReturnStatement", position: { file: "a", line: 2, col: 1 } },
+			{ kind: "IfStatement", position: { file: "a", line: 3, col: 1 }, children: [{ kind: "ReturnStatement", position: { file: "a", line: 4, col: 1 } }] }
+		];
+		expect(renderStatements(s)).toBe("ReturnStatement\tL2\nIfStatement\tL3\n  ReturnStatement\tL4");
+	});
+});
