@@ -56,8 +56,16 @@ async function run(args: string[]): Promise<{ code: number; stdout: string; stde
 
 describe("CLI integration", () => {
 	describe("resolve", () => {
-		it("resolves a known symbol and returns JSON kind:symbol", async () => {
+		it("resolves a known symbol and prints text by default", async () => {
 			const { code, stdout } = await run(["resolve", "--tsconfig", TSCONFIG, "src/shapes.ts:makeCircle"]);
+
+			expect(code).toBe(0);
+			expect(stdout).toContain("src/shapes.ts:makeCircle");
+			expect(stdout).not.toContain('"kind"'); // no JSON field names
+		}, 20_000);
+
+		it("resolve --json returns JSON kind:symbol", async () => {
+			const { code, stdout } = await run(["resolve", "--tsconfig", TSCONFIG, "src/shapes.ts:makeCircle", "--json"]);
 
 			expect(code).toBe(0);
 			const result = JSON.parse(stdout) as { kind: string };
@@ -67,10 +75,9 @@ describe("CLI integration", () => {
 		it("returns kind:not-found for an unknown symbol (exit 0)", async () => {
 			const { code, stdout } = await run(["resolve", "--tsconfig", TSCONFIG, "src/shapes.ts:Nope"]);
 
-			// resolve always emits JSON and exits 0 — it's a query result, not an error
+			// resolve always emits text and exits 0 — it's a query result, not an error
 			expect(code).toBe(0);
-			const result = JSON.parse(stdout) as { kind: string };
-			expect(result.kind).toBe("not-found");
+			expect(stdout).toContain("not found");
 		}, 20_000);
 	});
 
@@ -92,11 +99,12 @@ describe("CLI integration", () => {
 			expect(stdout).toContain("Circle");
 		}, 20_000);
 
-		it("view symbol prints the declaration source", async () => {
+		it("view symbol prints source verbatim (no escaped newlines) by default", async () => {
 			const { code, stdout } = await run(["view", "symbol", "--tsconfig", TSCONFIG, "src/shapes.ts:makeCircle"]);
 
 			expect(code).toBe(0);
-			expect(stdout).toContain("makeCircle");
+			expect(stdout).toContain("export function makeCircle");
+			expect(stdout).not.toContain("\\n"); // real newlines, not escaped
 		}, 20_000);
 
 		it("view region prints a line range", async () => {
@@ -106,8 +114,18 @@ describe("CLI integration", () => {
 			expect(stdout).toContain("Shape");
 		}, 20_000);
 
-		it("view context bundles source + callees + typeRefs", async () => {
+		it("view context prints labeled sections by default", async () => {
 			const { code, stdout } = await run(["view", "context", "--tsconfig", TSCONFIG, "src/consumer.ts:totalArea"]);
+
+			expect(code).toBe(0);
+			expect(stdout).toContain("sig:");
+			expect(stdout).toContain("types:");
+			expect(stdout).toContain("Circle");
+			expect(stdout).not.toContain('"qualifiedName"'); // no JSON field names
+		}, 20_000);
+
+		it("view context --json returns structured JSON", async () => {
+			const { code, stdout } = await run(["view", "context", "--tsconfig", TSCONFIG, "src/consumer.ts:totalArea", "--json"]);
 
 			expect(code).toBe(0);
 			const ctx = JSON.parse(stdout) as { typeRefs: string[]; callees: unknown[] };
@@ -129,6 +147,22 @@ describe("CLI integration", () => {
 			expect(code).toBe(0);
 			expect(stdout).toContain("makeCircle");
 		}, 20_000);
+
+		it("find refs prints address-first text by default", async () => {
+			const { code, stdout } = await run(["find", "refs", "--tsconfig", TSCONFIG, "src/shapes.ts:makeCircle"]);
+
+			expect(code).toBe(0);
+			expect(stdout).toMatch(/src\/consumer\.ts:\d+:\d+\t/); // addr<TAB>kind, not JSON
+			expect(stdout).not.toContain('"references"'); // no JSON field names
+		}, 20_000);
+
+		it("find refs --json prints structured JSON", async () => {
+			const { code, stdout } = await run(["find", "refs", "--tsconfig", TSCONFIG, "src/shapes.ts:makeCircle", "--json"]);
+
+			expect(code).toBe(0);
+			const parsed = JSON.parse(stdout) as { references: unknown[] };
+			expect(Array.isArray(parsed.references)).toBe(true);
+		}, 20_000);
 	});
 
 	describe("missing required --tsconfig", () => {
@@ -140,12 +174,12 @@ describe("CLI integration", () => {
 	});
 
 	describe.skipIf(!tsgoBinAvailable())("--engine lsp", () => {
-		it("resolves a symbol with the LSP engine and returns JSON kind:symbol", async () => {
+		it("resolves a symbol with the LSP engine and prints text by default", async () => {
 			const { code, stdout } = await run(["resolve", "--tsconfig", TSCONFIG, "--engine", "lsp", "src/shapes.ts:makeCircle"]);
 
 			expect(code).toBe(0);
-			const result = JSON.parse(stdout) as { kind: string };
-			expect(result.kind).toBe("symbol");
+			expect(stdout).toContain("src/shapes.ts:makeCircle");
+			expect(stdout).not.toContain('"kind"');
 		}, 20_000);
 	});
 });
