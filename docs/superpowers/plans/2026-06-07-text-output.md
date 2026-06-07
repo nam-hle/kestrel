@@ -36,6 +36,7 @@ packages/mcp/src/__tests__/mcp.test.ts  (modify) text-default + json:true assert
 ## Task 1: Row renderers (refs, def/impls, candidates, resolve)
 
 **Files:**
+
 - Modify: `packages/core/src/render.ts`
 - Test: `packages/core/src/__tests__/render.test.ts`
 
@@ -108,7 +109,10 @@ describe("renderResolve", () => {
 	});
 
 	test("ambiguous → candidate rows", () => {
-		const r: ResolveResult = { kind: "ambiguous", candidates: [{ qualifiedName: "src/a.ts:X", kind: "ClassDeclaration", position: { file: "src/a.ts", line: 1, col: 1 } }] };
+		const r: ResolveResult = {
+			kind: "ambiguous",
+			candidates: [{ qualifiedName: "src/a.ts:X", kind: "ClassDeclaration", position: { file: "src/a.ts", line: 1, col: 1 } }]
+		};
 		expect(renderResolve(r)).toBe("src/a.ts:X\tClassDeclaration\tL1");
 	});
 });
@@ -119,7 +123,22 @@ describe("renderResolve", () => {
 - [ ] **Step 3: Implement** — append to `packages/core/src/render.ts` (add the imports to its `import type` line):
 
 ```typescript
-import type { Member, Candidate, Position, CallNode, ImportInfo, FileOutline, SourceResult, RegionResult, SymbolHandle, UsagesResult, ResolveResult, SymbolContext, StatementNode, UsageReportEntry } from "./types.js";
+import type {
+	Member,
+	Candidate,
+	Position,
+	CallNode,
+	ImportInfo,
+	FileOutline,
+	SourceResult,
+	RegionResult,
+	SymbolHandle,
+	UsagesResult,
+	ResolveResult,
+	SymbolContext,
+	StatementNode,
+	UsageReportEntry
+} from "./types.js";
 
 /** Re-feedable address of a position: file:line:col. */
 function addr(pos: Position): string {
@@ -178,7 +197,9 @@ export function renderResolve(result: ResolveResult): string {
 		return result.candidates.map(candidateRow).join("\n");
 	}
 
-	return result.suggestions !== undefined && result.suggestions.length > 0 ? `not found\ndid you mean: ${result.suggestions.join(", ")}` : "not found";
+	return result.suggestions !== undefined && result.suggestions.length > 0
+		? `not found\ndid you mean: ${result.suggestions.join(", ")}`
+		: "not found";
 }
 ```
 
@@ -198,6 +219,7 @@ git commit -m "Add row renderers (refs, handles, candidates, resolve)"
 ## Task 2: Source / region / members / statements renderers
 
 **Files:**
+
 - Modify: `packages/core/src/render.ts`, `packages/core/src/index.ts`
 - Test: `packages/core/src/__tests__/render.test.ts`
 
@@ -209,7 +231,9 @@ import type { SourceResult, RegionResult, StatementNode } from "../types.js";
 
 describe("renderSource", () => {
 	test("header line + verbatim source with real newlines", () => {
-		const s: SourceResult[] = [{ qualifiedName: "src/a.ts:f", position: { file: "src/a.ts", line: 1, col: 1 }, source: "function f() {\n\treturn 1;\n}" }];
+		const s: SourceResult[] = [
+			{ qualifiedName: "src/a.ts:f", position: { file: "src/a.ts", line: 1, col: 1 }, source: "function f() {\n\treturn 1;\n}" }
+		];
 		expect(renderSource(s)).toBe("src/a.ts:1:1\tsrc/a.ts:f\nfunction f() {\n\treturn 1;\n}");
 	});
 
@@ -240,7 +264,11 @@ describe("renderStatements", () => {
 	test("statement-kind tree, 2-space indent per depth", () => {
 		const s: StatementNode[] = [
 			{ kind: "ReturnStatement", position: { file: "a", line: 2, col: 1 } },
-			{ kind: "IfStatement", position: { file: "a", line: 3, col: 1 }, children: [{ kind: "ReturnStatement", position: { file: "a", line: 4, col: 1 } }] }
+			{
+				kind: "IfStatement",
+				position: { file: "a", line: 3, col: 1 },
+				children: [{ kind: "ReturnStatement", position: { file: "a", line: 4, col: 1 } }]
+			}
 		];
 		expect(renderStatements(s)).toBe("ReturnStatement\tL2\nIfStatement\tL3\n  ReturnStatement\tL4");
 	});
@@ -301,6 +329,7 @@ git commit -m "Add source/region/members/statements renderers"
 ## Task 3: Context / callHierarchy / imports / usageReport renderers
 
 **Files:**
+
 - Modify: `packages/core/src/render.ts`, `packages/core/src/index.ts`
 - Test: `packages/core/src/__tests__/render.test.ts`
 
@@ -313,7 +342,11 @@ import type { CallNode, ImportInfo, SymbolContext, UsageReportEntry } from "../t
 describe("renderCallHierarchy", () => {
 	test("indented tree: name + address, 2 spaces per level", () => {
 		const tree: CallNode[] = [
-			{ qualifiedName: "a:totalArea", position: { file: "a", line: 3, col: 1 }, calls: [{ qualifiedName: "a:avg", position: { file: "a", line: 12, col: 1 }, calls: [] }] }
+			{
+				qualifiedName: "a:totalArea",
+				position: { file: "a", line: 3, col: 1 },
+				calls: [{ qualifiedName: "a:avg", position: { file: "a", line: 12, col: 1 }, calls: [] }]
+			}
 		];
 		expect(renderCallHierarchy(tree)).toBe("totalArea\ta:3:1\n  avg\ta:12:1");
 	});
@@ -344,7 +377,14 @@ describe("renderContext", () => {
 	});
 
 	test("omits empty sections", () => {
-		const ctx: SymbolContext = { qualifiedName: "a:f", position: { file: "a", line: 1, col: 1 }, signature: "const f", source: "const f = 1", typeRefs: [], callees: [] };
+		const ctx: SymbolContext = {
+			qualifiedName: "a:f",
+			position: { file: "a", line: 1, col: 1 },
+			signature: "const f",
+			source: "const f = 1",
+			typeRefs: [],
+			callees: []
+		};
 		const out = renderContext(ctx);
 		expect(out).not.toContain("types:");
 		expect(out).not.toContain("callees:");
@@ -365,7 +405,9 @@ describe("renderImports", () => {
 
 describe("renderUsageReport", () => {
 	test("name + counts + kind", () => {
-		const rows: UsageReportEntry[] = [{ qualifiedName: "a:Foo", kind: "ClassDeclaration", total: 5, consumed: 3, position: { file: "a", line: 1, col: 1 } }];
+		const rows: UsageReportEntry[] = [
+			{ qualifiedName: "a:Foo", kind: "ClassDeclaration", total: 5, consumed: 3, position: { file: "a", line: 1, col: 1 } }
+		];
 		expect(renderUsageReport(rows)).toBe("a:Foo\ttotal=5 consumed=3\tClassDeclaration");
 	});
 });
@@ -463,6 +505,7 @@ git commit -m "Add context/callHierarchy/imports/usageReport renderers"
 ## Task 4: CLI — text default + --json per command
 
 **Files:**
+
 - Modify: `packages/cli/src/index.ts`
 - Test: `packages/cli/src/__tests__/cli.test.ts`
 
@@ -500,17 +543,30 @@ test("view symbol prints source verbatim (no escaped newlines) by default", asyn
 - [ ] **Step 3: Add the `--json` arg + `output` helper.** In `packages/cli/src/index.ts`:
 
 Add to the shared args (beside `engine`):
+
 ```typescript
 const json = { type: "boolean", description: "Emit structured JSON instead of text" } as const;
 ```
 
 Add the helper (replaces bare `emit` at call sites):
+
 ```typescript
-import { /* existing */ } from "@kestrel/core";
+import {} from /* existing */ "@kestrel/core";
 // add the render imports:
 import {
-	renderResolve, renderReferences, renderHandles, renderCandidates, renderSource, renderRegion,
-	renderMembers, renderStatements, renderContext, renderCallHierarchy, renderImports, renderUsageReport, renderFileOutline
+	renderResolve,
+	renderReferences,
+	renderHandles,
+	renderCandidates,
+	renderSource,
+	renderRegion,
+	renderMembers,
+	renderStatements,
+	renderContext,
+	renderCallHierarchy,
+	renderImports,
+	renderUsageReport,
+	renderFileOutline
 } from "@kestrel/core";
 
 /** Print text via `render` by default, or pretty JSON of `value` when args.json is set. */
@@ -591,6 +647,7 @@ Add `json` to every command's `args`. For `view outline`: it already has `--json
 node ./packages/cli/dist/index.js find refs --tsconfig packages/core/src/__tests__/fixtures/sample/tsconfig.json src/shapes.ts:makeCircle
 node ./packages/cli/dist/index.js view context --tsconfig packages/core/src/__tests__/fixtures/sample/tsconfig.json src/consumer.ts:totalArea
 ```
+
 Expected: dense text rows / labeled context. Paste both.
 
 - [ ] **Step 6: Check + commit**
@@ -605,6 +662,7 @@ git commit -m "CLI: text output by default, --json opt-in"
 ## Task 5: MCP — text default + json arg per tool
 
 **Files:**
+
 - Modify: `packages/mcp/src/index.ts`
 - Test: `packages/mcp/src/__tests__/mcp.test.ts`
 
@@ -639,6 +697,7 @@ it("tools/call find_refs with json:true returns JSON", async () => {
 - [ ] **Step 3: Add a `json` arg + a `render(value, renderer, jsonFlag)` helper.** In `packages/mcp/src/index.ts`:
 
 Add the render imports from `@kestrel/core` (same list as the CLI). Add:
+
 ```typescript
 const jsonArg = z.boolean().optional().describe("Return structured JSON instead of text");
 
@@ -681,6 +740,7 @@ git commit -m "MCP: text output by default, json arg opt-in"
 ## Task 6: README + close #72 + verify
 
 **Files:**
+
 - Modify: `README.md`
 
 - [ ] **Step 1: Update README** — note that all commands print token-lean text by default with `--json` (CLI) / `json: true` (MCP) for structured output; update any example that implied JSON output. Add one line: "Output is address-first text — paste `file:line:col` or `file:Name` straight into the next query."
@@ -692,6 +752,7 @@ pnpm build
 KESTREL_REQUIRE_LSP=1 pnpm exec nadle testCoverage
 pnpm exec nadle check
 ```
+
 Expected: all pass; coverage thresholds hold (render.ts is pure + fully tested).
 
 - [ ] **Step 3: Commit + push + PR**
@@ -701,6 +762,7 @@ git add README.md
 git commit -m "Document text-by-default output"
 git push -u origin feat/text-output
 ```
+
 Open a PR titled "Token-lean text output by default" summarizing the new format + `--json` escape; body notes it Closes #72 (the `--text` flag is obsolete — text is the default now). Let CI run all three OS.
 
 ---

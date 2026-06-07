@@ -16,13 +16,13 @@ kestrel's "fewer tokens than an LSP bridge" claim depends on the output layer be
 
 ## Decisions (settled in brainstorming)
 
-| Question                | Decision                                                                    |
-| ----------------------- | --------------------------------------------------------------------------- |
-| Scope                   | Text default **everywhere** (CLI + MCP); `--json` / `json:true` opt-in      |
-| Position-row format     | `file:line:col<TAB>kind [extras]` — address first (re-feedable), tab-sep    |
-| Symbol-row format       | `file:Name<TAB>kind [Lline]` — qualifiedName first (the next-query input)   |
-| Hierarchy / multi-part  | indented tree (2 spaces/level) + labeled sections, per-op renderer          |
-| Where renderers live    | `packages/core/src/render.ts`; adapters import + print; engine untouched    |
+| Question               | Decision                                                                  |
+| ---------------------- | ------------------------------------------------------------------------- |
+| Scope                  | Text default **everywhere** (CLI + MCP); `--json` / `json:true` opt-in    |
+| Position-row format    | `file:line:col<TAB>kind [extras]` — address first (re-feedable), tab-sep  |
+| Symbol-row format      | `file:Name<TAB>kind [Lline]` — qualifiedName first (the next-query input) |
+| Hierarchy / multi-part | indented tree (2 spaces/level) + labeled sections, per-op renderer        |
+| Where renderers live   | `packages/core/src/render.ts`; adapters import + print; engine untouched  |
 
 ## Format vocabulary
 
