@@ -43,6 +43,25 @@ describe("findUsages", () => {
 		expect(page.nextCursor).toBeDefined();
 	});
 
+	test("paginates from a valid cursor", () => {
+		const engine = new Engine({ tsConfigPath });
+		const symbol = resolve(engine, "src/shapes.ts:makeCircle");
+
+		const first = engine.findUsages(symbol, { limit: 1 });
+		const next = engine.findUsages(symbol, { limit: 1, cursor: first.nextCursor });
+
+		expect(next.references[0]!.position).not.toEqual(first.references[0]!.position);
+	});
+
+	test("rejects a non-numeric cursor instead of silently restarting", () => {
+		const engine = new Engine({ tsConfigPath });
+		const symbol = resolve(engine, "src/shapes.ts:makeCircle");
+
+		expect(() => engine.findUsages(symbol, { cursor: "abc" })).toThrow(/cursor/);
+		expect(() => engine.findUsages(symbol, { cursor: "-1" })).toThrow(/cursor/);
+		expect(() => engine.findUsages(symbol, { cursor: "1.5" })).toThrow(/cursor/);
+	});
+
 	test("tags test-file references and can exclude them", () => {
 		const engine = new Engine({ tsConfigPath });
 		const symbol = resolve(engine, "src/shapes.ts:makeCircle");

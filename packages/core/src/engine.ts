@@ -9,6 +9,7 @@ import { Node, Project } from "ts-morph";
 import type { SourceFile } from "ts-morph";
 
 import { readRegionFrom } from "./region.js";
+import { parsePageCursor } from "./cursor.js";
 import { classifyReference } from "./usages.js";
 import type { SymbolEngine } from "./symbol-engine.js";
 import { buildCallHierarchy } from "./call-hierarchy.js";
@@ -281,7 +282,7 @@ export class Engine implements SymbolEngine {
 				return options?.excludeTests === true ? ref.test !== true : true;
 			});
 
-		const offset = options?.cursor ? Number(options.cursor) : 0;
+		const offset = parsePageCursor(options?.cursor);
 		const limit = options?.limit;
 		const pageRecords = limit === undefined ? all.slice(offset) : all.slice(offset, offset + limit);
 		const nextOffset = offset + pageRecords.length;

@@ -9,6 +9,7 @@ import { readdirSync, readFileSync } from "node:fs";
 
 import { LspClient } from "./lsp/client.js";
 import { readRegionFrom } from "./region.js";
+import { parsePageCursor } from "./cursor.js";
 import { parseQualifiedName } from "./resolve.js";
 import { LspSymbolKind } from "./lsp/protocol.js";
 import { resolveInSymbols } from "./lsp/bridge.js";
@@ -425,7 +426,7 @@ export class LspEngine {
 			all.push({ kind, test, text, position, start: loc.range.start });
 		}
 
-		const offset = options?.cursor ? Number(options.cursor) : 0;
+		const offset = parsePageCursor(options?.cursor);
 		const pageRecords = options?.limit === undefined ? all.slice(offset) : all.slice(offset, offset + options.limit);
 		const nextOffset = offset + pageRecords.length;
 
