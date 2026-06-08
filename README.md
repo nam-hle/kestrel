@@ -92,6 +92,12 @@ npx @kestrel/cli find callees src/foo.ts:Bar --tsconfig tsconfig.json
 `--engine lsp` to any command to use the tsgo-backed engine instead of the ts-morph default,
 and `--json` for structured output.
 
+> **The `lsp` engine is experimental and opt-in.** It needs `@typescript/native-preview`
+> (tsgo), declared as an _optional_ dependency — the default ts-morph engine pulls no native
+> binary. tsgo ships per-platform builds and is currently a preview/dev release; if it's
+> absent or unavailable for your platform (e.g. Alpine/musl), `--engine lsp` errors with an
+> install hint while the default engine keeps working.
+
 **MCP** — the same operations as MCP tools over stdio, holding the project warm across calls
 (no per-call cold start). The server runs via `npx @kestrel/mcp`. Host setup:
 

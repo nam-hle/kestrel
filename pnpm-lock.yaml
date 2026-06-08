@@ -62,15 +62,16 @@ importers:
 
   packages/core:
     dependencies:
-      '@typescript/native-preview':
-        specifier: 7.0.0-dev.20260606.1
-        version: 7.0.0-dev.20260606.1
       ts-morph:
         specifier: ^28.0.0
         version: 28.0.0
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
+    optionalDependencies:
+      '@typescript/native-preview':
+        specifier: 7.0.0-dev.20260606.1
+        version: 7.0.0-dev.20260606.1
 
   packages/mcp:
     dependencies:
@@ -3314,6 +3315,7 @@ snapshots:
       '@typescript/native-preview-linux-x64': 7.0.0-dev.20260606.1
       '@typescript/native-preview-win32-arm64': 7.0.0-dev.20260606.1
       '@typescript/native-preview-win32-x64': 7.0.0-dev.20260606.1
+    optional: true
 
   '@vitest/coverage-v8@4.1.8(vitest@4.1.8)':
     dependencies:
