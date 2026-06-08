@@ -1,107 +1,124 @@
+<div align="center">
+
 # symantic
 
-> Code navigation for TypeScript whose output is built for an agent's token budget and
-> address model.
+**Semantic code navigation for TypeScript, built for an agent's token budget and address model.**
 
-An AI agent has no cursor and a finite context window. symantic answers code-navigation
-questions ("where is X used / what implements it / what's the public surface here") with
-results that are **name-addressed** (`file.ts:Class::method`, never a byte offset an agent
-can't compute) and **token-lean** (a compact tree, not a verbose payload). Compiler-accurate
-underneath (TypeScript via [ts-morph](https://ts-morph.com/)) — but accuracy is table stakes;
-the **output contract is the point**.
+[![CI](https://github.com/nam-hle/symantic/actions/workflows/ci.yml/badge.svg)](https://github.com/nam-hle/symantic/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/@symantic/cli?label=%40symantic%2Fcli)](https://www.npmjs.com/package/@symantic/cli)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](#license)
+[![Node](https://img.shields.io/badge/node-%E2%89%A524-43853d.svg)](https://nodejs.org)
 
-**Status:** early development. Read-only core engine + CLI + MCP server all working.
+[Quick start](#quick-start) · [Why symantic](#why-symantic) · [Operations](#what-it-does-v1-read-only) · [Agent skill](#agent-skill-claude-code-plugin) · [MCP](#mcp-server)
 
-## Why not just an LSP→MCP bridge?
+</div>
 
-Several tools already bridge a language server to MCP — they give compiler-accurate
-references, implementations, even rename. But they pipe **raw LSP** through: byte-offset
-positions (an agent has no cursor to resolve them) and verbose payloads (burning the context
-window). They answer the question, then make the agent pay to parse and re-address the answer.
+---
+
+An AI agent has **no cursor** and a **finite context window**. Open a 2,000-line file to find one
+method and you've spent thousands of tokens to read code you didn't need — and the answer comes
+back as a byte offset the agent can't use.
+
+symantic answers the questions an agent actually asks — _where is `X` used? what implements it?
+what's the shape of this file?_ — with results that are:
+
+- **Name-addressed** — `src/foo.ts:Bar::method`, never a byte offset. Every result feeds straight
+  back into the next query.
+- **Token-lean** — a compact tree, classified references, paginated. No LSP noise.
+- **Compiler-accurate** — TypeScript via [ts-morph](https://ts-morph.com/) underneath. Accuracy is
+  table stakes; the **output contract is the point**.
+
+It is **deterministic** — symantic never runs an LLM. It hands the agent exact structure; the prose
+is the agent's job.
+
+> **Status:** early development. Read-only core engine + CLI + MCP server all working.
+
+## Quick start
+
+```bash
+# one-shot query, no install
+npx @symantic/cli view outline src/foo.ts
+
+# or install the CLI globally → the binary is `symantic`
+npm i -g @symantic/cli
+symantic find refs src/foo.ts:Bar --exclude-tests
+```
+
+The nearest `tsconfig.json` is auto-discovered from the cwd; pass `--tsconfig <path>` to override.
+Output is token-lean, address-first text by default — add `--json` for the structured form.
+
+## Why symantic
+
+Several tools already bridge a language server to MCP. They give compiler-accurate references — but
+they pipe **raw LSP** through: byte-offset positions (an agent has no cursor to resolve them) and
+verbose payloads (burning the context window). They answer the question, then make the agent pay to
+parse and re-address the answer.
 
 symantic is the layer those bridges skip:
 
-- **Name-addressing** — every result is a qualified name you feed straight into the next
-  query. No offsets, no position bookkeeping.
-- **Token-lean output** — compact tree outlines; classified, paginated refs; no LSP noise.
-- **Synthesized ops with no LSP equivalent** — `outline_function` (statement skeleton),
-  `public_surface` (transitively expands `export *`), bounded `call_hierarchy`,
-  `usage_report` (dead-code in one call). A bridge wrapping a language server can't produce
-  these by pass-through.
+|                       | Raw LSP→MCP bridge                | symantic                                          |
+| --------------------- | --------------------------------- | ------------------------------------------------- |
+| **Addressing**        | byte offsets (no cursor to apply) | qualified names you feed into the next query      |
+| **Output**            | verbose LSP payloads              | compact trees, classified + paginated refs        |
+| **Synthesized ops**   | pass-through only                 | statement skeletons, public surface, usage report |
 
-The engine (ts-morph today, maybe tsgo later) is commoditized. The output contract is the
-durable part — see the [v1 roadmap epic](https://github.com/nam-hle/symantic/issues/78).
+Ops with **no LSP equivalent** — `view body` (statement skeleton), `exports` (transitively expands
+`export *`), bounded call hierarchy, `usage` (dead-code in one call). A bridge wrapping a language
+server can't produce these by pass-through.
+
+The engine (ts-morph today, [tsgo](https://github.com/microsoft/typescript-go) later) is
+commoditized. The output contract is the durable part — see the
+[v1 roadmap epic](https://github.com/nam-hle/symantic/issues/78).
 
 ## What it does (v1, read-only)
 
-| Operation             | Description                                                                                          |
-| --------------------- | ---------------------------------------------------------------------------------------------------- |
-| `searchSymbol`        | repo-wide search for a name across all files (exact, or `--contains` substring) → candidates         |
-| `resolveSymbol`       | `relPath:name` (dotted for nested namespaces, `name#index` to pick) → symbol or candidates           |
-| `findDefinition`      | all declaration sites (handles declaration merging)                                                  |
-| `findUsages`          | references classified by kind (import / call / type-ref / read / write), bounded by `limit`/`cursor` |
-| `findImplementations` | classes implementing an interface                                                                    |
-| `callHierarchy`       | callers (incoming) or callees (outgoing) of a symbol, walked to a bounded depth                      |
-| `outlineFile`         | structural "table of contents": declarations (incl. nested in namespaces) + re-exports               |
-| `outlineSymbol`       | members of a class / interface / namespace                                                           |
-| `outlineFunction`     | statement-level skeleton of a function body (incl. arrow/function-expression consts)                 |
-| `listImports`         | the import statements of a file (module + named/default/namespace) — module wiring                   |
-| `publicSurface`       | transitive public surface of an entry barrel — expands `export *` to concrete symbols                |
+Commands group by intent: **`view`** (read code) and **`find`** (locate / trace), plus top-level
+`resolve` / `imports` / `exports` / `usage`.
 
-All operations are **deterministic** AST queries — symantic never runs an LLM. Prose summaries
-are the calling agent's job; symantic hands it exact structure.
+| Command                              | What you get                                                                       |
+| ------------------------------------ | ---------------------------------------------------------------------------------- |
+| `view outline <file>`                | structural table of contents: declarations (incl. nested) + re-exports             |
+| `view symbol <file>:Name`            | the exact source of one declaration                                                |
+| `view members <file>:Name`           | members of a class / interface / namespace                                         |
+| `view context <file>:Name`           | source + signature + callees + referenced types                                    |
+| `view body <file>:Name`              | statement-level skeleton of a function body                                        |
+| `view region <file>:Lstart-Lend`     | an addressed line range                                                            |
+| `find def <file>:Name`               | all declaration sites (handles declaration merging)                                |
+| `find refs <file>:Name`              | usages, classified by kind (import / call / type-ref / read / write), paginated    |
+| `find impls <file>:Name`             | classes implementing an interface                                                  |
+| `find callers` / `callees`           | incoming / outgoing call hierarchy, bounded depth                                  |
+| `find symbol Name`                   | repo-wide search for a name (`--contains` for substring) → candidates              |
+| `imports <file>` / `exports <file>`  | a file's import statements / transitive public surface (expands `export *`)        |
+| `resolve <file>:Name`                | resolve a qualified name → symbol or candidates                                    |
+| `usage <file>`                       | per-export reference counts of an entry (dead-code in one call)                    |
 
-Modification (rename / move) is deferred. Multi-language is out of scope (TypeScript only).
-See [docs/VISION.md](docs/VISION.md) for the full scope and [docs/DESIGN.md](docs/DESIGN.md)
-for architecture.
+See [docs/VISION.md](docs/VISION.md) for full scope, [docs/DESIGN.md](docs/DESIGN.md) for
+architecture, [docs/ADDRESSING.md](docs/ADDRESSING.md) for the `file:Name::nested#index` scheme.
+Modification (rename / move) is deferred. Multi-language is out of scope — TypeScript only.
 
-## Architecture
+## Agent skill (Claude Code plugin)
+
+This repo ships a Claude Code skill, **`using-symantic`**, that teaches an agent to reach for
+symantic instead of reading whole files or grepping — a question-to-op decision tree plus the
+addressing crib. Install it as a plugin:
 
 ```
-packages/
-  core/   warm ts-morph Project, symbol resolution, query + outline ops (transport-agnostic)
-  mcp/    MCP server adapter (keeps core warm across tool calls)
-  cli/    CLI adapter
+/plugin marketplace add nam-hle/symantic
+/plugin install symantic@symantic
 ```
 
-The analysis engine is swappable behind the core API. The current engine is ts-morph; the
-vision engine is Microsoft's Go-native [`tsgo`](https://github.com/microsoft/typescript-go)
-once it ships an embeddable find-references API.
+The skill then loads as `symantic:using-symantic` and triggers whenever the agent is about to read
+or trace TypeScript.
 
-## Usage
+## MCP server
 
-**CLI** — one-shot semantic queries. Output is **token-lean, address-first text** by default
-(paste a `file:line:col` or `file:Name` straight into the next query); add `--json` for the
-structured form. Commands group by intent: `view` (read code) and `find` (locate/trace), plus
-top-level `resolve` / `imports` / `exports` / `usage`:
+The same operations as MCP tools over stdio, holding the project warm across calls (no per-call
+cold start). Runs via `npx @symantic/mcp`.
 
-```bash
-# read code
-npx @symantic/cli view outline src/foo.ts --tsconfig tsconfig.json
-npx @symantic/cli view symbol src/foo.ts:Bar --tsconfig tsconfig.json     # exact source
-npx @symantic/cli view context src/foo.ts:Bar --tsconfig tsconfig.json    # source + callees + types
-npx @symantic/cli view region src/foo.ts:10-40 --tsconfig tsconfig.json   # line range
+<details>
+<summary><b>Host setup</b> (Claude Code · Cursor · Codex)</summary>
 
-# locate / trace
-npx @symantic/cli find refs src/foo.ts:Bar --tsconfig tsconfig.json --exclude-tests
-npx @symantic/cli find callers src/foo.ts:Bar --tsconfig tsconfig.json
-npx @symantic/cli find callees src/foo.ts:Bar --tsconfig tsconfig.json
-```
-
-(After a global install — `npm i -g @symantic/cli` — the binary is just `symantic`.) Add
-`--engine lsp` to any command to use the tsgo-backed engine instead of the ts-morph default,
-and `--json` for structured output.
-
-> **The `lsp` engine is experimental and opt-in.** It needs `@typescript/native-preview`
-> (tsgo), declared as an _optional_ dependency — the default ts-morph engine pulls no native
-> binary. tsgo ships per-platform builds and is currently a preview/dev release; if it's
-> absent or unavailable for your platform (e.g. Alpine/musl), `--engine lsp` errors with an
-> install hint while the default engine keeps working.
-
-**MCP** — the same operations as MCP tools over stdio, holding the project warm across calls
-(no per-call cold start). The server runs via `npx @symantic/mcp`. Host setup:
-
-_Claude Code_ — `.claude/mcp.json` (or via `claude mcp add`):
+_Claude Code_ — `.claude/mcp.json` (or `claude mcp add`):
 
 ```json
 { "mcpServers": { "symantic": { "command": "npx", "args": ["-y", "@symantic/mcp"] } } }
@@ -121,17 +138,26 @@ command = "npx"
 args = ["-y", "@symantic/mcp"]
 ```
 
-Tools: `view_outline`, `view_symbol`, `view_context`, `view_region`, `view_members`,
-`view_body`, `find_symbol`, `find_def`, `find_refs`, `find_impls`, `find_callers`,
-`find_callees`, `resolve`, `imports`, `exports`, `usage_report`. Each takes a `tsConfig`
-argument (engine cached per tsconfig); pass `engine: "lsp"` for the tsgo backend, or
-`json: true` for structured output instead of the default token-lean text.
+</details>
 
-### Token savings (`gain`)
+Tools: `view_outline`, `view_symbol`, `view_context`, `view_region`, `view_members`, `view_body`,
+`find_symbol`, `find_def`, `find_refs`, `find_impls`, `find_callers`, `find_callees`, `resolve`,
+`imports`, `exports`, `usage_report`. Each takes a `tsConfig` argument (engine cached per tsconfig);
+pass `engine: "lsp"` for the tsgo backend, or `json: true` for structured output.
 
-Every CLI query records an estimated token saving — the size of symantic's structured
-output vs. the cost of reading the raw files the result referenced — to a local ledger
-at `~/.symantic/gain.jsonl`. `symantic gain` reports the cumulative total:
+## The `lsp` engine (experimental)
+
+Add `--engine lsp` to any CLI command to use the tsgo-backed engine instead of the ts-morph default.
+
+> It needs `@typescript/native-preview` (tsgo), declared as an _optional_ dependency — the default
+> ts-morph engine pulls no native binary. tsgo ships per-platform preview builds; if it's absent or
+> unavailable for your platform (e.g. Alpine/musl), `--engine lsp` errors with an install hint while
+> the default engine keeps working.
+
+## Token savings (`gain`)
+
+Every CLI query records an estimated token saving — symantic's structured output vs. the cost of
+reading the raw files the result referenced — to a local ledger at `~/.symantic/gain.jsonl`.
 
 ```bash
 symantic gain                # summary: queries, symantic vs baseline tokens, % saved, top ops
@@ -140,21 +166,30 @@ symantic gain --by-project   # totals grouped by project directory
 symantic gain --json         # machine-readable aggregate
 ```
 
-All figures are `~`-prefixed estimates (`ceil(bytes / 4)`, no tokenizer); the baseline
-counts only the files each result referenced, never the whole project.
+Figures are `~`-estimates (`ceil(bytes / 4)`, no tokenizer); the baseline counts only the files each
+result referenced, never the whole project.
 
-**Privacy:** tracking is always on (no opt-out) and writes project paths and op names to
-`~/.symantic/gain.jsonl`. The ledger is local only — nothing is transmitted. Delete it any
-time; a missing ledger just resets the totals.
+**Privacy:** tracking is always on and writes project paths + op names to `~/.symantic/gain.jsonl`.
+The ledger is **local only** — nothing is transmitted. Delete it any time to reset.
+
+## Packages
+
+| Package                                    | Role                                                                      |
+| ------------------------------------------ | ------------------------------------------------------------------------- |
+| [`@symantic/core`](packages/core)          | warm ts-morph Project, symbol resolution, query + outline ops             |
+| [`@symantic/cli`](packages/cli)            | the `symantic` CLI — one-shot semantic queries                            |
+| [`@symantic/mcp`](packages/mcp)            | MCP server — the same ops as tools, project held warm across calls        |
+
+The analysis engine is swappable behind the core API.
 
 ## Development
 
-Requires Node.js 24+ and pnpm. The repo uses [nadle](https://nadle.dev) as its task runner.
+Requires Node.js 24+ and pnpm. Task runner: [nadle](https://nadle.dev).
 
 ```bash
 pnpm install
-pnpm build          # nadle build (tsc project references)
-pnpm test           # nadle test (vitest)
+pnpm build               # nadle build (tsc project references + bundle)
+pnpm test                # nadle test (vitest)
 pnpm exec nadle check    # eslint + prettier
 ```
 
