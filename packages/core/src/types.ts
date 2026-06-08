@@ -123,6 +123,8 @@ export interface FileOutline {
 /** A node in a function-body statement skeleton. */
 export interface StatementNode {
 	kind: string;
+	/** Declared name, when the statement introduces one (function declaration, named const, class). */
+	label?: string;
 	position: Position;
 	children?: StatementNode[];
 }

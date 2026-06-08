@@ -41,6 +41,16 @@ describe("outlineFunction", () => {
 		expect(kinds).toContain("ReturnStatement");
 	});
 
+	test("labels a nested named function declaration with its name", () => {
+		const engine = new Engine({ tsConfigPath });
+		const symbol = resolve(engine, "src/consumer.ts:makeSelectors");
+
+		const nodes = engine.outlineFunction(symbol);
+		const fn = nodes.find((n) => n.kind === "FunctionDeclaration");
+
+		expect(fn?.label).toBe("mean");
+	});
+
 	test("nests child statements up to the requested depth", () => {
 		const engine = new Engine({ tsConfigPath });
 		const symbol = resolve(engine, "src/consumer.ts:totalArea");

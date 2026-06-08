@@ -191,7 +191,8 @@ export function renderStatements(nodes: StatementNode[], indent = ""): string {
 	const lines: string[] = [];
 
 	for (const node of nodes) {
-		lines.push(`${indent}${node.kind}\tL${node.position.line}`);
+		const head = node.label !== undefined ? `${node.kind} ${node.label}` : node.kind;
+		lines.push(`${indent}${head}\tL${node.position.line}`);
 
 		if (node.children !== undefined && node.children.length > 0) {
 			lines.push(renderStatements(node.children, `${indent}  `));

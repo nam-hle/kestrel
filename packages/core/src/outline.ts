@@ -63,8 +63,28 @@ function childStatements(node: Node): Statement[] {
 	return result;
 }
 
+/** The declared name a statement introduces, when it has one (fn/class decl, named var statement). */
+function statementLabel(stmt: Node): string | undefined {
+	if (Node.isFunctionDeclaration(stmt) || Node.isClassDeclaration(stmt)) {
+		return stmt.getName();
+	}
+
+	if (Node.isVariableStatement(stmt)) {
+		const names = stmt.getDeclarations().map((d) => d.getName());
+
+		return names.length > 0 ? names.join(", ") : undefined;
+	}
+
+	return undefined;
+}
+
 function buildStatementNode(stmt: Node, depth: number, baseDir: string): StatementNode {
 	const node: StatementNode = { kind: stmt.getKindName(), position: position(stmt, baseDir) };
+	const label = statementLabel(stmt);
+
+	if (label !== undefined) {
+		node.label = label;
+	}
 
 	if (depth > 1) {
 		const children = childStatements(stmt).map((child) => buildStatementNode(child, depth - 1, baseDir));
