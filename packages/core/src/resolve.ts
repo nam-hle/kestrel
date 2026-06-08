@@ -36,6 +36,11 @@ export function parseQualifiedName(qualifiedName: string): ParsedName {
 	}
 
 	const file = qualifiedName.slice(0, sep);
+
+	if (file === "") {
+		throw new Error(`invalid qualified name (empty file part): ${qualifiedName}`);
+	}
+
 	let rest = qualifiedName.slice(sep + 1);
 	let index: number | undefined;
 
@@ -52,7 +57,17 @@ export function parseQualifiedName(qualifiedName: string): ParsedName {
 		rest = rest.slice(0, hash);
 	}
 
-	return { file, index, segments: rest.split(".") };
+	if (rest === "") {
+		throw new Error(`invalid qualified name (empty name part): ${qualifiedName}`);
+	}
+
+	const segments = rest.split(".");
+
+	if (segments.some((s) => s === "")) {
+		throw new Error(`invalid qualified name (empty segment): ${qualifiedName}`);
+	}
+
+	return { file, index, segments };
 }
 
 /** Named declarations directly under a node (top-level statements or namespace body). */

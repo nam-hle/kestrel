@@ -34,4 +34,24 @@ describe("parseQualifiedName", () => {
 	test("throws on a negative index", () => {
 		expect(() => parseQualifiedName("src/a.ts:Foo#-1")).toThrow(/invalid index/);
 	});
+
+	test("throws on an empty file part", () => {
+		expect(() => parseQualifiedName(":Foo")).toThrow(/empty file/);
+	});
+
+	test("throws on an empty name part", () => {
+		expect(() => parseQualifiedName("src/a.ts:")).toThrow(/empty name/);
+	});
+
+	test("throws on an empty segment (leading dot)", () => {
+		expect(() => parseQualifiedName("src/a.ts:.Foo")).toThrow(/empty segment/);
+	});
+
+	test("throws on an empty segment (trailing dot)", () => {
+		expect(() => parseQualifiedName("src/a.ts:Foo.")).toThrow(/empty segment/);
+	});
+
+	test("throws on an empty segment (double dot)", () => {
+		expect(() => parseQualifiedName("src/a.ts:Foo..Bar")).toThrow(/empty segment/);
+	});
 });
