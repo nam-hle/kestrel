@@ -43,6 +43,16 @@ describe("searchSymbol", () => {
 
 		expect(engine.searchSymbol("DoesNotExistAnywhere")).toEqual([]);
 	});
+
+	test("finds a shorthand method declared inside an object literal", () => {
+		const engine = new Engine({ tsConfigPath });
+
+		const names = engine.searchSymbol("greet").map((h) => h.qualifiedName);
+
+		// class member already worked; the object-literal member is the regression target (#95).
+		expect(names).toContain("src/resolvers.ts:LoudGreeter::greet");
+		expect(names).toContain("src/resolvers.ts:politeGreeter::greet");
+	});
 });
 
 describe.skipIf(!binAvailable)("searchSymbol (lsp engine, cold index)", () => {

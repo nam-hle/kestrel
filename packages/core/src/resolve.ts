@@ -184,6 +184,17 @@ function objectLiteralFunctionProps(node: Node): NamedDeclaration[] {
 	const props: NamedDeclaration[] = [];
 
 	node.forEachDescendant((descendant) => {
+		// Shorthand method in an object literal: `{ greet(name) { ... } }`.
+		if (Node.isMethodDeclaration(descendant) && Node.isObjectLiteralExpression(descendant.getParent())) {
+			const name = descendant.getName();
+
+			if (name !== "") {
+				props.push({ path: name, node: descendant });
+			}
+
+			return;
+		}
+
 		if (!Node.isPropertyAssignment(descendant)) {
 			return;
 		}
