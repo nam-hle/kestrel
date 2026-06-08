@@ -110,8 +110,20 @@ function calleesOf(decl: Node): Node[] {
 	return callees;
 }
 
+/** Stable identity for the cycle guard: source position, not the ts-morph wrapper. */
+function positionKey(node: Node): string {
+	const start = node.getStart();
+	const sf = node.getSourceFile();
+	const { line, column } = sf.getLineAndColumnAtPos(start);
+
+	return `${sf.getFilePath()}:${line}:${column}`;
+}
+
 export function buildCallHierarchy(decl: Node, direction: "incoming" | "outgoing", depth: number, baseDir: string): CallNode[] {
-	const seen = new Set<Node>();
+	// Key on source position, not Node identity: ts-morph can hand back distinct
+	// wrappers for the same declaration across separate findReferences calls, so an
+	// identity-keyed guard could miss a cycle reachable via two chains and blow up.
+	const seen = new Set<string>();
 
 	const walk = (current: Node, remaining: number): CallNode[] => {
 		if (remaining <= 0) {
@@ -122,11 +134,13 @@ export function buildCallHierarchy(decl: Node, direction: "incoming" | "outgoing
 		const result: CallNode[] = [];
 
 		for (const node of next) {
-			if (seen.has(node)) {
+			const key = positionKey(node);
+
+			if (seen.has(key)) {
 				continue;
 			}
 
-			seen.add(node);
+			seen.add(key);
 			const callNode = toNode(node, baseDir);
 			callNode.calls = walk(node, remaining - 1);
 			result.push(callNode);

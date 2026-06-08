@@ -66,4 +66,30 @@ describe("callHierarchy", () => {
 
 		expect(names(callees)).toContain("averageArea");
 	});
+
+	test("mutual recursion terminates and dedupes by position, not node identity", () => {
+		const engine = new Engine({ tsConfigPath });
+		const symbol = resolve(engine, "src/recursion.ts:ping");
+
+		// Deep walk over ping <-> pong: the cycle guard must visit each declaration
+		// once. A guard keyed on node identity can re-add the same source position
+		// reached via a distinct ts-morph wrapper, growing the tree past the cycle.
+		const tree = engine.callHierarchy(symbol, { depth: 10, direction: "outgoing" });
+
+		const seen = new Set<string>();
+		const collect = (nodes: CallNode[]): void => {
+			for (const n of nodes) {
+				// `file:Lline:col` — the stable position key the guard should use.
+				const key = `${n.position.file}:${n.position.line}:${n.position.col}`;
+				expect(seen.has(key)).toBe(false);
+				seen.add(key);
+				collect(n.calls);
+			}
+		};
+
+		collect(tree);
+		// ping calls pong, pong calls ping (deduped) — exactly the two declarations.
+		expect([...seen].some((k) => k.includes("recursion.ts"))).toBe(true);
+		expect(seen.size).toBeLessThanOrEqual(2);
+	});
 });
