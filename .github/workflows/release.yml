@@ -29,16 +29,13 @@ jobs:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
 
-  # Publish to npm once a release is cut.
-  #
-  # GATED — disabled until #69 is resolved (the @typescript/native-preview hard dep
-  # is an unsafe pinned dev build to ship) and an NPM_TOKEN secret is configured.
-  # Flip `if: false` to `if: needs.release-please.outputs.releases_created == 'true'`
-  # to go live.
+  # Publish to npm when release-please cuts a release (a release PR was merged).
+  # NOTE: this ships @typescript/native-preview, a pinned dev build, as a hard dep of
+  # @kestrel/core — see #69.
   publish:
     name: Publish to npm
     needs: [release-please]
-    if: false # see note above (#69 + NPM_TOKEN required first)
+    if: needs.release-please.outputs.releases_created == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -51,7 +48,11 @@ jobs:
       - name: Build
         run: nadle build
 
+      - name: Authenticate to npm
+        run: |
+          echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > "$HOME/.npmrc"
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
       - name: Publish
         run: pnpm publish -r --no-git-checks --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
