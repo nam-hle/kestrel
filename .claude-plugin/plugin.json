@@ -1,0 +1,12 @@
+{
+	"name": "symantic",
+	"description": "Navigate TypeScript/JavaScript semantically with the symantic CLI — redirect from textual Read/grep to name-addressed symbol queries.",
+	"version": "0.1.0",
+	"author": {
+		"name": "Nam Hoang Le"
+	},
+	"homepage": "https://github.com/nam-hle/symantic#readme",
+	"repository": "https://github.com/nam-hle/symantic",
+	"license": "MIT",
+	"keywords": ["typescript", "code-navigation", "ai", "agents"]
+}

@@ -1,0 +1,14 @@
+{
+	"name": "symantic",
+	"description": "Skills for the symantic semantic-code-intelligence CLI.",
+	"owner": {
+		"name": "Nam Hoang Le"
+	},
+	"plugins": [
+		{
+			"name": "symantic",
+			"source": ".",
+			"description": "Navigate TypeScript/JavaScript semantically with the symantic CLI — redirect from textual Read/grep to name-addressed symbol queries."
+		}
+	]
+}
