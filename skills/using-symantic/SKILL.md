@@ -33,7 +33,8 @@ an **MCP server**, prefer its MCP tools over shelling out — same ops, same add
 | Signature + callees + referenced types? | `symantic view context <file>:Name` |
 | Where defined / used / implemented? | `symantic find def\|refs\|impls <file>:Name` |
 | Who calls it / what does it call? | `symantic find callers\|callees <file>:Name` |
-| Find a symbol by name (file unknown)? | `symantic find symbol Name` |
+| Find a symbol, file unknown — exact name? | `symantic find symbol Name` |
+| Find a symbol, file unknown — only know part of the name? | `symantic find symbol Foo --contains` (substring; your orientation entry point) |
 | A file's imports / public surface? | `symantic imports <file>` · `symantic exports <file>` |
 
 Rest, briefly: `view file` (whole file, lean; `--body` for each export's source), `view body`
@@ -59,7 +60,25 @@ symantic find callers src/server.ts:start  # who calls it
 
 Append `--engine lsp` (tsgo-backed, faster on the hot path) to any command by default. Drop it
 — back to the default ts-morph engine — if it errors that tsgo is unavailable, returns
-empty/surprising results, or shows a parity gap.
+empty/surprising results, or shows a parity gap. Known gap: `find symbol` on `--engine lsp` can
+return empty where the default engine finds the symbol — if a name search comes back `(none)`,
+retry without `--engine lsp` before concluding the symbol doesn't exist.
+
+## grep + symantic — division of labor
+
+symantic is **not** a grep replacement; the two compose. symantic addresses code by *name*,
+not by path or text — it has no file/directory enumeration. Use grep/find to **orient**, then
+symantic to **understand**:
+
+- **grep / find / ls** → when you have no symbol name yet: locate files or dirs by path, search
+  raw text, string literals, config, or any non-TS file.
+- **symantic** → the moment you have a name or a file: outline, symbol / members / context
+  source, def / refs / impls, callers / callees, imports / exports.
+
+Common trap: reaching for a shell `find -iname '*foo*'` to locate a feature. Try
+`symantic find symbol Foo --contains` first — it searches symbol names across the project and
+hands back addresses you can drill straight into. Fall to shell `find` only when you're after a
+*file path / non-TS file*, not a symbol.
 
 ## When to fall back to Read/grep
 
