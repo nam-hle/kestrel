@@ -7,8 +7,6 @@
  * Tool names group by intent: view_* (read code), find_* (locate/trace), plus
  * top-level resolve/imports/exports/usage_report.
  */
-import { existsSync } from "node:fs";
-
 import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
@@ -29,7 +27,6 @@ import type {
 	AsyncSymbolEngine
 } from "@symantic/core";
 import {
-	createEngine,
 	renderSource,
 	renderRegion,
 	renderResolve,
@@ -46,76 +43,19 @@ import {
 } from "@symantic/core";
 
 import { readVersion } from "./version.js";
-import { serialize, clearSerialKey } from "./serialize.js";
+import { EnginePool } from "./engine-pool.js";
 
 type ToolResult = { content: { type: "text"; text: string }[] };
 
 /**
- * Max warm engines held at once. Each warm ts-morph Project is GB-scale on big repos
- * (DESIGN §3), so an unbounded cache in a long-lived multi-project session can exhaust
- * memory. Evict least-recently-used beyond this cap, disposing the evicted engine.
+ * The warm-engine pool: bounds the cache, serializes per-engine calls, and disposes on
+ * shutdown. See engine-pool.ts (epic #84 / M3).
  */
-const MAX_ENGINES = 4;
+const pool = new EnginePool();
 
-/** Warm engines, keyed by `tsconfig::engineKind`. Map insertion order = LRU order. */
-const engines = new Map<string, AsyncSymbolEngine>();
-
-/** Get-or-create the warm engine for a key, enforcing the LRU cap (disposes evicted). */
-function rawEngineFor(key: string, tsConfig: string, kind: EngineKind): AsyncSymbolEngine {
-	const existing = engines.get(key);
-
-	if (existing !== undefined) {
-		// Touch: move to most-recently-used (re-insert at the end).
-		engines.delete(key);
-		engines.set(key, existing);
-
-		return existing;
-	}
-
-	if (!existsSync(tsConfig)) {
-		throw new Error(`tsConfig not found: ${tsConfig} (pass an existing path to the project tsconfig.json)`);
-	}
-
-	const engine = createEngine({ engine: kind, tsConfigPath: tsConfig });
-	engines.set(key, engine);
-
-	// Evict LRU (oldest) entries beyond the cap; dispose them and drop their serial chain.
-	while (engines.size > MAX_ENGINES) {
-		const oldestKey = engines.keys().next().value as string;
-		const evicted = engines.get(oldestKey)!;
-		engines.delete(oldestKey);
-		clearSerialKey(oldestKey);
-		void evicted.dispose();
-	}
-
-	return engine;
-}
-
-/**
- * The engine for a tsconfig/kind, wrapped so every async method call is serialized on a
- * per-engine chain. ts-morph's `Project` and the LSP client are not reentrant; concurrent
- * tool calls must not interleave on the same engine (DESIGN open-Q #6).
- */
+/** The engine for a tsconfig/kind, serialized per engine. */
 function engineFor(tsConfig: string, kind: EngineKind): AsyncSymbolEngine {
-	const key = `${tsConfig}::${kind}`;
-	const engine = rawEngineFor(key, tsConfig, kind);
-
-	return new Proxy(engine, {
-		get(target, prop, receiver) {
-			const value = Reflect.get(target, prop, receiver);
-
-			if (typeof value !== "function") {
-				return value;
-			}
-
-			// `dispose` runs directly (shutdown path); every query method serializes per engine.
-			if (prop === "dispose") {
-				return value.bind(target);
-			}
-
-			return (...args: unknown[]) => serialize(key, () => Reflect.apply(value, target, args) as Promise<unknown>);
-		}
-	});
+	return pool.engineFor(tsConfig, kind);
 }
 
 function json(value: unknown): ToolResult {
@@ -411,15 +351,10 @@ tool(
 	}
 );
 
-// Dispose warm engines (and any tsgo subprocess) on shutdown. See #44 for fuller lifecycle.
-async function disposeAll(): Promise<void> {
-	await Promise.all([...engines.values()].map((e) => e.dispose()));
-	engines.clear();
-}
-
+// Dispose warm engines (and any tsgo subprocess) on shutdown.
 function shutdownOn(signal: "SIGINT" | "SIGTERM"): void {
 	process.once(signal, () => {
-		void disposeAll().finally(() => {
+		void pool.disposeAll().finally(() => {
 			// Re-raise with no listener so Node's default terminates the process (avoids process.exit).
 			process.kill(process.pid, signal);
 		});
