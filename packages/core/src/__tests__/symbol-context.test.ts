@@ -32,6 +32,16 @@ describe("symbolContext", () => {
 		expect(ctx.callees.some((c) => c.qualifiedName.includes("makeCircle"))).toBe(true);
 	});
 
+	test("callees exclude built-in / node_modules declarations", () => {
+		const engine = new Engine({ tsConfigPath });
+		const ctx = engine.symbolContext(resolve(engine, "src/consumer.ts:describeArea"));
+
+		// Project callee kept, library intrinsics (String, Error) dropped.
+		expect(ctx.callees.some((c) => c.qualifiedName.includes("averageArea"))).toBe(true);
+		expect(ctx.callees.some((c) => c.position.file.includes("node_modules"))).toBe(false);
+		expect(ctx.callees.some((c) => /\bString\b|\bError\b/.test(c.qualifiedName))).toBe(false);
+	});
+
 	test("empty sections are arrays, not omitted", () => {
 		const engine = new Engine({ tsConfigPath });
 		const ctx = engine.symbolContext(resolve(engine, "src/shapes.ts:Shape"));

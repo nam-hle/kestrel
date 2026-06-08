@@ -30,10 +30,11 @@ describe("renderFileOutline (compact tree)", () => {
 			"src/consumer.ts:
 			  fn totalArea  L3 [x]
 			  const averageArea  L12 [x]
-			  class AreaService  L20 [x]
-			  interface AreaCalculators  L27 [x]
-			  fn makeCalculators  L32 [x]
-			  fn makeSelectors  L41 [x]"
+			  fn describeArea  L22 [x]
+			  class AreaService  L29 [x]
+			  interface AreaCalculators  L36 [x]
+			  fn makeCalculators  L41 [x]
+			  fn makeSelectors  L50 [x]"
 		`);
 	});
 

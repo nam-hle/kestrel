@@ -17,6 +17,15 @@ export const averageArea = (count: number): number => {
 	return total / count;
 };
 
+// Calls both a project function (averageArea) and a built-in (String) — the
+// built-in callee must be filtered out of the context/call-hierarchy output.
+export function describeArea(count: number): string {
+	if (count < 0) {
+		throw new Error("count must be non-negative");
+	}
+	return String(averageArea(count));
+}
+
 export class AreaService {
 	// Arrow-bound class property — a common selector/handler shape.
 	public compute = (count: number): number => {

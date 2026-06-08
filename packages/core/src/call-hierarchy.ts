@@ -70,6 +70,17 @@ function callersOf(decl: Node): Node[] {
 	return callers;
 }
 
+/**
+ * A declaration that lives in `node_modules` or a TypeScript `lib.*.d.ts` — i.e. a
+ * built-in (`String`, `Error`, `Array`, …) or third-party intrinsic, not the user's
+ * code. These are noise as call-hierarchy edges and are filtered out.
+ */
+function isExternalDeclaration(decl: Node): boolean {
+	const path = decl.getSourceFile().getFilePath();
+
+	return path.includes("/node_modules/") || /\/lib\.[^/]*\.d\.ts$/.test(path);
+}
+
 /** Declarations that `decl` calls (one level), resolved from its body's call expressions. */
 function calleesOf(decl: Node): Node[] {
 	const callees: Node[] = [];
@@ -87,6 +98,10 @@ function calleesOf(decl: Node): Node[] {
 		}
 
 		for (const def of target.getDefinitionNodes()) {
+			if (isExternalDeclaration(def)) {
+				continue;
+			}
+
 			const named = Node.isFunctionDeclaration(def) || Node.isMethodDeclaration(def) ? def : (enclosingNamed(def) ?? def);
 			callees.push(named);
 		}
