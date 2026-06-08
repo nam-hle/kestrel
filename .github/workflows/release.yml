@@ -1,0 +1,57 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  # Maintains a release PR from Conventional Commits: version bumps + CHANGELOGs.
+  # Merging that PR tags the release and triggers the publish job below.
+  release-please:
+    name: Release PR
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      releases_created: ${{ steps.release.outputs.releases_created }}
+    steps:
+      - id: release
+        uses: googleapis/release-please-action@5c625bfb5d1ff62eadeeb3772007f7f66fdcf071 # v4
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  # Publish to npm once a release is cut.
+  #
+  # GATED — disabled until #69 is resolved (the @typescript/native-preview hard dep
+  # is an unsafe pinned dev build to ship) and an NPM_TOKEN secret is configured.
+  # Flip `if: false` to `if: needs.release-please.outputs.releases_created == 'true'`
+  # to go live.
+  publish:
+    name: Publish to npm
+    needs: [release-please]
+    if: false # see note above (#69 + NPM_TOKEN required first)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write # npm provenance
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: ./.github/actions/setup
+
+      - name: Build
+        run: nadle build
+
+      - name: Publish
+        run: pnpm publish -r --no-git-checks --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
