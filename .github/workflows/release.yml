@@ -4,27 +4,30 @@ on:
   push:
     branches:
       - main
+    tags:
+      - "*/v*"
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 
 concurrency:
-  group: ${{ github.workflow }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
-  # Maintains a release PR from Conventional Commits: version bumps + CHANGELOGs.
-  # Merging that PR tags the release and triggers the publish job below.
+  # On push to main: maintain a release PR (version bumps + CHANGELOGs) from the
+  # Conventional Commits. Merging it tags the release (e.g. `core/v0.2.0`), which
+  # triggers the publish job below via the tag push.
   release-please:
     name: Release PR
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    outputs:
-      releases_created: ${{ steps.release.outputs.releases_created }}
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
-      - id: release
-        uses: googleapis/release-please-action@5c625bfb5d1ff62eadeeb3772007f7f66fdcf071 # v4
+      - uses: googleapis/release-please-action@5c625bfb5d1ff62eadeeb3772007f7f66fdcf071 # v4
         with:
           # A fine-grained PAT (RELEASE_PLEASE_TOKEN) so the release PRs it opens trigger
           # CI normally — GITHUB_TOKEN-created PRs don't, which forces an admin-merge.
@@ -33,30 +36,33 @@ jobs:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
 
-  # Publish to npm when release-please cuts a release (a release PR was merged).
-  # NOTE: this ships @typescript/native-preview, a pinned dev build, as a hard dep of
-  # @kestrel/core — see #69.
+  # On a `<package>/v<version>` tag: publish that one package to npm via OIDC
+  # trusted publishing (no token — keyless, with provenance).
   publish:
-    name: Publish to npm
-    needs: [release-please]
-    if: needs.release-please.outputs.releases_created == 'true'
+    name: Publish ${{ github.ref_name }}
+    if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
       contents: read
-      id-token: write # npm provenance
+      id-token: write # OIDC trusted publishing + provenance
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - uses: ./.github/actions/setup
 
+      - name: Parse tag
+        id: parse-tag
+        run: echo "package=${GITHUB_REF_NAME%%/*}" >> "$GITHUB_OUTPUT"
+
       - name: Build
         run: nadle build
 
-      - name: Authenticate to npm
-        run: |
-          echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > "$HOME/.npmrc"
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Setup Node.js for trusted publishing
+        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
 
-      - name: Publish
-        run: pnpm publish -r --no-git-checks --access public
+      - name: Publish to npm
+        run: npm publish --provenance --access public
+        working-directory: packages/${{ steps.parse-tag.outputs.package }}
