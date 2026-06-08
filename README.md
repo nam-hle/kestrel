@@ -56,11 +56,11 @@ parse and re-address the answer.
 
 symantic is the layer those bridges skip:
 
-|                       | Raw LSP→MCP bridge                | symantic                                          |
-| --------------------- | --------------------------------- | ------------------------------------------------- |
-| **Addressing**        | byte offsets (no cursor to apply) | qualified names you feed into the next query      |
-| **Output**            | verbose LSP payloads              | compact trees, classified + paginated refs        |
-| **Synthesized ops**   | pass-through only                 | statement skeletons, public surface, usage report |
+|                     | Raw LSP→MCP bridge                | symantic                                          |
+| ------------------- | --------------------------------- | ------------------------------------------------- |
+| **Addressing**      | byte offsets (no cursor to apply) | qualified names you feed into the next query      |
+| **Output**          | verbose LSP payloads              | compact trees, classified + paginated refs        |
+| **Synthesized ops** | pass-through only                 | statement skeletons, public surface, usage report |
 
 Ops with **no LSP equivalent** — `view body` (statement skeleton), `exports` (transitively expands
 `export *`), bounded call hierarchy, `usage` (dead-code in one call). A bridge wrapping a language
@@ -75,26 +75,35 @@ commoditized. The output contract is the durable part — see the
 Commands group by intent: **`view`** (read code) and **`find`** (locate / trace), plus top-level
 `resolve` / `imports` / `exports` / `usage`.
 
-| Command                              | What you get                                                                       |
-| ------------------------------------ | ---------------------------------------------------------------------------------- |
-| `view outline <file>`                | structural table of contents: declarations (incl. nested) + re-exports             |
-| `view symbol <file>:Name`            | the exact source of one declaration                                                |
-| `view members <file>:Name`           | members of a class / interface / namespace                                         |
-| `view context <file>:Name`           | source + signature + callees + referenced types                                    |
-| `view body <file>:Name`              | statement-level skeleton of a function body                                        |
-| `view region <file>:Lstart-Lend`     | an addressed line range                                                            |
-| `find def <file>:Name`               | all declaration sites (handles declaration merging)                                |
-| `find refs <file>:Name`              | usages, classified by kind (import / call / type-ref / read / write), paginated    |
-| `find impls <file>:Name`             | classes implementing an interface                                                  |
-| `find callers` / `callees`           | incoming / outgoing call hierarchy, bounded depth                                  |
-| `find symbol Name`                   | repo-wide search for a name (`--contains` for substring) → candidates              |
-| `imports <file>` / `exports <file>`  | a file's import statements / transitive public surface (expands `export *`)        |
-| `resolve <file>:Name`                | resolve a qualified name → symbol or candidates                                    |
-| `usage <file>`                       | per-export reference counts of an entry (dead-code in one call)                    |
+| Command                             | What you get                                                                    |
+| ----------------------------------- | ------------------------------------------------------------------------------- |
+| `view outline <file>`               | structural table of contents: declarations (incl. nested) + re-exports          |
+| `view symbol <file>:Name`           | the exact source of one declaration                                             |
+| `view members <file>:Name`          | members of a class / interface / namespace                                      |
+| `view context <file>:Name`          | source + signature + callees + referenced types                                 |
+| `view body <file>:Name`             | statement-level skeleton of a function body                                     |
+| `view region <file>:Lstart-Lend`    | an addressed line range                                                         |
+| `find def <file>:Name`              | all declaration sites (handles declaration merging)                             |
+| `find refs <file>:Name`             | usages, classified by kind (import / call / type-ref / read / write), paginated |
+| `find impls <file>:Name`            | classes implementing an interface                                               |
+| `find callers` / `callees`          | incoming / outgoing call hierarchy, bounded depth                               |
+| `find symbol Name`                  | repo-wide search for a name (`--contains` for substring) → candidates           |
+| `imports <file>` / `exports <file>` | a file's import statements / transitive public surface (expands `export *`)     |
+| `resolve <file>:Name`               | resolve a qualified name → symbol or candidates                                 |
+| `usage <file>`                      | per-export reference counts of an entry (dead-code in one call)                 |
 
 See [docs/VISION.md](docs/VISION.md) for full scope, [docs/DESIGN.md](docs/DESIGN.md) for
 architecture, [docs/ADDRESSING.md](docs/ADDRESSING.md) for the `file:Name::nested#index` scheme.
 Modification (rename / move) is deferred. Multi-language is out of scope — TypeScript only.
+
+### symantic + grep
+
+symantic addresses code by _name_, not by path or raw text — it has no file enumeration. It
+**composes** with grep rather than replacing it. Use `grep`/`find` to **orient** (locate files,
+search text/config/non-TS); use symantic to **understand** (everything structural, once you have a
+name or file). When you only know part of a name, reach for `find symbol <part> --contains` before
+shelling out to `find` — it searches symbol names project-wide and returns addresses you can drill
+straight into.
 
 ## Agent skill (Claude Code plugin)
 
@@ -177,11 +186,11 @@ The ledger is **local only** — nothing is transmitted. Delete it any time to r
 
 ## Packages
 
-| Package                                    | Role                                                                      |
-| ------------------------------------------ | ------------------------------------------------------------------------- |
-| [`@symantic/core`](packages/core)          | warm ts-morph Project, symbol resolution, query + outline ops             |
-| [`@symantic/cli`](packages/cli)            | the `symantic` CLI — one-shot semantic queries                            |
-| [`@symantic/mcp`](packages/mcp)            | MCP server — the same ops as tools, project held warm across calls        |
+| Package                           | Role                                                               |
+| --------------------------------- | ------------------------------------------------------------------ |
+| [`@symantic/core`](packages/core) | warm ts-morph Project, symbol resolution, query + outline ops      |
+| [`@symantic/cli`](packages/cli)   | the `symantic` CLI — one-shot semantic queries                     |
+| [`@symantic/mcp`](packages/mcp)   | MCP server — the same ops as tools, project held warm across calls |
 
 The analysis engine is swappable behind the core API.
 

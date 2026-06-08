@@ -253,12 +253,19 @@ const findSymbol = defineCommand({
 		engine,
 		tsconfig,
 		name: { required: true, type: "positional", description: "Symbol name" },
-		contains: { type: "boolean", description: "Match the name as a substring (case-insensitive)" }
+		contains: {
+			type: "boolean",
+			description: "Match the name as a substring (case-insensitive) — the orientation entry point when you only know part of a name"
+		}
 	},
 	async run({ args }) {
 		await withEngine(args, async (e, tc) => {
 			const cands = await e.searchSymbol(args.name, { contains: args.contains });
 			output({ tsconfig: tc, op: "find symbol" }, cands, () => renderCandidates(cands), args.json);
+
+			if (cands.length === 0 && args.contains !== true && args.json !== true) {
+				process.stderr.write(`hint: no exact match for "${args.name}" — retry with --contains for substring search\n`);
+			}
 		});
 	}
 });

@@ -25,17 +25,17 @@ an **MCP server**, prefer its MCP tools over shelling out — same ops, same add
 
 ## Which op — question → command
 
-| Question | Command |
-|---|---|
-| Shape of this file? | `symantic view outline <file>` |
-| Source of one declaration? | `symantic view symbol <file>:Name` (`::` nests, e.g. `Class::method`) |
-| Members of a class / interface / namespace? | `symantic view members <file>:Name` |
-| Signature + callees + referenced types? | `symantic view context <file>:Name` |
-| Where defined / used / implemented? | `symantic find def\|refs\|impls <file>:Name` |
-| Who calls it / what does it call? | `symantic find callers\|callees <file>:Name` |
-| Find a symbol, file unknown — exact name? | `symantic find symbol Name` |
+| Question                                                  | Command                                                                         |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| Shape of this file?                                       | `symantic view outline <file>`                                                  |
+| Source of one declaration?                                | `symantic view symbol <file>:Name` (`::` nests, e.g. `Class::method`)           |
+| Members of a class / interface / namespace?               | `symantic view members <file>:Name`                                             |
+| Signature + callees + referenced types?                   | `symantic view context <file>:Name`                                             |
+| Where defined / used / implemented?                       | `symantic find def\|refs\|impls <file>:Name`                                    |
+| Who calls it / what does it call?                         | `symantic find callers\|callees <file>:Name`                                    |
+| Find a symbol, file unknown — exact name?                 | `symantic find symbol Name`                                                     |
 | Find a symbol, file unknown — only know part of the name? | `symantic find symbol Foo --contains` (substring; your orientation entry point) |
-| A file's imports / public surface? | `symantic imports <file>` · `symantic exports <file>` |
+| A file's imports / public surface?                        | `symantic imports <file>` · `symantic exports <file>`                           |
 
 Rest, briefly: `view file` (whole file, lean; `--body` for each export's source), `view body`
 (statement skeleton of a function), `view region <file>:Lstart-Lend`, `usage` (per-export
@@ -66,7 +66,7 @@ retry without `--engine lsp` before concluding the symbol doesn't exist.
 
 ## grep + symantic — division of labor
 
-symantic is **not** a grep replacement; the two compose. symantic addresses code by *name*,
+symantic is **not** a grep replacement; the two compose. symantic addresses code by _name_,
 not by path or text — it has no file/directory enumeration. Use grep/find to **orient**, then
 symantic to **understand**:
 
@@ -78,7 +78,7 @@ symantic to **understand**:
 Common trap: reaching for a shell `find -iname '*foo*'` to locate a feature. Try
 `symantic find symbol Foo --contains` first — it searches symbol names across the project and
 hands back addresses you can drill straight into. Fall to shell `find` only when you're after a
-*file path / non-TS file*, not a symbol.
+_file path / non-TS file_, not a symbol.
 
 ## When to fall back to Read/grep
 

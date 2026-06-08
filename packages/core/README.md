@@ -12,7 +12,7 @@ npm i @symantic/core
 ```
 
 ```ts
-import { /* ops */ } from "@symantic/core";
+import {} from /* ops */ "@symantic/core";
 ```
 
 Operations are **deterministic** AST queries — no LLM. Results are name-addressed
