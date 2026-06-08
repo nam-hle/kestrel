@@ -108,7 +108,10 @@ addressing crib. Install it as a plugin:
 ```
 
 The skill then loads as `symantic:using-symantic` and triggers whenever the agent is about to read
-or trace TypeScript.
+or trace TypeScript. The plugin is fetched by git (a clone of this repo) — separate from npm.
+
+> The skill **teaches** the agent to use symantic; it doesn't bundle the binary. For the commands
+> it recommends to run, install the CLI too: `npm i -g @symantic/cli` (or rely on `npx`).
 
 ## MCP server
 
