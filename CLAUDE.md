@@ -68,10 +68,11 @@ what you needed + why no op fit, and file it as a feature/ergonomics issue.
 
 - `pnpm nadle --list` — the full task catalog with descriptions. Use it instead of
   memorizing task names.
+- **Append `--reporter agent` to every nadle run** for token-lean output — one `DONE <task>`
+  line per task plus a summary, instead of the padded default. e.g. `pnpm nadle build --reporter agent`.
 - nadle takes several tasks in one invocation and orders them by dependency, so run the whole
-  pre-commit gate in one call: `pnpm nadle build test format check`.
-- Run vitest with `--reporter=agent` for token-lean, agent-readable output, e.g.
-  `pnpm nadle testUnit -- --reporter=agent` (or `pnpm exec vitest run --reporter=agent`).
+  pre-commit gate in one call: `pnpm nadle build test format --reporter agent`.
+- The underlying vitest also has its own `--reporter=agent`: `pnpm exec vitest run --reporter=agent`.
 
 ## Conventions
 

@@ -30,8 +30,8 @@ importers:
         specifier: ^10.4.1
         version: 10.4.1(jiti@2.7.0)
       nadle:
-        specifier: https://pkg.pr.new/nadle@2cdb015
-        version: https://pkg.pr.new/nadle@2cdb015
+        specifier: https://pkg.pr.new/nadle@3d83b63
+        version: https://pkg.pr.new/nadle@3d83b63
       prettier:
         specifier: ^3.8.3
         version: 3.8.3
@@ -378,8 +378,8 @@ packages:
     peerDependencies:
       eslint: ^9.30.1
 
-  '@nadle/kernel@https://pkg.pr.new/nadlejs/nadle/@nadle/kernel@2cdb0153ad1c7c68e03c2971a717f955a5589e77':
-    resolution: {tarball: https://pkg.pr.new/nadlejs/nadle/@nadle/kernel@2cdb0153ad1c7c68e03c2971a717f955a5589e77}
+  '@nadle/kernel@https://pkg.pr.new/nadlejs/nadle/@nadle/kernel@3d83b631a060cea57db2916a78d9e7950f0b59dc':
+    resolution: {integrity: sha512-pat7Q24UcPNgEAGEHcE47DE0f663pYDJT2+F9ZUi5NOlmUkLJllvRmqxR9z1rrKO2Vb2jI7VyiMw5sAkIdcftQ==, tarball: https://pkg.pr.new/nadlejs/nadle/@nadle/kernel@3d83b631a060cea57db2916a78d9e7950f0b59dc}
     version: 0.0.1
     engines: {node: '>=22'}
 
@@ -389,8 +389,8 @@ packages:
     peerDependencies:
       prettier: ^3.6.2
 
-  '@nadle/project-resolver@https://pkg.pr.new/nadlejs/nadle/@nadle/project-resolver@2cdb0153ad1c7c68e03c2971a717f955a5589e77':
-    resolution: {tarball: https://pkg.pr.new/nadlejs/nadle/@nadle/project-resolver@2cdb0153ad1c7c68e03c2971a717f955a5589e77}
+  '@nadle/project-resolver@https://pkg.pr.new/nadlejs/nadle/@nadle/project-resolver@3d83b631a060cea57db2916a78d9e7950f0b59dc':
+    resolution: {integrity: sha512-eG70R+qnOlVgB2vGW8HmpIy+zhSuq/PHggVfwVVZjwWFiC2RzupwMkC8Pufxl+ZNrmTg64dJik9Vssk7cV6OCg==, tarball: https://pkg.pr.new/nadlejs/nadle/@nadle/project-resolver@3d83b631a060cea57db2916a78d9e7950f0b59dc}
     version: 0.0.1
     engines: {node: '>=22'}
     hasBin: true
@@ -1958,8 +1958,8 @@ packages:
   mz@2.7.0:
     resolution: {integrity: sha512-z81GNO7nnYMEhrGh9LeymoE4+Yr0Wn5McHIZMK5cfQCl+NDX08sCZgUc9/6MHni9IWuFLm1Z3HTCXu2z9fN62Q==}
 
-  nadle@https://pkg.pr.new/nadle@2cdb015:
-    resolution: {integrity: sha512-mfrDfzfwUehVWOsxjNvD+jXy60vwQPrZKdX1rZ66xfnnVaeM1Qy0uPSwgDuo2rZ4txrNewJkOuN9fLfyhRE3DQ==, tarball: https://pkg.pr.new/nadle@2cdb015}
+  nadle@https://pkg.pr.new/nadle@3d83b63:
+    resolution: {integrity: sha512-4ybvsmtfAlaTFhAvy+eUBU9aVuuwpDB7fr7HJ7t3u0wuJWEL8O619mE/WUPG4IM7SR77DahrhoMD+pe7DX1XSg==, tarball: https://pkg.pr.new/nadle@3d83b63}
     version: 0.5.1
     engines: {node: '>=22'}
     hasBin: true
@@ -2988,17 +2988,17 @@ snapshots:
       - typescript
       - vitest
 
-  '@nadle/kernel@https://pkg.pr.new/nadlejs/nadle/@nadle/kernel@2cdb0153ad1c7c68e03c2971a717f955a5589e77': {}
+  '@nadle/kernel@https://pkg.pr.new/nadlejs/nadle/@nadle/kernel@3d83b631a060cea57db2916a78d9e7950f0b59dc': {}
 
   '@nadle/prettier-config@0.0.5(prettier@3.8.3)':
     dependencies:
       prettier: 3.8.3
 
-  '@nadle/project-resolver@https://pkg.pr.new/nadlejs/nadle/@nadle/project-resolver@2cdb0153ad1c7c68e03c2971a717f955a5589e77':
+  '@nadle/project-resolver@https://pkg.pr.new/nadlejs/nadle/@nadle/project-resolver@3d83b631a060cea57db2916a78d9e7950f0b59dc':
     dependencies:
       '@manypkg/find-root': 3.1.0
       '@manypkg/tools': 2.1.1
-      '@nadle/kernel': https://pkg.pr.new/nadlejs/nadle/@nadle/kernel@2cdb0153ad1c7c68e03c2971a717f955a5589e77
+      '@nadle/kernel': https://pkg.pr.new/nadlejs/nadle/@nadle/kernel@3d83b631a060cea57db2916a78d9e7950f0b59dc
       find-up: 8.0.0
 
   '@nadle/ts-config@0.0.2': {}
@@ -4631,10 +4631,10 @@ snapshots:
       object-assign: 4.1.1
       thenify-all: 1.6.0
 
-  nadle@https://pkg.pr.new/nadle@2cdb015:
+  nadle@https://pkg.pr.new/nadle@3d83b63:
     dependencies:
-      '@nadle/kernel': https://pkg.pr.new/nadlejs/nadle/@nadle/kernel@2cdb0153ad1c7c68e03c2971a717f955a5589e77
-      '@nadle/project-resolver': https://pkg.pr.new/nadlejs/nadle/@nadle/project-resolver@2cdb0153ad1c7c68e03c2971a717f955a5589e77
+      '@nadle/kernel': https://pkg.pr.new/nadlejs/nadle/@nadle/kernel@3d83b631a060cea57db2916a78d9e7950f0b59dc
+      '@nadle/project-resolver': https://pkg.pr.new/nadlejs/nadle/@nadle/project-resolver@3d83b631a060cea57db2916a78d9e7950f0b59dc
       consola: 3.4.2
       execa: 9.6.1
       fast-glob: 3.3.3
