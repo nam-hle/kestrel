@@ -3,3 +3,6 @@ dist
 coverage
 .nadle
 pnpm-lock.yaml
+
+# Owned by release-please — don't reformat (fights the tool, dirties release PRs)
+**/CHANGELOG.md
