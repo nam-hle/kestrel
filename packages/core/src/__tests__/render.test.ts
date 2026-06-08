@@ -125,6 +125,20 @@ describe("renderReferences", () => {
 		expect(renderReferences({ total: 0, references: [] })).toBe("(no references)");
 	});
 
+	test("a file with no directory groups under a '.' header", () => {
+		const result: UsagesResult = { total: 1, references: [{ kind: "read", position: { col: 2, line: 9, file: "root.ts" } }] };
+		expect(renderReferences(result).split("\n")[0]).toBe("./  (1)");
+	});
+
+	test("appends a continuation cursor when more results remain", () => {
+		const result: UsagesResult = {
+			total: 50,
+			nextCursor: "c1",
+			references: [{ kind: "call", position: { col: 1, line: 1, file: "src/a.ts" } }]
+		};
+		expect(renderReferences(result)).toContain("(more: cursor c1)");
+	});
+
 	test("context is appended after a tab when present", () => {
 		const result: UsagesResult = { total: 1, references: [{ kind: "call", context: "foo()", position: { col: 1, line: 1, file: "a.ts" } }] };
 		// a.ts has no directory → "." group header, then the indented row with context.
@@ -300,6 +314,10 @@ describe("renderImports", () => {
 		const imps: ImportInfo[] = [{ named: [], module: "react", namespace: "ns", default: "React", position: { col: 1, line: 1, file: "a" } }];
 		expect(renderImports(imps)).toBe("react\tdefault React\t* as ns");
 	});
+
+	test("empty renders a marker", () => {
+		expect(renderImports([])).toBe("(no imports)");
+	});
 });
 
 describe("renderUsageReport", () => {
@@ -308,5 +326,9 @@ describe("renderUsageReport", () => {
 			{ total: 5, consumed: 3, qualifiedName: "a:Foo", kind: "ClassDeclaration", position: { col: 1, line: 1, file: "a" } }
 		];
 		expect(renderUsageReport(rows)).toBe("a\n  cls Foo\ttotal=5 consumed=3");
+	});
+
+	test("empty renders a marker", () => {
+		expect(renderUsageReport([])).toBe("(no exports)");
 	});
 });
