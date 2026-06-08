@@ -12,6 +12,7 @@ import { readRegionFrom } from "./region.js";
 import { parseQualifiedName } from "./resolve.js";
 import { LspSymbolKind } from "./lsp/protocol.js";
 import { resolveInSymbols } from "./lsp/bridge.js";
+import { resolveProjectFile } from "./lsp/resolve-path.js";
 import type { LspLocation, LspPosition, DocumentSymbol } from "./lsp/protocol.js";
 import { lspToPosition, uriToRelative, asLocationOrNull, locationToPosition } from "./lsp/translate.js";
 import {
@@ -136,7 +137,7 @@ export class LspEngine {
 	}
 
 	async #open(client: LspClient, relPath: string): Promise<string> {
-		const abs = `${this.#root}/${relPath}`;
+		const abs = this.#abs(relPath);
 		const text = readFileSync(abs, "utf8");
 
 		if (!this.#opened.has(relPath)) {
@@ -150,7 +151,7 @@ export class LspEngine {
 	}
 
 	#uri(relPath: string): string {
-		return pathToFileURL(`${this.#root}/${relPath}`).href;
+		return pathToFileURL(this.#abs(relPath)).href;
 	}
 
 	/**
@@ -322,7 +323,7 @@ export class LspEngine {
 	}
 
 	public readRegion(file: string, startLine: number, endLine: number): Promise<RegionResult> {
-		return Promise.resolve(readRegionFrom(`${this.#root}/${file}`, file, startLine, endLine));
+		return Promise.resolve(readRegionFrom(this.#abs(file), file, startLine, endLine));
 	}
 
 	public async symbolContext(symbol: SymbolHandle): Promise<SymbolContext> {
@@ -412,7 +413,7 @@ export class LspEngine {
 			}
 
 			seen.add(key);
-			const text = readFileSync(`${this.#root}/${position.file}`, "utf8");
+			const text = readFileSync(this.#abs(position.file), "utf8");
 			const kind = classifyAt(text, loc.range.start);
 			const test = isTestFile(position.file);
 
@@ -486,8 +487,13 @@ export class LspEngine {
 
 	// ---- syntactic ops (parser, no subprocess needed but reuse open buffers) ----
 
+	/** Absolute, forward-slashed path for a caller-supplied (cwd-relative) file path. */
+	#abs(relPath: string): string {
+		return resolveProjectFile(this.#root, relPath);
+	}
+
 	#read(relPath: string): string {
-		return readFileSync(`${this.#root}/${relPath}`, "utf8");
+		return readFileSync(this.#abs(relPath), "utf8");
 	}
 
 	public listImports(path: string): Promise<ImportInfo[]> {
@@ -604,7 +610,7 @@ export class LspEngine {
 
 		for (const candidate of [`${base}.ts`, `${base}.tsx`, `${base}/index.ts`]) {
 			try {
-				readFileSync(`${this.#root}/${candidate}`, "utf8");
+				readFileSync(this.#abs(candidate), "utf8");
 
 				return candidate;
 			} catch {
