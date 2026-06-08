@@ -59,6 +59,8 @@ what you needed + why no op fit, and file it as a feature/ergonomics issue.
 - Run vitest with `--reporter=agent` for token-lean, agent-readable output, e.g.
   `pnpm exec vitest run --reporter=agent`.
 - Run `format` to fix prettier/eslint issues before commiting.
+- nadle runs several tasks in one invocation: `pnpm exec nadle format check` (fix, then
+  verify) or `pnpm exec nadle build test` — it orders them by dependency.
 
 ## Conventions
 
