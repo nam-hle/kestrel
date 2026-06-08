@@ -52,7 +52,8 @@ All outline ops = deterministic AST walks (ts-morph). No LLM (see VISION anti-go
 
 ## Open design questions (next session)
 
-1. Symbol resolution algorithm — qualified-name grammar. DONE: `::`-separated namespace
+1. Symbol resolution algorithm — qualified-name grammar, specified in
+   [ADDRESSING.md](./ADDRESSING.md). DONE: `::`-separated namespace
    paths (`file:Model::Inner::Node`), bare-segment match at any depth → path candidates,
    `#index` for same-path collisions. The `::` separator (not `.`) keeps quoted, dotted
    module names (`"@scope.org/pkg"`) intact. Still open: overloads, generics, default/anonymous export,
