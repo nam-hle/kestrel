@@ -1,4 +1,4 @@
-/** LSP wire shapes -> kestrel types. Offsets never leave this adapter layer. */
+/** LSP wire shapes -> symantic types. Offsets never leave this adapter layer. */
 import type { Position } from "../types.js";
 import type { LspLocation, LspPosition, LocationLink } from "./protocol.js";
 
@@ -44,12 +44,12 @@ export function asLocationOrNull(value: unknown): LspLocation | null {
 	return null;
 }
 
-/** LSP 0-based -> kestrel 1-based. */
+/** LSP 0-based -> symantic 1-based. */
 export function lspToPosition(pos: LspPosition): { col: number; line: number } {
 	return { line: pos.line + 1, col: pos.character + 1 };
 }
 
-/** LSP Location -> kestrel Position (relative file + 1-based line/col). */
+/** LSP Location -> symantic Position (relative file + 1-based line/col). */
 export function locationToPosition(loc: LspLocation, root: string): Position {
 	const { col, line } = lspToPosition(loc.range.start);
 

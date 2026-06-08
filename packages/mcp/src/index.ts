@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * kestrel MCP server. Exposes the read-only core ops as MCP tools over stdio,
+ * symantic MCP server. Exposes the read-only core ops as MCP tools over stdio,
  * holding a warm engine per (tsconfig, engine-kind) across calls. Thin adapter —
  * no analysis logic. See docs/DESIGN.md Section 1.
  *
@@ -27,7 +27,7 @@ import type {
 	SymbolContext,
 	UsageReportEntry,
 	AsyncSymbolEngine
-} from "@kestrel/core";
+} from "@symantic/core";
 import {
 	createEngine,
 	renderSource,
@@ -43,7 +43,7 @@ import {
 	renderUsageReport,
 	renderFileOutline,
 	renderCallHierarchy
-} from "@kestrel/core";
+} from "@symantic/core";
 
 import { serialize, clearSerialKey } from "./serialize.js";
 
@@ -158,9 +158,9 @@ const jsonArg = z.boolean().optional().describe("Return structured JSON instead 
 
 const kindOf = (engine: EngineKind | undefined): EngineKind => engine ?? "tsmorph";
 
-const server = new McpServer({ name: "kestrel", version: "0.1.0" });
+const server = new McpServer({ name: "symantic", version: "0.1.0" });
 
-/** The superset of arguments any kestrel tool accepts (all optional; per-tool schema validates). */
+/** The superset of arguments any symantic tool accepts (all optional; per-tool schema validates). */
 interface ToolArgs {
 	name?: string;
 	file?: string;

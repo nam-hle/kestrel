@@ -1,5 +1,5 @@
 /**
- * Core domain types for kestrel. Read-only v1.
+ * Core domain types for symantic. Read-only v1.
  * See docs/DESIGN.md Section 2 (Core API surface).
  */
 

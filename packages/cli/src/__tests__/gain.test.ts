@@ -12,12 +12,12 @@ import { renderHistory, renderSummary, renderByProject } from "../gain/command.j
 
 /** A temp ledger path under a fresh temp dir. */
 function tmpLedger(): string {
-	return join(mkdtempSync(join(tmpdir(), "kestrel-gain-")), "gain.jsonl");
+	return join(mkdtempSync(join(tmpdir(), "symantic-gain-")), "gain.jsonl");
 }
 
 /** Build a GainEntry with sensible defaults. */
 function entry(over: Partial<GainEntry> = {}): GainEntry {
-	return { ts: 1, files: 1, cwd: "/p", op: "find refs", kestrelTokens: 10, baselineTokens: 100, ...over };
+	return { ts: 1, files: 1, cwd: "/p", op: "find refs", symanticTokens: 10, baselineTokens: 100, ...over };
 }
 
 describe("bytesToTokens", () => {
@@ -66,7 +66,7 @@ describe("ledger", () => {
 	});
 
 	it("returns [] for a missing ledger", () => {
-		expect(read(join(tmpdir(), "kestrel-gain-does-not-exist", "gain.jsonl"))).toEqual([]);
+		expect(read(join(tmpdir(), "symantic-gain-does-not-exist", "gain.jsonl"))).toEqual([]);
 	});
 
 	it("no-ops on a null path (no home dir) instead of writing cwd-relative", () => {
@@ -75,9 +75,9 @@ describe("ledger", () => {
 	});
 
 	it("aggregates sums and percent saved", () => {
-		const agg = aggregate([entry({ kestrelTokens: 10, baselineTokens: 100 }), entry({ kestrelTokens: 20, baselineTokens: 100 })]);
+		const agg = aggregate([entry({ symanticTokens: 10, baselineTokens: 100 }), entry({ symanticTokens: 20, baselineTokens: 100 })]);
 		expect(agg.queries).toBe(2);
-		expect(agg.kestrelTokens).toBe(30);
+		expect(agg.symanticTokens).toBe(30);
 		expect(agg.baselineTokens).toBe(200);
 		expect(agg.savedTokens).toBe(170);
 		expect(agg.savedPct).toBeCloseTo(85);
@@ -91,7 +91,7 @@ describe("ledger", () => {
 
 	it("groups by project when requested", () => {
 		const agg = aggregate(
-			[entry({ cwd: "/a", kestrelTokens: 10, baselineTokens: 100 }), entry({ cwd: "/b", kestrelTokens: 5, baselineTokens: 50 })],
+			[entry({ cwd: "/a", symanticTokens: 10, baselineTokens: 100 }), entry({ cwd: "/b", symanticTokens: 5, baselineTokens: 50 })],
 			{
 				byProject: true
 			}
@@ -103,13 +103,13 @@ describe("ledger", () => {
 
 	it("zeroes an empty aggregate", () => {
 		const agg = aggregate([]);
-		expect(agg).toMatchObject({ queries: 0, savedPct: 0, savedTokens: 0, kestrelTokens: 0, baselineTokens: 0 });
+		expect(agg).toMatchObject({ queries: 0, savedPct: 0, savedTokens: 0, symanticTokens: 0, baselineTokens: 0 });
 	});
 });
 
 describe("command rendering", () => {
 	it("renders a summary with ~-prefixed figures", () => {
-		const out = renderSummary(aggregate([entry({ kestrelTokens: 1000, baselineTokens: 20000 })]));
+		const out = renderSummary(aggregate([entry({ symanticTokens: 1000, baselineTokens: 20000 })]));
 		expect(out).toContain("queries:   1");
 		expect(out).toContain("~1.0k tok");
 		expect(out).toContain("~95%");

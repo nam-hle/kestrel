@@ -1,14 +1,14 @@
 #!/usr/bin/env node
-import { createEngine } from "@kestrel/core";
+import { createEngine } from "@symantic/core";
 /**
- * kestrel CLI adapter. Translates CLI args <-> @kestrel/core calls and prints
+ * symantic CLI adapter. Translates CLI args <-> @symantic/core calls and prints
  * results. No analysis logic. See docs/DESIGN.md Section 1.
  *
  * Commands group by agent intent: `view` (read code) and `find` (locate/trace),
  * plus top-level addressing / whole-file facts.
  */
 import { runMain, defineCommand } from "citty";
-import type { EngineKind, SymbolHandle, AsyncSymbolEngine } from "@kestrel/core";
+import type { EngineKind, SymbolHandle, AsyncSymbolEngine } from "@symantic/core";
 import {
 	renderSource,
 	renderRegion,
@@ -23,7 +23,7 @@ import {
 	renderFileOutline,
 	renderUsageReport,
 	renderCallHierarchy
-} from "@kestrel/core";
+} from "@symantic/core";
 
 import { gain } from "./gain/command.js";
 import { recordGain } from "./gain/track.js";
@@ -339,7 +339,7 @@ const find = defineCommand({
 
 const main = defineCommand({
 	subCommands: { view, find, gain, usage, resolve, imports, exports: exportsCmd },
-	meta: { name: "kestrel", description: "Semantic symbol queries for TypeScript" }
+	meta: { name: "symantic", description: "Semantic symbol queries for TypeScript" }
 });
 
 void runMain(main);

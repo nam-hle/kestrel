@@ -1,4 +1,4 @@
-# kestrel — Design
+# symantic — Design
 
 Status: **in progress**. Section 1 (architecture) approved in session. Sections 2+ pending.
 Reference: [VISION.md](./VISION.md).
@@ -86,4 +86,4 @@ The dominant risk class for a read-only v1. Targets + mitigations to decide:
 
 ## Naming
 
-Name: **kestrel** (chosen 2026-06-06).
+Name: **symantic** (chosen 2026-06-06).

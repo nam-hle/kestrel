@@ -4,7 +4,7 @@ import { mkdirSync, readFileSync, appendFileSync } from "node:fs";
 
 /**
  * Persistent ledger of query token-savings, appended one JSON line per query to
- * a global file (`~/.kestrel/gain.jsonl`, like rtk). The `gain` command reads it
+ * a global file (`~/.symantic/gain.jsonl`, like rtk). The `gain` command reads it
  * back to report cumulative savings.
  *
  * Gain is observability: it must never break a query. Every I/O failure here is
@@ -22,8 +22,8 @@ export interface GainEntry {
 	cwd: string;
 	/** Count of distinct files the result referenced. */
 	files: number;
-	/** Estimated tokens of kestrel's emitted output. */
-	kestrelTokens: number;
+	/** Estimated tokens of symantic's emitted output. */
+	symanticTokens: number;
 	/** Estimated tokens to read the referenced files raw — the honest alternative. */
 	baselineTokens: number;
 }
@@ -33,7 +33,7 @@ export interface ProjectTotal {
 	cwd: string;
 	queries: number;
 	savedTokens: number;
-	kestrelTokens: number;
+	symanticTokens: number;
 	baselineTokens: number;
 }
 
@@ -43,7 +43,7 @@ export interface Aggregate {
 	/** Percent of baseline saved, 0 when there is no baseline. */
 	savedPct: number;
 	savedTokens: number;
-	kestrelTokens: number;
+	symanticTokens: number;
 	baselineTokens: number;
 	/** Per-project totals, present only when `byProject` was requested. */
 	byProject?: ProjectTotal[];
@@ -52,15 +52,15 @@ export interface Aggregate {
 }
 
 /**
- * Absolute path to the gain ledger (`~/.kestrel/gain.jsonl`), or null when the
+ * Absolute path to the gain ledger (`~/.symantic/gain.jsonl`), or null when the
  * home dir cannot be resolved. `homedir()` returns "" when `$HOME` is unset (CI,
  * containers, cron) — joining that yields a cwd-relative path that would scatter
- * `.kestrel/` into whatever directory the query ran from, so guard against it.
+ * `.symantic/` into whatever directory the query ran from, so guard against it.
  */
 export function ledgerPath(): string | null {
 	const home = homedir();
 
-	return home === "" ? null : join(home, ".kestrel", "gain.jsonl");
+	return home === "" ? null : join(home, ".symantic", "gain.jsonl");
 }
 
 /** Append one entry as a JSON line. All I/O failures are swallowed. */
@@ -114,23 +114,23 @@ export function read(path: string | null = ledgerPath()): GainEntry[] {
 
 /** Compute cumulative totals; pass `byProject` to also group by cwd. */
 export function aggregate(entries: GainEntry[], opts: { byProject?: boolean } = {}): Aggregate {
-	let kestrelTokens = 0;
+	let symanticTokens = 0;
 	let baselineTokens = 0;
 	const opCounts = new Map<string, number>();
 
 	for (const entry of entries) {
-		kestrelTokens += entry.kestrelTokens;
+		symanticTokens += entry.symanticTokens;
 		baselineTokens += entry.baselineTokens;
 		opCounts.set(entry.op, (opCounts.get(entry.op) ?? 0) + 1);
 	}
 
-	const savedTokens = baselineTokens - kestrelTokens;
+	const savedTokens = baselineTokens - symanticTokens;
 	const topOps = [...opCounts.entries()].sort((a, b) => b[1] - a[1]);
 
 	const result: Aggregate = {
 		topOps,
 		savedTokens,
-		kestrelTokens,
+		symanticTokens,
 		baselineTokens,
 		queries: entries.length,
 		savedPct: baselineTokens === 0 ? 0 : (savedTokens / baselineTokens) * 100
@@ -152,13 +152,13 @@ function groupByProject(entries: GainEntry[]): ProjectTotal[] {
 			queries: 0,
 			savedTokens: 0,
 			cwd: entry.cwd,
-			kestrelTokens: 0,
+			symanticTokens: 0,
 			baselineTokens: 0
 		};
 		total.queries += 1;
-		total.kestrelTokens += entry.kestrelTokens;
+		total.symanticTokens += entry.symanticTokens;
 		total.baselineTokens += entry.baselineTokens;
-		total.savedTokens = total.baselineTokens - total.kestrelTokens;
+		total.savedTokens = total.baselineTokens - total.symanticTokens;
 		byCwd.set(entry.cwd, total);
 	}
 
@@ -178,7 +178,7 @@ function isGainEntry(value: unknown): value is GainEntry {
 		typeof entry.cwd === "string" &&
 		typeof entry.op === "string" &&
 		typeof entry.files === "number" &&
-		typeof entry.kestrelTokens === "number" &&
+		typeof entry.symanticTokens === "number" &&
 		typeof entry.baselineTokens === "number"
 	);
 }

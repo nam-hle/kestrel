@@ -1,4 +1,4 @@
-# kestrel — Vision
+# symantic — Vision
 
 > Semantic symbol intelligence (read/analyse) for TypeScript, shaped for AI agents.
 
@@ -8,7 +8,7 @@ detail lives in [DESIGN.md](./DESIGN.md) (in progress).
 
 ## One-line
 
-kestrel is a tool an AI agent invokes to ask "where is symbol X used / what implements X /
+symantic is a tool an AI agent invokes to ask "where is symbol X used / what implements X /
 where is it defined" with **compiler-accurate** semantics, returning token-lean,
 name-addressed results.
 
@@ -23,7 +23,7 @@ wrapped by ts-morph). The gap is **not semantics** — it is **agent-shaped pack
 existing tools use byte offsets (agents have no cursor), emit verbose LSP payloads (burns
 tokens), and aren't tuned for an agent's query loop.
 
-kestrel closes that gap. We **borrow** the semantic engine; we **build** the agent ergonomics.
+symantic closes that gap. We **borrow** the semantic engine; we **build** the agent ergonomics.
 
 ## What it is (and is not)
 
@@ -58,7 +58,7 @@ an **MCP server** (native agent tools, JSON) and a **CLI** (`tool refs Foo --jso
 - Qualified-name addressing; ambiguity → candidate list with positions.
 - Result-set bounding: cap + paginate large reference sets, count-only mode (token-lean).
 
-All read-only: kestrel never writes files in v1.
+All read-only: symantic never writes files in v1.
 **Call-hierarchy** and **dependency-graph** queries are vision-level (post-v1).
 
 ## Out of scope
@@ -73,8 +73,8 @@ Deferred (revisit once read path proven):
 
 Never (anti-goal):
 
-- **LLM inside kestrel.** kestrel outputs are deterministic, compiler-derived. Prose summaries
-  / "what does this do" are the calling agent's job — kestrel hands it exact structure, the
+- **LLM inside symantic.** symantic outputs are deterministic, compiler-derived. Prose summaries
+  / "what does this do" are the calling agent's job — symantic hands it exact structure, the
   agent (already an LLM) interprets. `outline_function` is a _structural_ skeleton, not prose.
 
 Deferred — possibly forever:
@@ -94,7 +94,7 @@ DESIGN). The analysis engine sits behind `resolveSymbol` / `findUsages` and is s
   ergonomics. Cost = Node runtime + cold-start/typecheck latency (see Key risks).
 - **Vision engine: tsgo (Go)** — Microsoft's native port of the TypeScript compiler
   (`typescript-go`), ~10x faster typecheck, embeddable programmatic API (`@typescript/api`)
-  - LSP. Currently preview. This is kestrel's cold-start / perf escape hatch: same
+  - LSP. Currently preview. This is symantic's cold-start / perf escape hatch: same
     compiler-accurate semantics, native speed, no Node warm-up. Adopt once it GAs _and_
     exposes a stable embeddable find-references API. Likely
     shape: Go sidecar/binary behind the same core interface, or core itself reimplemented in Go.

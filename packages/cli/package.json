@@ -1,8 +1,8 @@
 {
-	"name": "@kestrel/cli",
+	"name": "@symantic/cli",
 	"version": "0.1.0",
 	"type": "module",
-	"description": "kestrel CLI — semantic symbol queries for TypeScript, shaped for AI agents",
+	"description": "symantic CLI — semantic symbol queries for TypeScript, shaped for AI agents",
 	"keywords": [
 		"typescript",
 		"code-navigation",
@@ -12,23 +12,23 @@
 	],
 	"license": "MIT",
 	"author": "Nam Hoang Le",
-	"homepage": "https://github.com/nam-hle/kestrel#readme",
+	"homepage": "https://github.com/nam-hle/symantic#readme",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/nam-hle/kestrel.git",
+		"url": "git+https://github.com/nam-hle/symantic.git",
 		"directory": "packages/cli"
 	},
 	"publishConfig": {
 		"access": "public"
 	},
 	"bin": {
-		"kestrel": "./dist/index.js"
+		"symantic": "./dist/index.js"
 	},
 	"files": [
 		"dist"
 	],
 	"dependencies": {
-		"@kestrel/core": "workspace:*",
+		"@symantic/core": "workspace:*",
 		"citty": "^0.2.2"
 	}
 }

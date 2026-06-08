@@ -1,8 +1,8 @@
 {
-	"name": "@kestrel/mcp",
+	"name": "@symantic/mcp",
 	"version": "0.1.0",
 	"type": "module",
-	"description": "kestrel MCP server — semantic TypeScript code navigation for AI agents",
+	"description": "symantic MCP server — semantic TypeScript code navigation for AI agents",
 	"keywords": [
 		"typescript",
 		"code-navigation",
@@ -13,23 +13,23 @@
 	],
 	"license": "MIT",
 	"author": "Nam Hoang Le",
-	"homepage": "https://github.com/nam-hle/kestrel#readme",
+	"homepage": "https://github.com/nam-hle/symantic#readme",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/nam-hle/kestrel.git",
+		"url": "git+https://github.com/nam-hle/symantic.git",
 		"directory": "packages/mcp"
 	},
 	"publishConfig": {
 		"access": "public"
 	},
 	"bin": {
-		"kestrel-mcp": "./dist/index.js"
+		"symantic-mcp": "./dist/index.js"
 	},
 	"files": [
 		"dist"
 	],
 	"dependencies": {
-		"@kestrel/core": "workspace:*",
+		"@symantic/core": "workspace:*",
 		"@modelcontextprotocol/sdk": "1.27.1",
 		"zod": "3.25.76"
 	}

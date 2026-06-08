@@ -1,6 +1,6 @@
 import { LspSymbolKind } from "./protocol.js";
 /**
- * The addressing bridge: resolve a kestrel dotted name against a tsgo `documentSymbol`
+ * The addressing bridge: resolve a symantic dotted name against a tsgo `documentSymbol`
  * tree to LSP positions. No second semantic engine — tsgo is the single source of truth
  * for "where is this symbol".
  */

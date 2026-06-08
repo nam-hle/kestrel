@@ -1,9 +1,9 @@
-# kestrel
+# symantic
 
 > Code navigation for TypeScript whose output is built for an agent's token budget and
 > address model.
 
-An AI agent has no cursor and a finite context window. kestrel answers code-navigation
+An AI agent has no cursor and a finite context window. symantic answers code-navigation
 questions ("where is X used / what implements it / what's the public surface here") with
 results that are **name-addressed** (`file.ts:Class::method`, never a byte offset an agent
 can't compute) and **token-lean** (a compact tree, not a verbose payload). Compiler-accurate
@@ -19,7 +19,7 @@ references, implementations, even rename. But they pipe **raw LSP** through: byt
 positions (an agent has no cursor to resolve them) and verbose payloads (burning the context
 window). They answer the question, then make the agent pay to parse and re-address the answer.
 
-kestrel is the layer those bridges skip:
+symantic is the layer those bridges skip:
 
 - **Name-addressing** — every result is a qualified name you feed straight into the next
   query. No offsets, no position bookkeeping.
@@ -30,7 +30,7 @@ kestrel is the layer those bridges skip:
   these by pass-through.
 
 The engine (ts-morph today, maybe tsgo later) is commoditized. The output contract is the
-durable part — see the [v1 roadmap epic](https://github.com/nam-hle/kestrel/issues/78).
+durable part — see the [v1 roadmap epic](https://github.com/nam-hle/symantic/issues/78).
 
 ## What it does (v1, read-only)
 
@@ -48,8 +48,8 @@ durable part — see the [v1 roadmap epic](https://github.com/nam-hle/kestrel/is
 | `listImports`         | the import statements of a file (module + named/default/namespace) — module wiring                   |
 | `publicSurface`       | transitive public surface of an entry barrel — expands `export *` to concrete symbols                |
 
-All operations are **deterministic** AST queries — kestrel never runs an LLM. Prose summaries
-are the calling agent's job; kestrel hands it exact structure.
+All operations are **deterministic** AST queries — symantic never runs an LLM. Prose summaries
+are the calling agent's job; symantic hands it exact structure.
 
 Modification (rename / move) is deferred. Multi-language is out of scope (TypeScript only).
 See [docs/VISION.md](docs/VISION.md) for the full scope and [docs/DESIGN.md](docs/DESIGN.md)
@@ -77,18 +77,18 @@ top-level `resolve` / `imports` / `exports` / `usage`:
 
 ```bash
 # read code
-npx @kestrel/cli view outline src/foo.ts --tsconfig tsconfig.json
-npx @kestrel/cli view symbol src/foo.ts:Bar --tsconfig tsconfig.json     # exact source
-npx @kestrel/cli view context src/foo.ts:Bar --tsconfig tsconfig.json    # source + callees + types
-npx @kestrel/cli view region src/foo.ts:10-40 --tsconfig tsconfig.json   # line range
+npx @symantic/cli view outline src/foo.ts --tsconfig tsconfig.json
+npx @symantic/cli view symbol src/foo.ts:Bar --tsconfig tsconfig.json     # exact source
+npx @symantic/cli view context src/foo.ts:Bar --tsconfig tsconfig.json    # source + callees + types
+npx @symantic/cli view region src/foo.ts:10-40 --tsconfig tsconfig.json   # line range
 
 # locate / trace
-npx @kestrel/cli find refs src/foo.ts:Bar --tsconfig tsconfig.json --exclude-tests
-npx @kestrel/cli find callers src/foo.ts:Bar --tsconfig tsconfig.json
-npx @kestrel/cli find callees src/foo.ts:Bar --tsconfig tsconfig.json
+npx @symantic/cli find refs src/foo.ts:Bar --tsconfig tsconfig.json --exclude-tests
+npx @symantic/cli find callers src/foo.ts:Bar --tsconfig tsconfig.json
+npx @symantic/cli find callees src/foo.ts:Bar --tsconfig tsconfig.json
 ```
 
-(After a global install — `npm i -g @kestrel/cli` — the binary is just `kestrel`.) Add
+(After a global install — `npm i -g @symantic/cli` — the binary is just `symantic`.) Add
 `--engine lsp` to any command to use the tsgo-backed engine instead of the ts-morph default,
 and `--json` for structured output.
 
@@ -99,26 +99,26 @@ and `--json` for structured output.
 > install hint while the default engine keeps working.
 
 **MCP** — the same operations as MCP tools over stdio, holding the project warm across calls
-(no per-call cold start). The server runs via `npx @kestrel/mcp`. Host setup:
+(no per-call cold start). The server runs via `npx @symantic/mcp`. Host setup:
 
 _Claude Code_ — `.claude/mcp.json` (or via `claude mcp add`):
 
 ```json
-{ "mcpServers": { "kestrel": { "command": "npx", "args": ["-y", "@kestrel/mcp"] } } }
+{ "mcpServers": { "symantic": { "command": "npx", "args": ["-y", "@symantic/mcp"] } } }
 ```
 
 _Cursor_ — `~/.cursor/mcp.json` (or `.cursor/mcp.json` in the project):
 
 ```json
-{ "mcpServers": { "kestrel": { "command": "npx", "args": ["-y", "@kestrel/mcp"] } } }
+{ "mcpServers": { "symantic": { "command": "npx", "args": ["-y", "@symantic/mcp"] } } }
 ```
 
 _Codex_ — `~/.codex/config.toml`:
 
 ```toml
-[mcp_servers.kestrel]
+[mcp_servers.symantic]
 command = "npx"
-args = ["-y", "@kestrel/mcp"]
+args = ["-y", "@symantic/mcp"]
 ```
 
 Tools: `view_outline`, `view_symbol`, `view_context`, `view_region`, `view_members`,
@@ -129,22 +129,22 @@ argument (engine cached per tsconfig); pass `engine: "lsp"` for the tsgo backend
 
 ### Token savings (`gain`)
 
-Every CLI query records an estimated token saving — the size of kestrel's structured
+Every CLI query records an estimated token saving — the size of symantic's structured
 output vs. the cost of reading the raw files the result referenced — to a local ledger
-at `~/.kestrel/gain.jsonl`. `kestrel gain` reports the cumulative total:
+at `~/.symantic/gain.jsonl`. `symantic gain` reports the cumulative total:
 
 ```bash
-kestrel gain                # summary: queries, kestrel vs baseline tokens, % saved, top ops
-kestrel gain --history      # recent queries, one per line
-kestrel gain --by-project   # totals grouped by project directory
-kestrel gain --json         # machine-readable aggregate
+symantic gain                # summary: queries, symantic vs baseline tokens, % saved, top ops
+symantic gain --history      # recent queries, one per line
+symantic gain --by-project   # totals grouped by project directory
+symantic gain --json         # machine-readable aggregate
 ```
 
 All figures are `~`-prefixed estimates (`ceil(bytes / 4)`, no tokenizer); the baseline
 counts only the files each result referenced, never the whole project.
 
 **Privacy:** tracking is always on (no opt-out) and writes project paths and op names to
-`~/.kestrel/gain.jsonl`. The ledger is local only — nothing is transmitted. Delete it any
+`~/.symantic/gain.jsonl`. The ledger is local only — nothing is transmitted. Delete it any
 time; a missing ledger just resets the totals.
 
 ## Development

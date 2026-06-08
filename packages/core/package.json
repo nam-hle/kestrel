@@ -1,5 +1,5 @@
 {
-	"name": "@kestrel/core",
+	"name": "@symantic/core",
 	"version": "0.2.0",
 	"type": "module",
 	"description": "Semantic symbol intelligence for TypeScript, shaped for AI agents — core engine",
@@ -13,10 +13,10 @@
 	],
 	"license": "MIT",
 	"author": "Nam Hoang Le",
-	"homepage": "https://github.com/nam-hle/kestrel#readme",
+	"homepage": "https://github.com/nam-hle/symantic#readme",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/nam-hle/kestrel.git",
+		"url": "git+https://github.com/nam-hle/symantic.git",
 		"directory": "packages/core"
 	},
 	"publishConfig": {

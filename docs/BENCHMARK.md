@@ -1,15 +1,15 @@
-# kestrel — Benchmark spec (the wedge proof)
+# symantic — Benchmark spec (the wedge proof)
 
 Purpose: turn the asserted claims ("token-lean", "fewer false hits") into measured numbers.
-This is milestone M4 of the [v1 roadmap epic](https://github.com/nam-hle/kestrel/issues/78)
+This is milestone M4 of the [v1 roadmap epic](https://github.com/nam-hle/symantic/issues/78)
 and blocks the repositioning.
 
 ## Opponent
 
 `mizchi/lsmcp` (a.k.a. typescript-mcp) — an LSP→MCP bridge **running on tsgo**
 (`@typescript/native-preview`). Chosen deliberately: it shares the same compiler engine
-class, so the comparison isolates **output ergonomics** (the thing kestrel claims) from
-**engine speed** (which kestrel does not claim to win on). Beating a slower grep proves
+class, so the comparison isolates **output ergonomics** (the thing symantic claims) from
+**engine speed** (which symantic does not claim to win on). Beating a slower grep proves
 nothing about the wedge; beating a tsgo-backed bridge does.
 
 ## What to measure
@@ -19,15 +19,15 @@ Per query, for each tool:
 1. **Output tokens** — tokenize the raw tool result (use the same tokenizer for both;
    `tiktoken` cl100k or the model's tokenizer). This is the headline metric.
 2. **False-hit rate** — for reference/usage queries on a symbol with same-named collisions:
-   `(results that are NOT the queried symbol) / total results`. kestrel (semantic) should be
+   `(results that are NOT the queried symbol) / total results`. symantic (semantic) should be
    0; textual or offset-confused output should be > 0. (lsmcp is semantic too, so this mostly
-   tests whether kestrel's name-addressing avoids the ambiguity that byte-offset addressing
+   tests whether symantic's name-addressing avoids the ambiguity that byte-offset addressing
    forces the agent to re-disambiguate.)
 3. **Calls-to-answer** — how many tool calls an agent needs to fully answer a fixed question
    (e.g. "what calls method X"). Synthesized ops (callHierarchy, usageReport) should need
    fewer than composing primitive LSP calls.
 4. **Addressability** — can the result be fed into the next query without the agent computing
-   a byte offset? Binary per tool. (kestrel: yes by design; LSP results carry line/char
+   a byte offset? Binary per tool. (symantic: yes by design; LSP results carry line/char
    positions the agent must thread back.)
 
 ## Query set (fixed, on a real mid-size repo)
@@ -35,7 +35,7 @@ Per query, for each tool:
 Pick a repo with namespaces, barrels, factory selectors, same-named symbols (the cases the
 synthesized ops target). For each, the identical question is posed to both tools:
 
-| #   | Question                          | kestrel op                  | lsmcp equivalent                     |
+| #   | Question                          | symantic op                 | lsmcp equivalent                     |
 | --- | --------------------------------- | --------------------------- | ------------------------------------ |
 | 1   | All usages of a same-named method | `usages` (member-addressed) | references (offset)                  |
 | 2   | Who calls X, 2 levels deep        | `calls`                     | repeated references, agent-composed  |
@@ -51,14 +51,14 @@ multiple calls + file reads — that gap, in tokens + calls, is the proof.
 1. Stand up both MCP servers on the same repo + tsconfig.
 2. For each query, capture the raw tool result(s) from each server.
 3. Tokenize results; count false hits; count calls-to-answer.
-4. Emit a table: per query, kestrel vs lsmcp on the 4 metrics, plus totals.
+4. Emit a table: per query, symantic vs lsmcp on the 4 metrics, plus totals.
 
 ## Presentation
 
 A single reproducible script (`benchmark/run.ts`) + a results table in the README:
 
 ```
-Query                     kestrel tokens  lsmcp tokens  Δ      kestrel calls  lsmcp calls
+Query                     symantic tokens  lsmcp tokens  Δ      symantic calls  lsmcp calls
 usages (same-named X)      …               …            -XX%   1              1
 public surface            …               …            -XX%   1              3
 unused exports            …               …            -XX%   1              N

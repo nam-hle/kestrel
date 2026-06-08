@@ -53,7 +53,7 @@ importers:
 
   packages/cli:
     dependencies:
-      '@kestrel/core':
+      '@symantic/core':
         specifier: workspace:*
         version: link:../core
       citty:
@@ -75,12 +75,12 @@ importers:
 
   packages/mcp:
     dependencies:
-      '@kestrel/core':
-        specifier: workspace:*
-        version: link:../core
       '@modelcontextprotocol/sdk':
         specifier: 1.27.1
         version: 1.27.1(zod@3.25.76)
+      '@symantic/core':
+        specifier: workspace:*
+        version: link:../core
       zod:
         specifier: 3.25.76
         version: 3.25.76

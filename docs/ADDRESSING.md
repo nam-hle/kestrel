@@ -1,6 +1,6 @@
-# kestrel addressing scheme (v0)
+# symantic addressing scheme (v0)
 
-A **qualified name** is how an agent addresses a symbol in kestrel — the input to every
+A **qualified name** is how an agent addresses a symbol in symantic — the input to every
 symbol-taking op and the form of every symbol-shaped result. It is **name-based**, never a
 byte offset or cursor: a result can be fed straight back into the next query.
 
@@ -44,7 +44,7 @@ src/m.ts:overloaded#1                    the second of same-name declarations
 
 ## Resolution contract
 
-- A name resolves to **one symbol**, or to **candidates** when ambiguous — kestrel never
+- A name resolves to **one symbol**, or to **candidates** when ambiguous — symantic never
   silently guesses. Candidates carry their full `::` path so the caller can re-address
   precisely (or add `#index`).
 - A malformed qualified name (missing `:`, empty file/name, empty `::` segment, bad

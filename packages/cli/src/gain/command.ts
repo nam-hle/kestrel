@@ -34,7 +34,7 @@ export function renderSummary(agg: Aggregate): string {
 
 	return [
 		`  queries:   ${agg.queries}`,
-		`  kestrel:   ${fmt(agg.kestrelTokens)}`,
+		`  symantic:   ${fmt(agg.symanticTokens)}`,
 		`  baseline:  ${fmt(agg.baselineTokens)}`,
 		`  saved:     ${fmt(agg.savedTokens)} (~${Math.round(agg.savedPct)}%)`,
 		`  top ops:   ${topOps}`
@@ -60,7 +60,7 @@ export function renderHistory(entries: GainEntry[], limit = 20): string {
 
 	return entries
 		.slice(-limit)
-		.map((e) => `  ${new Date(e.ts).toISOString()}  ${e.op}  saved ${fmt(e.baselineTokens - e.kestrelTokens)}`)
+		.map((e) => `  ${new Date(e.ts).toISOString()}  ${e.op}  saved ${fmt(e.baselineTokens - e.symanticTokens)}`)
 		.join("\n");
 }
 
@@ -72,7 +72,7 @@ function pct(saved: number, baseline: number): number {
 export const gain = defineCommand({
 	meta: {
 		name: "gain",
-		description: "Report estimated token savings vs reading raw files (chars/4 estimate; recorded on by default to ~/.kestrel/gain.jsonl)"
+		description: "Report estimated token savings vs reading raw files (chars/4 estimate; recorded on by default to ~/.symantic/gain.jsonl)"
 	},
 	args: {
 		json: { type: "boolean", description: "Emit the machine-readable aggregate" },

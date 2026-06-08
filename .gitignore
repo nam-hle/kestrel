@@ -7,7 +7,7 @@ coverage/
 .idea/
 
 # Local gain ledger (written to the home dir at runtime; never committed)
-.kestrel/
+.symantic/
 
 # Local dev planning artifacts (superpowers plans/specs) — never committed
 docs/superpowers/

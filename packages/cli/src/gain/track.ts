@@ -9,7 +9,7 @@ import { bytesToTokens } from "./estimate.js";
  * Record one query's token savings to the ledger. Called after a query result is
  * emitted, with the op label, the result object, and the project's tsconfig path.
  *
- * `kestrelTokens` is the estimate of the emitted output; `baselineTokens` is the
+ * `symanticTokens` is the estimate of the emitted output; `baselineTokens` is the
  * estimate of reading the distinct files the result referenced — the honest
  * alternative. Result file paths are relative to the tsconfig directory (the
  * engine's base dir), so baseline sizing resolves against that, not the cwd.
@@ -29,7 +29,7 @@ export function recordGain(op: string, result: unknown, emitted: string, tsconfi
 			cwd: process.cwd(),
 			files: files.length,
 			baselineTokens: bytesToTokens(baselineBytes),
-			kestrelTokens: bytesToTokens(Buffer.byteLength(emitted, "utf8"))
+			symanticTokens: bytesToTokens(Buffer.byteLength(emitted, "utf8"))
 		});
 	} catch {
 		// Observability must never break a query.

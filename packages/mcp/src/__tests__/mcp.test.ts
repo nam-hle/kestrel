@@ -1,7 +1,7 @@
 import { fileURLToPath } from "node:url";
 import { join, dirname } from "node:path";
 /**
- * Integration tests for the kestrel MCP server adapter.
+ * Integration tests for the symantic MCP server adapter.
  *
  * Tests spawn the built binary (packages/mcp/dist/index.js) and speak the MCP
  * wire protocol over stdio. The MCP SDK's StdioServerTransport uses newline-
@@ -135,16 +135,16 @@ describe("MCP server integration", () => {
 		client?.dispose();
 	});
 
-	it("responds to initialize with serverInfo name 'kestrel'", async () => {
+	it("responds to initialize with serverInfo name 'symantic'", async () => {
 		client = new McpClient();
 
 		const result = (await client.request("initialize", {
 			capabilities: {},
 			protocolVersion: "2024-11-05",
-			clientInfo: { version: "0.0.0", name: "kestrel-test" }
+			clientInfo: { version: "0.0.0", name: "symantic-test" }
 		})) as { serverInfo?: { name?: string } };
 
-		expect(result.serverInfo?.name).toBe("kestrel");
+		expect(result.serverInfo?.name).toBe("symantic");
 	}, 20_000);
 
 	it("tools/list exposes the view_* / find_* tool names", async () => {

@@ -28,7 +28,7 @@ describe("lspToPosition", () => {
 });
 
 describe("locationToPosition", () => {
-	it("builds a kestrel Position from an LSP Location", () => {
+	it("builds a symantic Position from an LSP Location", () => {
 		const loc = { uri: "file:///abs/project/src/shapes.ts", range: { end: { line: 4, character: 19 }, start: { line: 4, character: 13 } } };
 		expect(locationToPosition(loc, root)).toEqual({ line: 5, col: 14, file: "src/shapes.ts" });
 	});

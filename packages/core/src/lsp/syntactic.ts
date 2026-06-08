@@ -13,7 +13,7 @@ function parse(path: string, text: string): ts.SourceFile {
 	return ts.createSourceFile(path, text, ts.ScriptTarget.Latest, /* setParentNodes */ true, ts.ScriptKind.TS);
 }
 
-/** 0-based ts position -> kestrel 1-based. */
+/** 0-based ts position -> symantic 1-based. */
 function posOf(sf: ts.SourceFile, pos: number): { col: number; line: number } {
 	const { line, character } = sf.getLineAndCharacterOfPosition(pos);
 

@@ -1,5 +1,5 @@
 /**
- * kestrel core engine. Holds a warm ts-morph Project, resolves symbols,
+ * symantic core engine. Holds a warm ts-morph Project, resolves symbols,
  * answers read-only queries. Transport-agnostic — knows nothing about MCP/CLI.
  * See docs/DESIGN.md Section 1 (architecture) + Section 2 (API).
  */

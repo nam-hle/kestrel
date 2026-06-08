@@ -15,7 +15,7 @@ tasks.register("emit", ExecTask, { command: "tsc", args: ["-b"] }).config({
 tasks.register("typecheck", ExecTask, { command: "tsc", args: ["-p", "tsconfig.check.json", "--noEmit"] }).config({
 	group: "Building",
 	dependsOn: ["emit"],
-	description: "Type-check every package including tests (resolves @kestrel/core from its emitted dist)"
+	description: "Type-check every package including tests (resolves @symantic/core from its emitted dist)"
 });
 
 tasks.register("bundle", ExecTask, { command: "tsup" }).config({

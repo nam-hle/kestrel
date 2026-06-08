@@ -1,4 +1,4 @@
-/** Minimal subset of the LSP types kestrel's LspEngine uses. 0-based line/character. */
+/** Minimal subset of the LSP types symantic's LspEngine uses. 0-based line/character. */
 
 export interface LspPosition {
 	line: number;
@@ -23,7 +23,7 @@ export interface LocationLink {
 	originSelectionRange?: LspRange;
 }
 
-/** LSP SymbolKind subset we map to kestrel kind names. */
+/** LSP SymbolKind subset we map to symantic kind names. */
 export enum LspSymbolKind {
 	File = 1,
 	Module = 2,

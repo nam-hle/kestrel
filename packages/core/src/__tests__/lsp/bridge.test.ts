@@ -67,7 +67,7 @@ describe("resolveInSymbols", () => {
 						range: sel(3, 1),
 						selectionRange: sel(3, 1),
 						kind: LspSymbolKind.Method,
-						// A local inside the method body — tsgo lists it, kestrel must not match it.
+						// A local inside the method body — tsgo lists it, symantic must not match it.
 						children: [{ range: sel(4, 2), name: "DefaultState", selectionRange: sel(4, 2), kind: LspSymbolKind.Variable }]
 					}
 				]

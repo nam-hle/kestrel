@@ -1,6 +1,6 @@
 /**
- * The read-only query surface kestrel exposes. Implemented by the ts-morph `Engine`
- * (default) and the tsgo `LspEngine` (opt-in). Transport-agnostic; output uses kestrel's
+ * The read-only query surface symantic exposes. Implemented by the ts-morph `Engine`
+ * (default) and the tsgo `LspEngine` (opt-in). Transport-agnostic; output uses symantic's
  * name-addressed contract (file:Name + 1-based Position), never byte/LSP offsets.
  */
 import type {

@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { join, dirname } from "node:path";
 import { createRequire } from "node:module";
 /**
- * Integration tests for the kestrel CLI adapter.
+ * Integration tests for the symantic CLI adapter.
  *
  * Tests spawn the built binary (packages/cli/dist/index.js) as a child process.
  * Prerequisite: `pnpm build` must have been run before executing these tests.
@@ -207,12 +207,12 @@ describe("CLI integration", () => {
 
 	describe("gain", () => {
 		it("records a query to the ledger and reports a summary", async () => {
-			const home = mkdtempSync(join(tmpdir(), "kestrel-gain-cli-"));
+			const home = mkdtempSync(join(tmpdir(), "symantic-gain-cli-"));
 
 			const query = await runWithHome(home, ["find", "refs", "--tsconfig", TSCONFIG, "src/shapes.ts:makeCircle"]);
 			expect(query.code).toBe(0);
 
-			const ledger = readFileSync(join(home, ".kestrel", "gain.jsonl"), "utf8").trim();
+			const ledger = readFileSync(join(home, ".symantic", "gain.jsonl"), "utf8").trim();
 			expect(ledger).not.toBe("");
 			expect(JSON.parse(ledger.split("\n")[0]!)).toMatchObject({ op: "find refs" });
 

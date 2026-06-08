@@ -3,7 +3,7 @@ import { resolve as resolvePath } from "node:path";
 /**
  * Opt-in engine backed by a warm tsgo LSP subprocess (semantic ops) + the typescript
  * native parser (syntactic ops). Implements AsyncSymbolEngine; translates LSP results to
- * kestrel's name-addressed contract. ts-morph `Engine` stays the sync default.
+ * symantic's name-addressed contract. ts-morph `Engine` stays the sync default.
  */
 import { readdirSync, readFileSync } from "node:fs";
 

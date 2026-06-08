@@ -15,7 +15,7 @@ afterEach(() => {
 });
 
 function makeProject(): { dir: string; tsConfigPath: string } {
-	const dir = mkdtempSync(join(tmpdir(), "kestrel-"));
+	const dir = mkdtempSync(join(tmpdir(), "symantic-"));
 	dirs.push(dir);
 	writeFileSync(join(dir, "tsconfig.json"), JSON.stringify({ include: ["*.ts"], compilerOptions: { strict: true } }));
 	writeFileSync(join(dir, "a.ts"), "export const value = 1;\n");
