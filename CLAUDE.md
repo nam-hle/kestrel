@@ -39,12 +39,12 @@ region|context|members`, `find refs|def|impls|callers|callees`, `imports`/`expor
 — non-TS files, out-of-project files, or a missing op. Falling back on TS source = a gap: note
 what you needed + why no op fit, and file it as a feature/ergonomics issue.
 
-- **Link** (once, on the active Node 24 toolchain — `npm link` binds the bin to the *current*
+- **Link** (once, on the active Node 24 toolchain — `npm link` binds the bin to the _current_
   Node version's bin dir, so relink after any `nvm use`):
   `cd packages/cli && npm link` → `kestrel` on PATH.
 - **Rebuild before use** when core/cli changed: `pnpm build` (the link points at `dist/`).
 - **tsconfig:** pass the per-package config, e.g. `--tsconfig packages/core/tsconfig.json`.
-  The root `tsconfig.src.json` is a composite *base* (`${configDir}/src` → repo root), not a
+  The root `tsconfig.src.json` is a composite _base_ (`${configDir}/src` → repo root), not a
   loadable project. Paths are interpreted relative to **cwd**.
 - **When kestrel hits a bug or friction mid-task, file it** (don't just work around it): a
   GitHub issue with `type:`/`severity:`/`scope:` labels, repro, root cause if known. Attach to
@@ -58,6 +58,7 @@ what you needed + why no op fit, and file it as a feature/ergonomics issue.
 - `test` (vitest) · `check` (eslint + prettier) · `format` (fix) · `clean`.
 - Run vitest with `--reporter=agent` for token-lean, agent-readable output, e.g.
   `pnpm exec vitest run --reporter=agent`.
+- Run `format` to fix prettier/eslint issues before commiting.
 
 ## Conventions
 
