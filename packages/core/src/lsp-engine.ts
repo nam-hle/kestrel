@@ -71,17 +71,18 @@ interface CallWalk {
 	direction: "incoming" | "outgoing";
 }
 
-/** First `.ts`/`.tsx` source file under `dir` (depth-first), as a root-relative path, or undefined. */
-function findFirstSource(dir: string, root: string): string | undefined {
+/** Upper bound on files opened to warm the workspace index — guards huge repos from a slow cold start. */
+const WARM_INDEX_FILE_CAP = 2000;
+
+/** All project-relative `.ts(x)` source paths under `dir` (skips node_modules, dotfiles, .d.ts). */
+function collectSources(dir: string, root: string, out: string[] = []): string[] {
 	let entries;
 
 	try {
 		entries = readdirSync(dir, { withFileTypes: true });
 	} catch {
-		return undefined;
+		return out;
 	}
-
-	const subdirs: string[] = [];
 
 	for (const entry of entries) {
 		if (entry.name === "node_modules" || entry.name.startsWith(".")) {
@@ -91,23 +92,13 @@ function findFirstSource(dir: string, root: string): string | undefined {
 		const full = `${dir}/${entry.name}`;
 
 		if (entry.isFile() && /\.tsx?$/.test(entry.name) && !entry.name.endsWith(".d.ts")) {
-			return full.slice(root.length + 1);
-		}
-
-		if (entry.isDirectory()) {
-			subdirs.push(full);
+			out.push(full.slice(root.length + 1));
+		} else if (entry.isDirectory()) {
+			collectSources(full, root, out);
 		}
 	}
 
-	for (const sub of subdirs) {
-		const found = findFirstSource(sub, root);
-
-		if (found !== undefined) {
-			return found;
-		}
-	}
-
-	return undefined;
+	return out;
 }
 
 /** An LSP result (array | single | null) → a clean LspLocation[], LocationLinks normalized, rangeless dropped. */
@@ -155,9 +146,11 @@ export class LspEngine {
 	}
 
 	/**
-	 * tsgo's `workspace/symbol` returns nothing until the project is indexed, which only
-	 * happens once a file is opened. Open one source file (once) to trigger project-wide
-	 * indexing before a repo-wide query. ts-morph has no such cold-start (it loads on construct).
+	 * tsgo's `workspace/symbol` only sees symbols in files the server has opened/indexed.
+	 * Opening a single file indexes a small project but leaves a large one mostly blind, so
+	 * a repo-wide query returns empty for symbols in unopened files (#90). Open every source
+	 * (capped) to index the whole project before the first workspace query. ts-morph has no
+	 * such cold-start (it loads on construct).
 	 */
 	async #warmIndex(client: LspClient): Promise<void> {
 		if (this.#warmed) {
@@ -165,11 +158,14 @@ export class LspEngine {
 		}
 
 		this.#warmed = true;
-		const first = findFirstSource(this.#root, this.#root);
+		const sources = collectSources(this.#root, this.#root).slice(0, WARM_INDEX_FILE_CAP);
 
-		if (first !== undefined) {
-			await this.#open(client, first);
-			// Give the server a beat to index before the first workspace query.
+		for (const rel of sources) {
+			await this.#open(client, rel);
+		}
+
+		if (sources.length > 0) {
+			// Give the server a beat to finish indexing before the first workspace query.
 			await new Promise((res) => setTimeout(res, 200));
 		}
 	}

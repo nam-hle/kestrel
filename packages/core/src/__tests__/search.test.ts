@@ -58,4 +58,17 @@ describe.skipIf(!binAvailable)("searchSymbol (lsp engine, cold index)", () => {
 			await lsp.dispose();
 		}
 	}, 30_000);
+
+	test("finds a symbol that lives outside the first-indexed file", async () => {
+		// Regression for #90: warming the index by opening only the *first* source file left
+		// workspace/symbol blind to symbols declared elsewhere — they came back empty.
+		const lsp = new LspEngine({ tsConfigPath });
+
+		try {
+			const hits = await lsp.searchSymbol("totalArea");
+			expect(hits.map((h) => h.qualifiedName)).toContain("src/consumer.ts:totalArea");
+		} finally {
+			await lsp.dispose();
+		}
+	}, 30_000);
 });
