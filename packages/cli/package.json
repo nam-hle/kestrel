@@ -1,6 +1,6 @@
 {
 	"name": "@kestrel/cli",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"type": "module",
 	"description": "kestrel CLI — semantic symbol queries for TypeScript, shaped for AI agents",
 	"keywords": [
