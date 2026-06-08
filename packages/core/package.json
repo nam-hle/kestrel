@@ -1,6 +1,6 @@
 {
 	"name": "@kestrel/core",
-	"version": "0.1.0",
+	"version": "0.2.0",
 	"type": "module",
 	"description": "Semantic symbol intelligence for TypeScript, shaped for AI agents — core engine",
 	"keywords": [
