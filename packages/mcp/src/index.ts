@@ -45,6 +45,7 @@ import {
 	renderCallHierarchy
 } from "@symantic/core";
 
+import { readVersion } from "./version.js";
 import { serialize, clearSerialKey } from "./serialize.js";
 
 type ToolResult = { content: { type: "text"; text: string }[] };
@@ -158,7 +159,7 @@ const jsonArg = z.boolean().optional().describe("Return structured JSON instead 
 
 const kindOf = (engine: EngineKind | undefined): EngineKind => engine ?? "tsmorph";
 
-const server = new McpServer({ name: "symantic", version: "0.1.0" });
+const server = new McpServer({ name: "symantic", version: readVersion() });
 
 /** The superset of arguments any symantic tool accepts (all optional; per-tool schema validates). */
 interface ToolArgs {

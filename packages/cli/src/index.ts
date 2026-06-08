@@ -26,6 +26,7 @@ import {
 } from "@symantic/core";
 
 import { gain } from "./gain/command.js";
+import { readVersion } from "./version.js";
 import { recordGain } from "./gain/track.js";
 import { resolveTsconfig } from "./tsconfig.js";
 
@@ -354,7 +355,7 @@ const find = defineCommand({
 
 const main = defineCommand({
 	subCommands: { view, find, gain, usage, resolve, imports, exports: exportsCmd },
-	meta: { name: "symantic", description: "Semantic symbol queries for TypeScript" }
+	meta: { name: "symantic", version: readVersion(), description: "Semantic symbol queries for TypeScript" }
 });
 
 void runMain(main);

@@ -142,9 +142,12 @@ describe("MCP server integration", () => {
 			capabilities: {},
 			protocolVersion: "2024-11-05",
 			clientInfo: { version: "0.0.0", name: "symantic-test" }
-		})) as { serverInfo?: { name?: string } };
+		})) as { serverInfo?: { name?: string; version?: string } };
 
 		expect(result.serverInfo?.name).toBe("symantic");
+		// Version sourced from package.json at runtime, not the old hardcoded "0.0.0".
+		expect(result.serverInfo?.version).toMatch(/^\d+\.\d+\.\d+/);
+		expect(result.serverInfo?.version).not.toBe("0.0.0");
 	}, 20_000);
 
 	it("tools/list exposes the view_* / find_* tool names", async () => {

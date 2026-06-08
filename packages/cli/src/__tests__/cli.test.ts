@@ -190,6 +190,16 @@ describe("CLI integration", () => {
 		}, 20_000);
 	});
 
+	describe("--version", () => {
+		it("prints the package version (semver), not 0.0.0", async () => {
+			const { code, stdout } = await run(["--version"]);
+
+			expect(code).toBe(0);
+			expect(stdout.trim()).toMatch(/^\d+\.\d+\.\d+/);
+			expect(stdout.trim()).not.toBe("0.0.0");
+		}, 10_000);
+	});
+
 	describe("tsconfig auto-discovery (--tsconfig optional)", () => {
 		it("discovers the nearest tsconfig.json from cwd when --tsconfig is omitted", async () => {
 			// Run from the fixture dir (which has a tsconfig.json) without --tsconfig.
