@@ -206,6 +206,19 @@ describe("MCP server integration", () => {
 		expect(result.content[0]!.text).not.toContain("{");
 	}, 20_000);
 
+	it("tools/call with a non-existent tsConfig fails with a clear path-named error", async () => {
+		const badPath = join(__dirname, "does", "not", "exist", "tsconfig.json");
+
+		const result = (await client.request("tools/call", {
+			name: "resolve",
+			arguments: { tsConfig: badPath, symbol: "src/shapes.ts:makeCircle" }
+		})) as { isError?: boolean; content: { type: string; text: string }[] };
+
+		expect(result.isError).toBe(true);
+		expect(result.content[0]!.text).toContain(badPath);
+		expect(result.content[0]!.text).toContain("tsConfig not found");
+	}, 20_000);
+
 	it("tools/call find_refs with json:true returns JSON", async () => {
 		const result = (await client.request("tools/call", {
 			name: "find_refs",

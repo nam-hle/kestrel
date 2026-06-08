@@ -7,6 +7,8 @@
  * Tool names group by intent: view_* (read code), find_* (locate/trace), plus
  * top-level resolve/imports/exports/usage_report.
  */
+import { existsSync } from "node:fs";
+
 import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
@@ -53,6 +55,10 @@ function engineFor(tsConfig: string, kind: EngineKind): AsyncSymbolEngine {
 	let engine = engines.get(key);
 
 	if (engine === undefined) {
+		if (!existsSync(tsConfig)) {
+			throw new Error(`tsConfig not found: ${tsConfig} (pass an existing path to the project tsconfig.json)`);
+		}
+
 		engine = createEngine({ engine: kind, tsConfigPath: tsConfig });
 		engines.set(key, engine);
 	}
