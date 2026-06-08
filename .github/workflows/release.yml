@@ -26,6 +26,10 @@ jobs:
       - id: release
         uses: googleapis/release-please-action@5c625bfb5d1ff62eadeeb3772007f7f66fdcf071 # v4
         with:
+          # A fine-grained PAT (RELEASE_PLEASE_TOKEN) so the release PRs it opens trigger
+          # CI normally — GITHUB_TOKEN-created PRs don't, which forces an admin-merge.
+          # Falls back to GITHUB_TOKEN when the secret is absent.
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
 
