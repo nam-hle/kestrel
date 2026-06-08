@@ -39,10 +39,10 @@ function tsgoBinAvailable(): boolean {
 	}
 }
 
-/** Run the CLI with the given args, returning stdout, stderr, and exit code. */
-async function run(args: string[]): Promise<{ code: number; stdout: string; stderr: string }> {
+/** Run the CLI with the given args (optionally from `cwd`), returning stdout, stderr, exit code. */
+async function run(args: string[], cwd?: string): Promise<{ code: number; stdout: string; stderr: string }> {
 	try {
-		const { stdout, stderr } = await execFileAsync(process.execPath, [CLI_BIN, ...args], { timeout: 20_000 });
+		const { stdout, stderr } = await execFileAsync(process.execPath, [CLI_BIN, ...args], { cwd, timeout: 20_000 });
 
 		return { stdout, stderr, code: 0 };
 	} catch (error) {
@@ -55,6 +55,9 @@ async function run(args: string[]): Promise<{ code: number; stdout: string; stde
 		};
 	}
 }
+
+/** The sample fixture directory (contains tsconfig.json) — for tsconfig auto-discovery. */
+const FIXTURE_DIR = join(__dirname, "..", "..", "..", "core", "src", "__tests__", "fixtures", "sample");
 
 /**
  * Run the CLI with the home dir pointed at `home` so the gain ledger lands in an
@@ -187,12 +190,14 @@ describe("CLI integration", () => {
 		}, 20_000);
 	});
 
-	describe("missing required --tsconfig", () => {
-		it("exits non-zero when --tsconfig is omitted", async () => {
-			const { code } = await run(["resolve", "src/shapes.ts:makeCircle"]);
+	describe("tsconfig auto-discovery (--tsconfig optional)", () => {
+		it("discovers the nearest tsconfig.json from cwd when --tsconfig is omitted", async () => {
+			// Run from the fixture dir (which has a tsconfig.json) without --tsconfig.
+			const { code, stdout } = await run(["resolve", "src/shapes.ts:makeCircle"], FIXTURE_DIR);
 
-			expect(code).not.toBe(0);
-		}, 10_000);
+			expect(code).toBe(0);
+			expect(stdout).toContain("src/shapes.ts:makeCircle");
+		}, 20_000);
 	});
 
 	describe.skipIf(!tsgoBinAvailable())("--engine lsp", () => {

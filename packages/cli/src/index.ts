@@ -27,6 +27,7 @@ import {
 
 import { gain } from "./gain/command.js";
 import { recordGain } from "./gain/track.js";
+import { resolveTsconfig } from "./tsconfig.js";
 
 /** Identifies the query for the gain ledger: its op label and the project tsconfig. */
 interface GainMeta {
@@ -44,20 +45,34 @@ function output(gain: GainMeta, value: unknown, render: () => string, jsonFlag: 
 	recordGain(gain.op, value, emitted, gain.tsconfig);
 }
 
-const tsconfig = { type: "string", required: true, description: "Path to the project tsconfig.json" } as const;
+const tsconfig = { type: "string", description: "Path to the project tsconfig.json (default: nearest one found upward from cwd)" } as const;
 const engine = { type: "string", description: "Engine backend: tsmorph (default) or lsp (tsgo)" } as const;
 const json = { type: "boolean", description: "Emit structured JSON instead of text" } as const;
 
-function engineFrom(args: { engine?: string; tsconfig: string }): AsyncSymbolEngine {
-	return createEngine({ tsConfigPath: args.tsconfig, engine: args.engine as EngineKind | undefined });
-}
-
-/** Run a command body with a fresh engine, disposing it after; clean error + non-zero exit on failure. */
-async function withEngine(args: { engine?: string; tsconfig: string }, fn: (engine: AsyncSymbolEngine) => Promise<void>): Promise<void> {
-	const engineInstance = engineFrom(args);
+/**
+ * Run a command body with a fresh engine over the resolved tsconfig (explicit `--tsconfig`,
+ * else the nearest one upward from cwd), disposing it after. The resolved path is passed to
+ * the body so the gain ledger records the real project. Clean error + non-zero exit on failure.
+ */
+async function withEngine(
+	args: { engine?: string; tsconfig?: string },
+	fn: (engine: AsyncSymbolEngine, tsConfigPath: string) => Promise<void>
+): Promise<void> {
+	let tsConfigPath: string;
 
 	try {
-		await fn(engineInstance);
+		tsConfigPath = resolveTsconfig(args.tsconfig);
+	} catch (error) {
+		process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
+		process.exitCode = 1;
+
+		return;
+	}
+
+	const engineInstance = createEngine({ tsConfigPath, engine: args.engine as EngineKind | undefined });
+
+	try {
+		await fn(engineInstance, tsConfigPath);
 	} catch (error) {
 		process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
 		process.exitCode = 1;
@@ -86,9 +101,9 @@ const resolve = defineCommand({
 	args: { json, engine, tsconfig, symbol: symbolArg },
 	meta: { name: "resolve", description: "Resolve a qualified name to a symbol or candidates" },
 	async run({ args }) {
-		await withEngine(args, async (e) => {
+		await withEngine(args, async (e, tc) => {
 			const r = await e.resolveSymbol(args.symbol);
-			output({ op: "resolve", tsconfig: args.tsconfig }, r, () => renderResolve(r), args.json);
+			output({ tsconfig: tc, op: "resolve" }, r, () => renderResolve(r), args.json);
 		});
 	}
 });
@@ -97,9 +112,9 @@ const imports = defineCommand({
 	args: { json, engine, tsconfig, file: fileArg },
 	meta: { name: "imports", description: "List the import statements of a file" },
 	async run({ args }) {
-		await withEngine(args, async (e) => {
+		await withEngine(args, async (e, tc) => {
 			const imps = await e.listImports(args.file);
-			output({ op: "imports", tsconfig: args.tsconfig }, imps, () => renderImports(imps), args.json);
+			output({ tsconfig: tc, op: "imports" }, imps, () => renderImports(imps), args.json);
 		});
 	}
 });
@@ -108,9 +123,9 @@ const exportsCmd = defineCommand({
 	args: { json, engine, tsconfig, file: fileArg },
 	meta: { name: "exports", description: "Transitive public surface of an entry file (expands export *)" },
 	async run({ args }) {
-		await withEngine(args, async (e) => {
+		await withEngine(args, async (e, tc) => {
 			const surf = await e.publicSurface(args.file);
-			output({ op: "exports", tsconfig: args.tsconfig }, surf, () => renderCandidates(surf), args.json);
+			output({ tsconfig: tc, op: "exports" }, surf, () => renderCandidates(surf), args.json);
 		});
 	}
 });
@@ -119,9 +134,9 @@ const usage = defineCommand({
 	meta: { name: "usage", description: "Usage report: each public symbol of an entry with its reference counts" },
 	args: { json, engine, tsconfig, file: fileArg, "exclude-tests": { type: "boolean", description: "Omit references in test files" } },
 	async run({ args }) {
-		await withEngine(args, async (e) => {
+		await withEngine(args, async (e, tc) => {
 			const report = await e.usageReport(args.file, { excludeTests: args["exclude-tests"] === true });
-			output({ op: "usage", tsconfig: args.tsconfig }, report, () => renderUsageReport(report), args.json);
+			output({ op: "usage", tsconfig: tc }, report, () => renderUsageReport(report), args.json);
 		});
 	}
 });
@@ -132,9 +147,9 @@ const viewOutline = defineCommand({
 	meta: { name: "outline", description: "Outline the structure of a file (compact tree; --json for full)" },
 	args: { engine, tsconfig, file: fileArg, json: { type: "boolean", description: "Emit full JSON instead of the compact tree" } },
 	async run({ args }) {
-		await withEngine(args, async (e) => {
+		await withEngine(args, async (e, tc) => {
 			const outline = await e.outlineFile(args.file);
-			output({ op: "view outline", tsconfig: args.tsconfig }, outline, () => renderFileOutline(args.file, outline), args.json);
+			output({ tsconfig: tc, op: "view outline" }, outline, () => renderFileOutline(args.file, outline), args.json);
 		});
 	}
 });
@@ -143,11 +158,11 @@ const viewFile = defineCommand({
 	meta: { name: "file", description: "Token-lean whole file: outline, plus --body for each export's source" },
 	args: { json, engine, tsconfig, file: fileArg, body: { type: "boolean", description: "Include each export's source" } },
 	async run({ args }) {
-		await withEngine(args, async (e) => {
+		await withEngine(args, async (e, tc) => {
 			const outline = await e.outlineFile(args.file);
 
 			if (args.body !== true) {
-				output({ op: "view file", tsconfig: args.tsconfig }, outline, () => renderFileOutline(args.file, outline), args.json);
+				output({ tsconfig: tc, op: "view file" }, outline, () => renderFileOutline(args.file, outline), args.json);
 
 				return;
 			}
@@ -161,7 +176,7 @@ const viewFile = defineCommand({
 			).flat();
 			const tree = renderFileOutline(args.file, outline);
 			const body = sources.map((s) => s.source).join("\n\n");
-			output({ op: "view file", tsconfig: args.tsconfig }, { outline, sources }, () => `${tree}\n${body}`, args.json);
+			output({ tsconfig: tc, op: "view file" }, { outline, sources }, () => `${tree}\n${body}`, args.json);
 		});
 	}
 });
@@ -170,9 +185,9 @@ const viewSymbol = defineCommand({
 	args: { json, engine, tsconfig, symbol: symbolArg },
 	meta: { name: "symbol", description: "Print the exact source of a declaration" },
 	async run({ args }) {
-		await withEngine(args, async (e) => {
+		await withEngine(args, async (e, tc) => {
 			const src = await e.symbolSource(await resolveSymbolOrThrow(e, args.symbol));
-			output({ op: "view symbol", tsconfig: args.tsconfig }, src, () => renderSource(src), args.json);
+			output({ tsconfig: tc, op: "view symbol" }, src, () => renderSource(src), args.json);
 		});
 	}
 });
@@ -181,9 +196,9 @@ const viewMembers = defineCommand({
 	args: { json, engine, tsconfig, symbol: symbolArg },
 	meta: { name: "members", description: "Outline the members of a class/interface/namespace" },
 	async run({ args }) {
-		await withEngine(args, async (e) => {
+		await withEngine(args, async (e, tc) => {
 			const members = await e.outlineSymbol(await resolveSymbolOrThrow(e, args.symbol));
-			output({ op: "view members", tsconfig: args.tsconfig }, members, () => renderMembers(members), args.json);
+			output({ tsconfig: tc, op: "view members" }, members, () => renderMembers(members), args.json);
 		});
 	}
 });
@@ -192,10 +207,10 @@ const viewBody = defineCommand({
 	meta: { name: "body", description: "Outline the statement skeleton of a function" },
 	args: { json, engine, tsconfig, symbol: symbolArg, depth: { type: "string", description: "Nesting depth (default 1)" } },
 	async run({ args }) {
-		await withEngine(args, async (e) => {
+		await withEngine(args, async (e, tc) => {
 			const symbol = await resolveSymbolOrThrow(e, args.symbol);
 			const stmts = await e.outlineFunction(symbol, { depth: args.depth ? Number(args.depth) : undefined });
-			output({ op: "view body", tsconfig: args.tsconfig }, stmts, () => renderStatements(stmts), args.json);
+			output({ tsconfig: tc, op: "view body" }, stmts, () => renderStatements(stmts), args.json);
 		});
 	}
 });
@@ -204,7 +219,7 @@ const viewRegion = defineCommand({
 	meta: { name: "region", description: "Print an addressed line range: file:Lstart-Lend" },
 	args: { json, engine, tsconfig, target: { required: true, type: "positional", description: "file:Lstart-Lend" } },
 	async run({ args }) {
-		await withEngine(args, async (e) => {
+		await withEngine(args, async (e, tc) => {
 			const m = /^(.*):(\d+)-(\d+)$/.exec(args.target);
 
 			if (m === null) {
@@ -212,7 +227,7 @@ const viewRegion = defineCommand({
 			}
 
 			const region = await e.readRegion(m[1]!, Number(m[2]), Number(m[3]));
-			output({ op: "view region", tsconfig: args.tsconfig }, region, () => renderRegion(region), args.json);
+			output({ tsconfig: tc, op: "view region" }, region, () => renderRegion(region), args.json);
 		});
 	}
 });
@@ -221,9 +236,9 @@ const viewContext = defineCommand({
 	args: { json, engine, tsconfig, symbol: symbolArg },
 	meta: { name: "context", description: "Source + signature + callees + referenced types" },
 	async run({ args }) {
-		await withEngine(args, async (e) => {
+		await withEngine(args, async (e, tc) => {
 			const ctx = await e.symbolContext(await resolveSymbolOrThrow(e, args.symbol));
-			output({ op: "view context", tsconfig: args.tsconfig }, ctx, () => renderContext(ctx), args.json);
+			output({ tsconfig: tc, op: "view context" }, ctx, () => renderContext(ctx), args.json);
 		});
 	}
 });
@@ -240,9 +255,9 @@ const findSymbol = defineCommand({
 		contains: { type: "boolean", description: "Match the name as a substring (case-insensitive)" }
 	},
 	async run({ args }) {
-		await withEngine(args, async (e) => {
+		await withEngine(args, async (e, tc) => {
 			const cands = await e.searchSymbol(args.name, { contains: args.contains });
-			output({ op: "find symbol", tsconfig: args.tsconfig }, cands, () => renderCandidates(cands), args.json);
+			output({ tsconfig: tc, op: "find symbol" }, cands, () => renderCandidates(cands), args.json);
 		});
 	}
 });
@@ -251,9 +266,9 @@ const findDef = defineCommand({
 	args: { json, engine, tsconfig, symbol: symbolArg },
 	meta: { name: "def", description: "Find the declaration site(s) of a symbol" },
 	async run({ args }) {
-		await withEngine(args, async (e) => {
+		await withEngine(args, async (e, tc) => {
 			const handles = await e.findDefinition(await resolveSymbolOrThrow(e, args.symbol));
-			output({ op: "find def", tsconfig: args.tsconfig }, handles, () => renderHandles(handles), args.json);
+			output({ tsconfig: tc, op: "find def" }, handles, () => renderHandles(handles), args.json);
 		});
 	}
 });
@@ -271,7 +286,7 @@ const findRefs = defineCommand({
 		context: { type: "string", description: "Surrounding source per ref: none (default) | snippet | block" }
 	},
 	async run({ args }) {
-		await withEngine(args, async (e) => {
+		await withEngine(args, async (e, tc) => {
 			const symbol = await resolveSymbolOrThrow(e, args.symbol);
 			const usages = await e.findUsages(symbol, {
 				cursor: args.cursor,
@@ -279,7 +294,7 @@ const findRefs = defineCommand({
 				limit: args.limit ? Number(args.limit) : undefined,
 				context: args.context as "none" | "snippet" | "block" | undefined
 			});
-			output({ op: "find refs", tsconfig: args.tsconfig }, usages, () => renderReferences(usages), args.json);
+			output({ tsconfig: tc, op: "find refs" }, usages, () => renderReferences(usages), args.json);
 		});
 	}
 });
@@ -288,9 +303,9 @@ const findImpls = defineCommand({
 	args: { json, engine, tsconfig, symbol: symbolArg },
 	meta: { name: "impls", description: "Find implementations of an interface" },
 	async run({ args }) {
-		await withEngine(args, async (e) => {
+		await withEngine(args, async (e, tc) => {
 			const handles = await e.findImplementations(await resolveSymbolOrThrow(e, args.symbol));
-			output({ op: "find impls", tsconfig: args.tsconfig }, handles, () => renderHandles(handles), args.json);
+			output({ tsconfig: tc, op: "find impls" }, handles, () => renderHandles(handles), args.json);
 		});
 	}
 });
@@ -299,10 +314,10 @@ const findCallers = defineCommand({
 	meta: { name: "callers", description: "Incoming call hierarchy: who calls this symbol" },
 	args: { json, engine, tsconfig, symbol: symbolArg, depth: { type: "string", description: "Levels to walk (default 2)" } },
 	async run({ args }) {
-		await withEngine(args, async (e) => {
+		await withEngine(args, async (e, tc) => {
 			const symbol = await resolveSymbolOrThrow(e, args.symbol);
 			const tree = await e.callHierarchy(symbol, { direction: "incoming", depth: args.depth ? Number(args.depth) : undefined });
-			output({ op: "find callers", tsconfig: args.tsconfig }, tree, () => renderCallHierarchy(tree), args.json);
+			output({ tsconfig: tc, op: "find callers" }, tree, () => renderCallHierarchy(tree), args.json);
 		});
 	}
 });
@@ -311,10 +326,10 @@ const findCallees = defineCommand({
 	meta: { name: "callees", description: "Outgoing call hierarchy: what this symbol calls" },
 	args: { json, engine, tsconfig, symbol: symbolArg, depth: { type: "string", description: "Levels to walk (default 2)" } },
 	async run({ args }) {
-		await withEngine(args, async (e) => {
+		await withEngine(args, async (e, tc) => {
 			const symbol = await resolveSymbolOrThrow(e, args.symbol);
 			const tree = await e.callHierarchy(symbol, { direction: "outgoing", depth: args.depth ? Number(args.depth) : undefined });
-			output({ op: "find callees", tsconfig: args.tsconfig }, tree, () => renderCallHierarchy(tree), args.json);
+			output({ tsconfig: tc, op: "find callees" }, tree, () => renderCallHierarchy(tree), args.json);
 		});
 	}
 });
