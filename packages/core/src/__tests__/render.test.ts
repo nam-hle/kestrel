@@ -16,12 +16,14 @@ describe("renderFileOutline (compact tree)", () => {
 	test("namespaced file factors prefixes into a tree", () => {
 		expect(render("src/nested.ts")).toMatchInlineSnapshot(`
 			"src/nested.ts:
-			  namespace Model
-			    interface Node  L2 [x]
-			    namespace Inner
-			      interface Node  L7 [x]
-			  namespace Runtime
-			    interface Node  L14 [x]"
+			  ns Model
+			    E iface Node  L2
+			    ns Inner
+			      E iface Node  L7
+			  ns Runtime
+			    E iface Node  L14
+			—
+			E=export"
 		`);
 	});
 
@@ -29,23 +31,25 @@ describe("renderFileOutline (compact tree)", () => {
 		const tree = render("src/augment.d.ts");
 
 		// The module name keeps its quotes + dots intact; only its members nest under it.
-		expect(tree).toContain('namespace "@scope.org/pkg.sub"');
-		expect(tree).toContain("interface Extra");
+		expect(tree).toContain('ns "@scope.org/pkg.sub"');
+		expect(tree).toContain("iface Extra");
 		// The dots in the name must NOT have produced fake nesting.
-		expect(tree).not.toMatch(/namespace "@scope$/m);
-		expect(tree).not.toContain("namespace org/pkg");
+		expect(tree).not.toMatch(/ns "@scope$/m);
+		expect(tree).not.toContain("ns org/pkg");
 	});
 
 	test("consumer file: declarations only, no function-body locals", () => {
 		expect(render("src/consumer.ts")).toMatchInlineSnapshot(`
 			"src/consumer.ts:
-			  fn totalArea  L3 [x]
-			  const averageArea  L12 [x]
-			  fn describeArea  L22 [x]
-			  class AreaService  L29 [x]
-			  interface AreaCalculators  L36 [x]
-			  fn makeCalculators  L41 [x]
-			  fn makeSelectors  L50 [x]"
+			  E fn totalArea  L3
+			  E const averageArea  L12
+			  E fn describeArea  L22
+			  E cls AreaService  L29
+			  E iface AreaCalculators  L36
+			  E fn makeCalculators  L41
+			  E fn makeSelectors  L50
+			—
+			E=export"
 		`);
 	});
 
@@ -54,10 +58,23 @@ describe("renderFileOutline (compact tree)", () => {
 		// not float to the top. TopFirst (L4) precedes LaterNamespace (L8) in source.
 		expect(render("src/outline-order.ts")).toMatchInlineSnapshot(`
 			"src/outline-order.ts:
-			  interface TopFirst  L4 [x]
-			  namespace LaterNamespace
-			    const value  L9 [x]
-			    fn helper  L11 [x]"
+			  E iface TopFirst  L4
+			  ns LaterNamespace
+			    E const value  L9
+			    E fn helper  L11
+			—
+			E=export"
+		`);
+	});
+
+	test("surfaces modifier flags with a legend of only the flags used", () => {
+		expect(render("src/modifiers.ts")).toMatchInlineSnapshot(`
+			"src/modifiers.ts:
+			  EA cls Widget  L3
+			  E iface WidgetProps  L19
+			  ED fn makeWidget  L24
+			—
+			E=export  A=abstract  D=default"
 		`);
 	});
 
@@ -84,8 +101,9 @@ describe("renderReferences", () => {
 		};
 		const out = renderReferences(result);
 		const lines = out.split("\n");
-		expect(lines[0]).toBe("src/a.ts:6:21\tcall");
-		expect(lines[1]).toBe("src/a.ts:1:10\timport\t(test)");
+		expect(lines[0]).toBe("src/  (2)"); // dir header + per-group count
+		expect(lines[1]).toBe("  a.ts:6:21\tcall"); // basename, indented under the dir
+		expect(lines[2]).toBe("  a.ts:1:10\timport\t(test)");
 		expect(out).toContain("2 refs");
 	});
 
@@ -95,7 +113,8 @@ describe("renderReferences", () => {
 
 	test("context is appended after a tab when present", () => {
 		const result: UsagesResult = { total: 1, references: [{ kind: "call", context: "foo()", position: { col: 1, line: 1, file: "a.ts" } }] };
-		expect(renderReferences(result).split("\n")[0]).toBe("a.ts:1:1\tcall\tfoo()");
+		// a.ts has no directory → "." group header, then the indented row with context.
+		expect(renderReferences(result).split("\n")[1]).toBe("  a.ts:1:1\tcall\tfoo()");
 	});
 });
 
@@ -168,9 +187,23 @@ describe("renderRegion", () => {
 });
 
 describe("renderMembers", () => {
-	test("name / kind / line rows", () => {
+	test("short kind + name / line rows", () => {
 		const m: Member[] = [{ signature: "area", name: "Circle.area", kind: "MethodDeclaration", position: { col: 1, line: 6, file: "a" } }];
-		expect(renderMembers(m)).toBe("Circle.area\tMethodDeclaration\tL6");
+		expect(renderMembers(m)).toBe("meth Circle.area\tL6");
+	});
+
+	test("surfaces flags as a prefix token plus a legend footer", () => {
+		const m: Member[] = [
+			{
+				name: "kind",
+				signature: "",
+				exported: false,
+				kind: "PropertyDeclaration",
+				modifiers: ["static", "readonly"],
+				position: { col: 1, line: 4, file: "a" }
+			}
+		];
+		expect(renderMembers(m)).toBe("SR prop kind\tL4\n—\nS=static  R=readonly");
 	});
 });
 
@@ -256,10 +289,10 @@ describe("renderImports", () => {
 });
 
 describe("renderUsageReport", () => {
-	test("name + counts + kind", () => {
+	test("groups by file; short kind + name + counts", () => {
 		const rows: UsageReportEntry[] = [
 			{ total: 5, consumed: 3, qualifiedName: "a:Foo", kind: "ClassDeclaration", position: { col: 1, line: 1, file: "a" } }
 		];
-		expect(renderUsageReport(rows)).toBe("a:Foo\ttotal=5 consumed=3\tClassDeclaration");
+		expect(renderUsageReport(rows)).toBe("a\n  cls Foo\ttotal=5 consumed=3");
 	});
 });

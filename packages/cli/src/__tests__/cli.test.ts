@@ -199,7 +199,8 @@ describe("CLI integration", () => {
 			const { code, stdout } = await run(["find", "refs", "--tsconfig", TSCONFIG, "src/shapes.ts:makeCircle"]);
 
 			expect(code).toBe(0);
-			expect(stdout).toMatch(/src\/consumer\.ts:\d+:\d+\t/); // addr<TAB>kind, not JSON
+			expect(stdout).toMatch(/^src\/ {2}\(\d+\)$/m); // per-dir group header with count
+			expect(stdout).toMatch(/^ {2}consumer\.ts:\d+:\d+\t/m); // indented basename row, addr<TAB>kind
 			expect(stdout).not.toContain('"references"'); // no JSON field names
 		}, 20_000);
 

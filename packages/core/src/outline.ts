@@ -37,14 +37,50 @@ function typeParametersOf(node: Node): string[] | undefined {
 	return params.length > 0 ? params : undefined;
 }
 
+/**
+ * Declaration modifiers present on a node, lower-cased: `abstract`, `static`, `readonly`,
+ * `async`, `optional`, `default`. `export` is tracked separately (Member.exported).
+ */
+function modifiersOf(node: Node): string[] {
+	const mods: string[] = [];
+
+	if (Node.isAbstractable(node) && node.isAbstract()) {
+		mods.push("abstract");
+	}
+
+	if (Node.isStaticable(node) && node.isStatic()) {
+		mods.push("static");
+	}
+
+	if (Node.isReadonlyable(node) && node.isReadonly()) {
+		mods.push("readonly");
+	}
+
+	if (Node.isAsyncable(node) && node.isAsync()) {
+		mods.push("async");
+	}
+
+	if (Node.isQuestionTokenable(node) && node.hasQuestionToken()) {
+		mods.push("optional");
+	}
+
+	if (Node.isModifierable(node) && node.hasModifier("default")) {
+		mods.push("default");
+	}
+
+	return mods;
+}
+
 function toMember(node: Node, name: string, baseDir: string): Member {
 	const typeParameters = typeParametersOf(node);
+	const modifiers = modifiersOf(node);
 
 	return {
 		name,
 		kind: node.getKindName(),
 		signature: signatureOf(node),
 		position: position(node, baseDir),
+		...(modifiers.length > 0 ? { modifiers } : {}),
 		...(typeParameters !== undefined ? { typeParameters } : {})
 	};
 }

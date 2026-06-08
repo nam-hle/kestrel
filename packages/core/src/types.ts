@@ -104,6 +104,11 @@ export interface Member {
 	position: Position;
 	/** Whether the declaration is exported from its file. */
 	exported?: boolean;
+	/**
+	 * Declaration modifiers present on the node, lower-cased: any of `abstract`, `static`,
+	 * `readonly`, `async`, `optional`, `default`. `export` is tracked separately via `exported`.
+	 */
+	modifiers?: string[];
 	/** Addressable qualified name (file:Owner.member), when known. */
 	qualifiedName?: string;
 	/** Generic type parameter names, when the declaration is generic. */

@@ -205,7 +205,7 @@ describe("MCP server integration", () => {
 			name: "find_refs",
 			arguments: { tsConfig: TSCONFIG, symbol: "src/shapes.ts:makeCircle" }
 		})) as { content: { type: string; text: string }[] };
-		expect(result.content[0]!.text).toMatch(/src\/consumer\.ts:\d+:\d+\t/);
+		expect(result.content[0]!.text).toMatch(/^ {2}consumer\.ts:\d+:\d+\t/m); // grouped: indented basename row
 		expect(result.content[0]!.text).not.toContain("{");
 	}, 20_000);
 

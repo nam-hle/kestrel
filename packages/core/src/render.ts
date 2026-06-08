@@ -22,25 +22,75 @@ import type {
 
 interface TreeNode {
 	children: Map<string, TreeNode>;
-	leaf?: { kind: string; line: number; exported: boolean };
+	leaf?: { kind: string; line: number; exported: boolean; modifiers?: string[] };
 }
 
 const KIND_SHORT: Record<string, string> = {
 	EnumDeclaration: "enum",
-	ClassDeclaration: "class",
+	ClassDeclaration: "cls",
+	MethodSignature: "meth",
+	ModuleDeclaration: "ns",
 	FunctionDeclaration: "fn",
-	MethodSignature: "method",
 	PropertySignature: "prop",
-	MethodDeclaration: "method",
+	MethodDeclaration: "meth",
 	PropertyDeclaration: "prop",
 	VariableDeclaration: "const",
 	TypeAliasDeclaration: "type",
-	ModuleDeclaration: "namespace",
-	InterfaceDeclaration: "interface"
+	InterfaceDeclaration: "iface"
 };
 
 function shortKind(kind: string): string {
 	return KIND_SHORT[kind] ?? kind;
+}
+
+/** Single-uppercase-letter flag for each modifier, plus the labels used in the legend footer. */
+const FLAG: Record<string, { label: string; letter: string }> = {
+	async: { letter: "Y", label: "async" },
+	export: { letter: "E", label: "export" },
+	static: { letter: "S", label: "static" },
+	default: { letter: "D", label: "default" },
+	abstract: { letter: "A", label: "abstract" },
+	readonly: { letter: "R", label: "readonly" },
+	optional: { letter: "O", label: "optional" }
+};
+
+/** Stable display order of flags within a token (export first, then declaration modifiers). */
+const FLAG_ORDER = ["export", "abstract", "static", "readonly", "async", "optional", "default"];
+
+/**
+ * The flag token for a declaration (e.g. `ES` = exported + static), and the modifier names it
+ * used — collected by the caller to build a legend footer of only the flags that appear.
+ */
+function flagToken(exported: boolean, modifiers: string[] | undefined, used: Set<string>): string {
+	const present = [...(exported ? ["export"] : []), ...(modifiers ?? [])];
+	const ordered = FLAG_ORDER.filter((m) => present.includes(m));
+
+	for (const m of ordered) {
+		used.add(m);
+	}
+
+	return ordered.map((m) => FLAG[m]!.letter).join("");
+}
+
+/** Legend line decoding only the flags that appeared, e.g. `E=export S=static`. Empty when none. */
+function legend(used: Set<string>): string {
+	const items = FLAG_ORDER.filter((m) => used.has(m)).map((m) => `${FLAG[m]!.letter}=${FLAG[m]!.label}`);
+
+	return items.length > 0 ? `—\n${items.join("  ")}` : "";
+}
+
+/** Common directory of a project-relative path (everything up to the last slash), or "" if none. */
+function dirOf(file: string): string {
+	const slash = file.lastIndexOf("/");
+
+	return slash === -1 ? "" : file.slice(0, slash);
+}
+
+/** Basename of a path. */
+function baseOf(file: string): string {
+	const slash = file.lastIndexOf("/");
+
+	return slash === -1 ? file : file.slice(slash + 1);
 }
 
 /** Insert a `::`-path member into the prefix tree. */
@@ -59,7 +109,12 @@ function insert(root: TreeNode, member: Member): void {
 		node = child;
 	}
 
-	node.leaf = { line: member.position.line, kind: shortKind(member.kind), exported: member.exported === true };
+	node.leaf = {
+		line: member.position.line,
+		kind: shortKind(member.kind),
+		exported: member.exported === true,
+		...(member.modifiers !== undefined ? { modifiers: member.modifiers } : {})
+	};
 }
 
 /**
@@ -82,17 +137,24 @@ function nodeLine(node: TreeNode): number {
 	return min === Infinity ? 0 : min;
 }
 
-function renderNode(name: string, node: TreeNode, indent: string, lines: string[]): void {
+/** Mutable accumulators threaded through the outline walk. */
+interface OutlineSink {
+	lines: string[];
+	used: Set<string>;
+}
+
+function renderNode(name: string, node: TreeNode, indent: string, sink: OutlineSink): void {
 	const leaf = node.leaf;
-	const tag = leaf?.exported === true ? " [x]" : "";
-	const meta = leaf !== undefined ? `${leaf.kind} ` : "namespace ";
+	const kind = leaf !== undefined ? leaf.kind : "ns";
+	const flags = leaf !== undefined ? flagToken(leaf.exported, leaf.modifiers, sink.used) : "";
+	const prefix = flags !== "" ? `${flags} ` : "";
 	const loc = leaf !== undefined ? `  L${leaf.line}` : "";
-	lines.push(`${indent}${meta}${name}${loc}${tag}`);
+	sink.lines.push(`${indent}${prefix}${kind} ${name}${loc}`);
 
 	const childNames = [...node.children.keys()].sort((a, b) => nodeLine(node.children.get(a)!) - nodeLine(node.children.get(b)!));
 
 	for (const childName of childNames) {
-		renderNode(childName, node.children.get(childName)!, `${indent}  `, lines);
+		renderNode(childName, node.children.get(childName)!, `${indent}  `, sink);
 	}
 }
 
@@ -104,12 +166,14 @@ export function renderFileOutline(file: string, outline: FileOutline): string {
 		insert(root, member);
 	}
 
-	const lines: string[] = [`${file}:`];
+	const sink: OutlineSink = { lines: [`${file}:`], used: new Set<string>() };
 	const topNames = [...root.children.keys()].sort((a, b) => nodeLine(root.children.get(a)!) - nodeLine(root.children.get(b)!));
 
 	for (const name of topNames) {
-		renderNode(name, root.children.get(name)!, "  ", lines);
+		renderNode(name, root.children.get(name)!, "  ", sink);
 	}
+
+	const { used, lines } = sink;
 
 	// Re-exports that are not local declarations (barrel pass-throughs).
 	const reExports = outline.exports.filter((e) => e.kind.startsWith("Export"));
@@ -123,7 +187,9 @@ export function renderFileOutline(file: string, outline: FileOutline): string {
 		}
 	}
 
-	return lines.join("\n");
+	const foot = legend(used);
+
+	return foot !== "" ? `${lines.join("\n")}\n${foot}` : lines.join("\n");
 }
 
 /** Re-feedable address of a position: file:line:col. */
@@ -141,14 +207,41 @@ export function renderReferences(result: UsagesResult): string {
 		return "(no references)";
 	}
 
-	const rows = result.references.map((r) => {
-		const parts = [addr(r.position), r.kind, ...(r.context !== undefined ? [r.context] : []), ...(r.test === true ? ["(test)"] : [])];
+	// Group references by directory: print each dir once as a header with its hit count,
+	// then bare `basename:line:col<TAB>kind` rows under it. dir header + basename reconstructs
+	// the full re-feedable path. Dirs appear in first-seen order; rows keep their input order.
+	const groups = new Map<string, string[]>();
 
-		return parts.join("\t");
-	});
+	for (const r of result.references) {
+		const dir = dirOf(r.position.file);
+		const rowParts = [
+			`${baseOf(r.position.file)}:${r.position.line}:${r.position.col}`,
+			r.kind,
+			...(r.context !== undefined ? [r.context] : []),
+			...(r.test === true ? ["(test)"] : [])
+		];
+		const bucket = groups.get(dir);
+
+		if (bucket === undefined) {
+			groups.set(dir, [rowParts.join("\t")]);
+		} else {
+			bucket.push(rowParts.join("\t"));
+		}
+	}
+
+	const lines: string[] = [];
+
+	for (const [dir, rows] of groups) {
+		lines.push(`${dir === "" ? "." : dir}/  (${rows.length})`);
+
+		for (const row of rows) {
+			lines.push(`  ${row}`);
+		}
+	}
+
 	const cursor = result.nextCursor !== undefined ? ` (more: cursor ${result.nextCursor})` : "";
 
-	return `${rows.join("\n")}\n${result.total} refs${cursor}`;
+	return `${lines.join("\n")}\n${result.total} refs${cursor}`;
 }
 
 export function renderHandles(handles: SymbolHandle[]): string {
@@ -190,7 +283,20 @@ export function renderRegion(r: RegionResult): string {
 }
 
 export function renderMembers(members: Member[]): string {
-	return members.length === 0 ? "(no members)" : members.map((m) => `${m.name}\t${m.kind}\tL${m.position.line}`).join("\n");
+	if (members.length === 0) {
+		return "(no members)";
+	}
+
+	const used = new Set<string>();
+	const rows = members.map((m) => {
+		const flags = flagToken(m.exported === true, m.modifiers, used);
+		const prefix = flags !== "" ? `${flags} ` : "";
+
+		return `${prefix}${shortKind(m.kind)} ${m.name}\tL${m.position.line}`;
+	});
+	const foot = legend(used);
+
+	return foot !== "" ? `${rows.join("\n")}\n${foot}` : rows.join("\n");
 }
 
 export function renderStatements(nodes: StatementNode[], indent = ""): string {
@@ -283,5 +389,33 @@ export function renderUsageReport(rows: UsageReportEntry[]): string {
 		return "(no exports)";
 	}
 
-	return rows.map((r) => `${r.qualifiedName}\ttotal=${r.total} consumed=${r.consumed}\t${r.kind}`).join("\n");
+	// qualifiedName is `file:Name`; group by file, print the name (sans file) with short kind
+	// and counts under each file header. Entries are public exports, so no flag column.
+	const groups = new Map<string, string[]>();
+
+	for (const r of rows) {
+		const sep = r.qualifiedName.indexOf(":");
+		const file = sep === -1 ? r.qualifiedName : r.qualifiedName.slice(0, sep);
+		const name = sep === -1 ? r.qualifiedName : r.qualifiedName.slice(sep + 1);
+		const row = `${shortKind(r.kind)} ${name}\ttotal=${r.total} consumed=${r.consumed}`;
+		const bucket = groups.get(file);
+
+		if (bucket === undefined) {
+			groups.set(file, [row]);
+		} else {
+			bucket.push(row);
+		}
+	}
+
+	const lines: string[] = [];
+
+	for (const [file, entries] of groups) {
+		lines.push(file);
+
+		for (const entry of entries) {
+			lines.push(`  ${entry}`);
+		}
+	}
+
+	return lines.join("\n");
 }
