@@ -5,7 +5,7 @@
 
 An AI agent has no cursor and a finite context window. kestrel answers code-navigation
 questions ("where is X used / what implements it / what's the public surface here") with
-results that are **name-addressed** (`file.ts:Class.method`, never a byte offset an agent
+results that are **name-addressed** (`file.ts:Class::method`, never a byte offset an agent
 can't compute) and **token-lean** (a compact tree, not a verbose payload). Compiler-accurate
 underneath (TypeScript via [ts-morph](https://ts-morph.com/)) — but accuracy is table stakes;
 the **output contract is the point**.

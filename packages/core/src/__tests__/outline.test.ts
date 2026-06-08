@@ -23,9 +23,9 @@ describe("outlineFile", () => {
 		const outline = engine.outlineFile("src/nested.ts");
 		const names = outline.interfaces.map((m) => m.name);
 
-		expect(names).toContain("Model.Node");
-		expect(names).toContain("Model.Inner.Node");
-		expect(names).toContain("Runtime.Node");
+		expect(names).toContain("Model::Node");
+		expect(names).toContain("Model::Inner::Node");
+		expect(names).toContain("Runtime::Node");
 	});
 
 	test("surfaces re-exports from a barrel file", () => {
@@ -135,7 +135,7 @@ describe("outlineSymbol", () => {
 
 		const area = engine.outlineSymbol(resolved.symbol).find((m) => m.name === "area");
 
-		expect(area?.qualifiedName).toBe("src/shapes.ts:Circle.area");
+		expect(area?.qualifiedName).toBe("src/shapes.ts:Circle::area");
 	});
 
 	test("lists the members of an interface", () => {

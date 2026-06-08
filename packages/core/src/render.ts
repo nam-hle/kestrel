@@ -1,3 +1,4 @@
+import { splitName } from "./resolve.js";
 /**
  * Compact text rendering of outlines — a token-lean YAML-ish tree, the default
  * agent-facing format. Namespace/owner prefixes are factored out into nesting.
@@ -42,9 +43,9 @@ function shortKind(kind: string): string {
 	return KIND_SHORT[kind] ?? kind;
 }
 
-/** Insert a dotted-path member into the prefix tree. */
+/** Insert a `::`-path member into the prefix tree. */
 function insert(root: TreeNode, member: Member): void {
-	const parts = member.name.split(".");
+	const parts = splitName(member.name);
 	let node = root;
 
 	for (const part of parts) {
@@ -202,7 +203,9 @@ export function renderStatements(nodes: StatementNode[], indent = ""): string {
 
 function renderCallNodes(nodes: CallNode[], indent: string, lines: string[]): void {
 	for (const node of nodes) {
-		const name = node.qualifiedName.split(":").pop() ?? node.qualifiedName;
+		// Display the last name segment: drop the `file:` prefix, then the last `::` segment.
+		const namePart = node.qualifiedName.slice(node.qualifiedName.indexOf(":") + 1);
+		const name = splitName(namePart).pop() ?? node.qualifiedName;
 		lines.push(`${indent}${name}\t${addr(node.position)}`);
 		renderCallNodes(node.calls, `${indent}  `, lines);
 	}

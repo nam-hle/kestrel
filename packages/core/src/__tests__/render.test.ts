@@ -25,6 +25,17 @@ describe("renderFileOutline (compact tree)", () => {
 		`);
 	});
 
+	test("quoted, dotted module name renders as a single node (not split on dots)", () => {
+		const tree = render("src/augment.d.ts");
+
+		// The module name keeps its quotes + dots intact; only its members nest under it.
+		expect(tree).toContain('namespace "@scope.org/pkg.sub"');
+		expect(tree).toContain("interface Extra");
+		// The dots in the name must NOT have produced fake nesting.
+		expect(tree).not.toMatch(/namespace "@scope$/m);
+		expect(tree).not.toContain("namespace org/pkg");
+	});
+
 	test("consumer file: declarations only, no function-body locals", () => {
 		expect(render("src/consumer.ts")).toMatchInlineSnapshot(`
 			"src/consumer.ts:

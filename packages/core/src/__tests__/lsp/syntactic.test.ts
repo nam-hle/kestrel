@@ -84,9 +84,9 @@ export namespace Runtime {
 		const o = buildOutline("src/nested.ts", nested);
 
 		// Nested interfaces are bucketed with their dotted path (mirrors the ts-morph engine).
-		expect(o.interfaces.map((m) => m.name).sort()).toEqual(["Model.Inner.Node", "Model.Node", "Runtime.Node"]);
+		expect(o.interfaces.map((m) => m.name).sort()).toEqual(["Model::Inner::Node", "Model::Node", "Runtime::Node"]);
 		// Namespaces + members appear in exports with dotted paths.
-		expect(o.exports.map((m) => m.name).sort()).toEqual(["Model", "Model.Inner", "Model.Inner.Node", "Model.Node", "Runtime", "Runtime.Node"]);
+		expect(o.exports.map((m) => m.name).sort()).toEqual(["Model", "Model::Inner", "Model::Inner::Node", "Model::Node", "Runtime", "Runtime::Node"]);
 	});
 
 	it("buckets namespaced consts and functions by kind", () => {
@@ -97,8 +97,8 @@ export namespace Runtime {
 `;
 		const o = buildOutline("src/events.ts", ns);
 
-		expect(o.variables.map((m) => m.name)).toEqual(["Events.onClick"]);
-		expect(o.functions.map((m) => m.name)).toEqual(["Events.handle"]);
+		expect(o.variables.map((m) => m.name)).toEqual(["Events::onClick"]);
+		expect(o.functions.map((m) => m.name)).toEqual(["Events::handle"]);
 	});
 });
 

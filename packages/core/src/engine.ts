@@ -17,7 +17,9 @@ import { typeRefsIn, signatureOfSource } from "./lsp/syntactic.js";
 import { buildFileOutline, buildSymbolOutline, buildFunctionOutline } from "./outline.js";
 import {
 	position,
+	splitName,
 	toRelative,
+	joinSegments,
 	nearestNames,
 	allDeclarations,
 	parseQualifiedName,
@@ -217,7 +219,7 @@ export class Engine implements SymbolEngine {
 			const rel = toRelative(sourceFile.getFilePath(), base);
 
 			for (const decl of allDeclarations(sourceFile)) {
-				const segments = decl.path.split(".");
+				const segments = splitName(decl.path);
 
 				if (!matches(segments[segments.length - 1]!)) {
 					continue;
@@ -343,7 +345,7 @@ export class Engine implements SymbolEngine {
 	/** All declaration sites of a resolved symbol (handles declaration merging / overloads). */
 	public findDefinition(symbol: SymbolHandle): SymbolHandle[] {
 		const { file, segments } = parseQualifiedName(symbol.qualifiedName);
-		const path = segments.join(".");
+		const path = joinSegments(segments);
 		const base = this.#baseDir();
 
 		return this.#declarationsFor(symbol).map((node) => declarationToHandle({ node, path }, file, base));
@@ -352,7 +354,7 @@ export class Engine implements SymbolEngine {
 	/** Exact source of each declaration of a symbol (signature + body). */
 	public symbolSource(symbol: SymbolHandle): SourceResult[] {
 		const { file, segments } = parseQualifiedName(symbol.qualifiedName);
-		const path = segments.join(".");
+		const path = joinSegments(segments);
 		const base = this.#baseDir();
 
 		return this.#declarationsFor(symbol).map((node) => {

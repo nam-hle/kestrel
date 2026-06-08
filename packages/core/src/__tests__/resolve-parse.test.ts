@@ -7,11 +7,27 @@ describe("parseQualifiedName", () => {
 		expect(parseQualifiedName("src/a.ts:Foo")).toEqual({ file: "src/a.ts", index: undefined, segments: ["Foo"] });
 	});
 
-	test("parses a dotted namespace path", () => {
-		expect(parseQualifiedName("src/a.ts:Model.Inner.Node")).toEqual({
+	test("parses a :: namespace path", () => {
+		expect(parseQualifiedName("src/a.ts:Model::Inner::Node")).toEqual({
 			file: "src/a.ts",
 			index: undefined,
 			segments: ["Model", "Inner", "Node"]
+		});
+	});
+
+	test("splits file from name at the first lone colon, keeping :: in the name", () => {
+		expect(parseQualifiedName("src/a.ts:Model::Inner")).toEqual({
+			file: "src/a.ts",
+			index: undefined,
+			segments: ["Model", "Inner"]
+		});
+	});
+
+	test("keeps dots inside a quoted module-name segment intact", () => {
+		expect(parseQualifiedName('src/a.ts:"@scope.org/pkg.sub"::Extra')).toEqual({
+			file: "src/a.ts",
+			index: undefined,
+			segments: ['"@scope.org/pkg.sub"', "Extra"]
 		});
 	});
 
@@ -43,15 +59,20 @@ describe("parseQualifiedName", () => {
 		expect(() => parseQualifiedName("src/a.ts:")).toThrow(/empty name/);
 	});
 
-	test("throws on an empty segment (leading dot)", () => {
-		expect(() => parseQualifiedName("src/a.ts:.Foo")).toThrow(/empty segment/);
+	test("throws on an empty segment (leading separator)", () => {
+		expect(() => parseQualifiedName("src/a.ts:::Foo")).toThrow(/empty segment/);
 	});
 
-	test("throws on an empty segment (trailing dot)", () => {
-		expect(() => parseQualifiedName("src/a.ts:Foo.")).toThrow(/empty segment/);
+	test("throws on an empty segment (trailing separator)", () => {
+		expect(() => parseQualifiedName("src/a.ts:Foo::")).toThrow(/empty segment/);
 	});
 
-	test("throws on an empty segment (double dot)", () => {
-		expect(() => parseQualifiedName("src/a.ts:Foo..Bar")).toThrow(/empty segment/);
+	test("throws on an empty segment (doubled separator)", () => {
+		expect(() => parseQualifiedName("src/a.ts:Foo::::Bar")).toThrow(/empty segment/);
+	});
+
+	test("parse errors carry a self-help syntax hint", () => {
+		expect(() => parseQualifiedName("noColon")).toThrow(/syntax:.*::/s);
+		expect(() => parseQualifiedName("src/a.ts:Foo::")).toThrow(/syntax:.*::/s);
 	});
 });

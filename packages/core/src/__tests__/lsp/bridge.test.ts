@@ -41,13 +41,13 @@ describe("resolveInSymbols", () => {
 	it("resolves a dotted member path exactly", () => {
 		const hits = resolveInSymbols(tree, ["Circle", "area"]);
 		expect(hits).toHaveLength(1);
-		expect(hits[0]!.path).toBe("Circle.area");
+		expect(hits[0]!.path).toBe("Circle::area");
 		expect(hits[0]!.position).toEqual({ line: 6, character: 1 });
 	});
 
 	it("matches a bare segment at any depth (collisions returned as multiple)", () => {
 		const hits = resolveInSymbols(tree, ["area"]);
-		expect(hits.map((h) => h.path).sort()).toEqual(["Circle.area", "Shape.area"]);
+		expect(hits.map((h) => h.path).sort()).toEqual(["Circle::area", "Shape::area"]);
 	});
 
 	// tsgo's documentSymbol descends into function/method bodies; ts-morph's resolver does
@@ -81,6 +81,6 @@ describe("resolveInSymbols", () => {
 	// Class/interface members stay reachable — only function/method bodies are excluded.
 	it("still matches class members for a bare segment", () => {
 		const hits = resolveInSymbols(tree, ["area"]);
-		expect(hits.map((h) => h.path).sort()).toEqual(["Circle.area", "Shape.area"]);
+		expect(hits.map((h) => h.path).sort()).toEqual(["Circle::area", "Shape::area"]);
 	});
 });

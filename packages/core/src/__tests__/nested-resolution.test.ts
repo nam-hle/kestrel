@@ -10,7 +10,7 @@ describe("namespace-nested resolution", () => {
 	test("resolves a dotted path into a namespace", () => {
 		const engine = new Engine({ tsConfigPath });
 
-		const result = engine.resolveSymbol("src/nested.ts:Model.Node");
+		const result = engine.resolveSymbol("src/nested.ts:Model::Node");
 
 		expect(result.kind).toBe("symbol");
 
@@ -18,14 +18,14 @@ describe("namespace-nested resolution", () => {
 			return;
 		}
 
-		expect(result.symbol.qualifiedName).toBe("src/nested.ts:Model.Node");
+		expect(result.symbol.qualifiedName).toBe("src/nested.ts:Model::Node");
 		expect(result.symbol.position.line).toBe(2);
 	});
 
 	test("resolves a deeply nested dotted path", () => {
 		const engine = new Engine({ tsConfigPath });
 
-		const result = engine.resolveSymbol("src/nested.ts:Model.Inner.Node");
+		const result = engine.resolveSymbol("src/nested.ts:Model::Inner::Node");
 
 		expect(result.kind).toBe("symbol");
 
@@ -48,9 +48,9 @@ describe("namespace-nested resolution", () => {
 		}
 
 		const names = result.candidates.map((c) => c.qualifiedName);
-		expect(names).toContain("src/nested.ts:Model.Node");
-		expect(names).toContain("src/nested.ts:Model.Inner.Node");
-		expect(names).toContain("src/nested.ts:Runtime.Node");
+		expect(names).toContain("src/nested.ts:Model::Node");
+		expect(names).toContain("src/nested.ts:Model::Inner::Node");
+		expect(names).toContain("src/nested.ts:Runtime::Node");
 	});
 
 	test("resolves the namespace itself by dotted path", () => {

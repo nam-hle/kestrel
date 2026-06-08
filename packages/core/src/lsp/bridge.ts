@@ -1,9 +1,10 @@
+import { LspSymbolKind } from "./protocol.js";
 /**
  * The addressing bridge: resolve a kestrel dotted name against a tsgo `documentSymbol`
  * tree to LSP positions. No second semantic engine — tsgo is the single source of truth
  * for "where is this symbol".
  */
-import { LspSymbolKind } from "./protocol.js";
+import { NS_SEP, splitName, joinSegments } from "../resolve.js";
 import type { LspPosition, DocumentSymbol } from "./protocol.js";
 
 export interface SymbolHit {
@@ -37,7 +38,7 @@ function flatten(symbols: DocumentSymbol[], prefix: string, inBody: boolean): Sy
 	const out: SymbolHit[] = [];
 
 	for (const sym of symbols) {
-		const path = prefix === "" ? sym.name : `${prefix}.${sym.name}`;
+		const path = prefix === "" ? sym.name : `${prefix}${NS_SEP}${sym.name}`;
 		out.push({ path, inBody, name: sym.name, kind: sym.kind, rangeStart: sym.range.start, position: sym.selectionRange.start });
 
 		if (sym.children !== undefined && sym.children.length > 0) {
@@ -59,7 +60,7 @@ export function resolveInSymbols(symbols: DocumentSymbol[], segments: string[]):
 	const all = flatten(symbols, "", false).filter((h) => !h.inBody);
 
 	if (segments.length > 1) {
-		const target = segments.join(".");
+		const target = joinSegments(segments);
 
 		return all.filter((h) => h.path === target);
 	}
@@ -67,7 +68,7 @@ export function resolveInSymbols(symbols: DocumentSymbol[], segments: string[]):
 	const name = segments[0]!;
 
 	return all.filter((h) => {
-		const parts = h.path.split(".");
+		const parts = splitName(h.path);
 
 		return parts[parts.length - 1] === name;
 	});

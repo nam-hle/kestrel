@@ -5,8 +5,8 @@
 import { Node } from "ts-morph";
 import type { Statement, SourceFile } from "ts-morph";
 
-import { position, outlineDeclarations } from "./resolve.js";
 import type { Member, FileOutline, StatementNode } from "./types.js";
+import { position, joinSegments, outlineDeclarations } from "./resolve.js";
 
 /** Single-line signature: declaration text up to its body (or the whole line). */
 function signatureOf(node: Node): string {
@@ -114,7 +114,7 @@ export function buildFunctionOutline(decl: Node, depth: number, baseDir: string)
  * prefixes each member's addressable qualifiedName. */
 export function buildSymbolOutline(decl: Node, baseDir: string, ownerQualifiedName?: string): Member[] {
 	const withQName = (member: Member, name: string): Member =>
-		ownerQualifiedName === undefined ? member : { ...member, qualifiedName: `${ownerQualifiedName}.${name}` };
+		ownerQualifiedName === undefined ? member : { ...member, qualifiedName: joinSegments([ownerQualifiedName, name]) };
 
 	if (Node.isModuleDeclaration(decl)) {
 		const body = decl.getBody();

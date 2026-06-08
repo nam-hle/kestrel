@@ -15,9 +15,9 @@ describe("searchSymbol", () => {
 		const hits = engine.searchSymbol("Node");
 
 		const names = hits.map((h) => h.qualifiedName);
-		expect(names).toContain("src/nested.ts:Model.Node");
-		expect(names).toContain("src/nested.ts:Model.Inner.Node");
-		expect(names).toContain("src/nested.ts:Runtime.Node");
+		expect(names).toContain("src/nested.ts:Model::Node");
+		expect(names).toContain("src/nested.ts:Model::Inner::Node");
+		expect(names).toContain("src/nested.ts:Runtime::Node");
 	});
 
 	test("matches the exact name, not substrings, by default", () => {

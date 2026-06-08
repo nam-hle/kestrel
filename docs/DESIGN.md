@@ -52,9 +52,10 @@ All outline ops = deterministic AST walks (ts-morph). No LLM (see VISION anti-go
 
 ## Open design questions (next session)
 
-1. Symbol resolution algorithm — qualified-name grammar. DONE: dotted namespace paths
-   (`file:Model.Inner.Node`), bare-segment match at any depth → dotted-path candidates, `#index`
-   for same-path collisions. Still open: overloads, generics, default/anonymous export,
+1. Symbol resolution algorithm — qualified-name grammar. DONE: `::`-separated namespace
+   paths (`file:Model::Inner::Node`), bare-segment match at any depth → path candidates,
+   `#index` for same-path collisions. The `::` separator (not `.`) keeps quoted, dotted
+   module names (`"@scope.org/pkg"`) intact. Still open: overloads, generics, default/anonymous export,
    declaration-merged across files, re-exports.
 2. Warm-lifecycle: how MCP holds the Project; CLI daemon protocol vs cold one-shot.
 3. Output schema — minimal default record; `--context=none|snippet|block` shape; result-set

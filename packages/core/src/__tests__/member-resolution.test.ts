@@ -10,7 +10,7 @@ describe("member resolution", () => {
 	test("resolves an interface member by dotted path", () => {
 		const engine = new Engine({ tsConfigPath });
 
-		const result = engine.resolveSymbol("src/shapes.ts:Shape.area");
+		const result = engine.resolveSymbol("src/shapes.ts:Shape::area");
 
 		expect(result.kind).toBe("symbol");
 
@@ -18,14 +18,14 @@ describe("member resolution", () => {
 			return;
 		}
 
-		expect(result.symbol.qualifiedName).toBe("src/shapes.ts:Shape.area");
+		expect(result.symbol.qualifiedName).toBe("src/shapes.ts:Shape::area");
 		expect(result.symbol.position.line).toBe(2);
 	});
 
 	test("resolves a class method by dotted path", () => {
 		const engine = new Engine({ tsConfigPath });
 
-		const result = engine.resolveSymbol("src/shapes.ts:Circle.area");
+		const result = engine.resolveSymbol("src/shapes.ts:Circle::area");
 
 		expect(result.kind).toBe("symbol");
 
@@ -41,7 +41,7 @@ describe("member resolution", () => {
 
 		const hits = engine.searchSymbol("area").map((h) => h.qualifiedName);
 
-		expect(hits).toContain("src/shapes.ts:Shape.area");
-		expect(hits).toContain("src/shapes.ts:Circle.area");
+		expect(hits).toContain("src/shapes.ts:Shape::area");
+		expect(hits).toContain("src/shapes.ts:Circle::area");
 	});
 });

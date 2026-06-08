@@ -5,6 +5,7 @@
  */
 import ts from "typescript";
 
+import { NS_SEP } from "../resolve.js";
 import type { LspPosition } from "./protocol.js";
 import type { Member, ImportInfo, FileOutline, ReferenceKind, StatementNode } from "../types.js";
 
@@ -305,7 +306,7 @@ function moduleStatements(node: ts.ModuleDeclaration): readonly ts.Statement[] {
  */
 function walkOutline(walk: OutlineWalk, statements: readonly ts.Statement[], prefix: string): void {
 	const { sf, path, outline } = walk;
-	const dotted = (name: string): string => (prefix === "" ? name : `${prefix}.${name}`);
+	const dotted = (name: string): string => (prefix === "" ? name : `${prefix}${NS_SEP}${name}`);
 
 	for (const stmt of statements) {
 		let member: Member | undefined;
@@ -397,7 +398,7 @@ export function outlineSymbolMembers(path: string, text: string, pos: LspPositio
 	// Mirror ts-morph buildSymbolOutline: bare member `name`, owner-prefixed `qualifiedName`,
 	// and unnamed members (constructor) named by their kind ("Constructor").
 	const push = (name: string, node: ts.Node): void => {
-		const qualified = prefix === "" ? `${path}:${name}` : `${path}:${prefix}.${name}`;
+		const qualified = prefix === "" ? `${path}:${name}` : `${path}:${prefix}${NS_SEP}${name}`;
 		members.push(memberOf({ sf, path, name, node, qualified, kind: ts.SyntaxKind[node.kind] }));
 	};
 

@@ -35,14 +35,14 @@ an **MCP server** (native agent tools, JSON) and a **CLI** (`tool refs Foo --jso
 
 ## Decisions (locked this session)
 
-| #                 | Decision                         | Choice                                                                                |
-| ----------------- | -------------------------------- | ------------------------------------------------------------------------------------- |
-| Primary job       | query vs modify vs context       | **Query / analyse only** (modify deferred)                                            |
-| Integration       | MCP / CLI / both / lib           | **Both** — shared core, MCP + CLI adapters                                            |
-| Freshness         | live / indexed / incremental     | **Live in-memory** ts-morph `Project`, re-read files changed out-of-band before query |
-| Symbol addressing | qualified-name / position / both | **Qualified name** (`file.ts:MyClass.method`, `IFoo`); on ambiguity return candidates |
-| Output detail     | minimal / snippet / block        | **Minimal by default** (`file:line:col` + kind); snippet/block via flag               |
-| Architecture      | stateless / warm-core / hybrid   | **Warm core engine + thin adapters**                                                  |
+| #                 | Decision                         | Choice                                                                                 |
+| ----------------- | -------------------------------- | -------------------------------------------------------------------------------------- |
+| Primary job       | query vs modify vs context       | **Query / analyse only** (modify deferred)                                             |
+| Integration       | MCP / CLI / both / lib           | **Both** — shared core, MCP + CLI adapters                                             |
+| Freshness         | live / indexed / incremental     | **Live in-memory** ts-morph `Project`, re-read files changed out-of-band before query  |
+| Symbol addressing | qualified-name / position / both | **Qualified name** (`file.ts:MyClass::method`, `IFoo`); on ambiguity return candidates |
+| Output detail     | minimal / snippet / block        | **Minimal by default** (`file:line:col` + kind); snippet/block via flag                |
+| Architecture      | stateless / warm-core / hybrid   | **Warm core engine + thin adapters**                                                   |
 
 ## In scope (v1) — read/analyse only
 

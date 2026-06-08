@@ -27,21 +27,55 @@ export interface NamedDeclaration {
 	path: string;
 }
 
-/** Parse `relPath:name`, `relPath:a.b.name`, or any of those with a trailing `#index`. */
-export function parseQualifiedName(qualifiedName: string): ParsedName {
-	const sep = qualifiedName.lastIndexOf(":");
+/**
+ * The namespace/member separator in a qualified name's `name` part: `Model::Inner::Node`.
+ * `::` cannot appear unquoted in a TS identifier or module specifier, so a quoted module
+ * name (`"@scope.org/pkg.sub"`) keeps its dots intact instead of being split.
+ */
+export const NS_SEP = "::";
+
+/**
+ * Self-help appended to every qualified-name parse error so an agent that passes bad
+ * syntax learns the grammar from the error itself, without consulting docs.
+ */
+const SYNTAX_HINT =
+	'syntax: "relativePath:Name", nested with "::" (e.g. "src/a.ts:Outer::Inner", ' +
+	'"src/a.ts:MyClass::method"), optional "#n" to disambiguate same-named symbols';
+
+/** Join name segments with the namespace separator. */
+export function joinSegments(segments: string[]): string {
+	return segments.join(NS_SEP);
+}
+
+/** Split a name into its segments on the namespace separator. */
+export function splitName(name: string): string[] {
+	return name.split(NS_SEP);
+}
+
+/**
+ * Split `file:name` at the first `:`. The file part is a relative, forward-slashed path
+ * with no colon by contract, so the first colon is unambiguously the boundary; the name
+ * part keeps any `::` segment separators that follow.
+ */
+function splitFileAndName(qualifiedName: string): { file: string; name: string } {
+	const sep = qualifiedName.indexOf(":");
 
 	if (sep === -1) {
-		throw new Error(`invalid qualified name (expected file:name): ${qualifiedName}`);
+		throw new Error(`invalid qualified name (expected file:name): ${qualifiedName}\n${SYNTAX_HINT}`);
 	}
 
-	const file = qualifiedName.slice(0, sep);
+	return { file: qualifiedName.slice(0, sep), name: qualifiedName.slice(sep + 1) };
+}
+
+/** Parse `relPath:name`, `relPath:a::b::name`, or any of those with a trailing `#index`. */
+export function parseQualifiedName(qualifiedName: string): ParsedName {
+	const { file, name } = splitFileAndName(qualifiedName);
 
 	if (file === "") {
-		throw new Error(`invalid qualified name (empty file part): ${qualifiedName}`);
+		throw new Error(`invalid qualified name (empty file part): ${qualifiedName}\n${SYNTAX_HINT}`);
 	}
 
-	let rest = qualifiedName.slice(sep + 1);
+	let rest = name;
 	let index: number | undefined;
 
 	const hash = rest.lastIndexOf("#");
@@ -50,7 +84,7 @@ export function parseQualifiedName(qualifiedName: string): ParsedName {
 		const parsed = Number(rest.slice(hash + 1));
 
 		if (!Number.isInteger(parsed) || parsed < 0) {
-			throw new Error(`invalid index in qualified name: ${qualifiedName}`);
+			throw new Error(`invalid index in qualified name: ${qualifiedName}\n${SYNTAX_HINT}`);
 		}
 
 		index = parsed;
@@ -58,13 +92,13 @@ export function parseQualifiedName(qualifiedName: string): ParsedName {
 	}
 
 	if (rest === "") {
-		throw new Error(`invalid qualified name (empty name part): ${qualifiedName}`);
+		throw new Error(`invalid qualified name (empty name part): ${qualifiedName}\n${SYNTAX_HINT}`);
 	}
 
-	const segments = rest.split(".");
+	const segments = splitName(rest);
 
 	if (segments.some((s) => s === "")) {
-		throw new Error(`invalid qualified name (empty segment): ${qualifiedName}`);
+		throw new Error(`invalid qualified name (empty segment): ${qualifiedName}\n${SYNTAX_HINT}`);
 	}
 
 	return { file, index, segments };
@@ -174,14 +208,14 @@ export function allDeclarations(sourceFile: SourceFile): NamedDeclaration[] {
 
 	const descend = (node: Node, fullPath: string): void => {
 		for (const { path, node: child } of [...childDeclarations(bodyStatements(node)), ...memberDeclarations(node)]) {
-			const childPath = `${fullPath}.${path}`;
+			const childPath = joinSegments([fullPath, path]);
 			result.push({ node: child, path: childPath });
 			descend(child, childPath);
 		}
 
 		// Object-literal selector/handler properties (e.g. factory `return { mean: () => ... }`).
 		for (const { path, node: prop } of objectLiteralFunctionProps(node)) {
-			result.push({ node: prop, path: `${fullPath}.${path}` });
+			result.push({ node: prop, path: joinSegments([fullPath, path]) });
 		}
 	};
 
@@ -214,7 +248,7 @@ export function outlineDeclarations(sourceFile: SourceFile): NamedDeclaration[] 
 
 	const descend = (node: Node, fullPath: string): void => {
 		for (const { path, node: child } of [...childDeclarations(namespaceBodyStatements(node)), ...memberDeclarations(node)]) {
-			const childPath = `${fullPath}.${path}`;
+			const childPath = joinSegments([fullPath, path]);
 			result.push({ node: child, path: childPath });
 			descend(child, childPath);
 		}
@@ -236,7 +270,7 @@ export function findNamedDeclarations(sourceFile: SourceFile, segments: string[]
 	const all = allDeclarations(sourceFile);
 
 	if (segments.length > 1) {
-		const target = segments.join(".");
+		const target = joinSegments(segments);
 
 		return all.filter((d) => d.path === target);
 	}
@@ -244,7 +278,7 @@ export function findNamedDeclarations(sourceFile: SourceFile, segments: string[]
 	const name = segments[0];
 
 	return all.filter((d) => {
-		const parts = d.path.split(".");
+		const parts = splitName(d.path);
 
 		return parts[parts.length - 1] === name;
 	});
@@ -322,7 +356,7 @@ export function nearestNames(sourceFile: SourceFile, target: string, limit = 3):
 	const names = [
 		...new Set(
 			allDeclarations(sourceFile).map((d) => {
-				const parts = d.path.split(".");
+				const parts = splitName(d.path);
 
 				return parts[parts.length - 1]!;
 			})
