@@ -8,3 +8,6 @@ coverage/
 
 # Local gain ledger (written to the home dir at runtime; never committed)
 .kestrel/
+
+# Local dev planning artifacts (superpowers plans/specs) — never committed
+docs/superpowers/

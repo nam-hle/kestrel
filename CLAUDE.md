@@ -24,7 +24,32 @@ Tests live in `packages/core/src/__tests__/`. Fixtures under `__tests__/fixtures
   ESLint and `typecheck`), `vitest.config.ts`, `eslint.config.ts`, `tsup.config.ts`. tsconfig
   inheritance: `base` (noEmit) → `src` (composite emit, excludes tests) → per-package.
 - Lint/format configs are shared `@nadle/*` packages. Prettier uses **tabs**, printWidth 150.
-- Run the CLI locally via `./packages/cli/dist/index.js` (pnpm does not link workspace bins).
+- Run the CLI locally via `./packages/cli/dist/index.js` (pnpm does not link workspace bins),
+  or link it globally as `kestrel` — see **Dogfooding** below.
+
+### Dogfooding the CLI
+
+We develop kestrel by using it on its own source — the fastest way to surface real
+ergonomics/correctness gaps. Keep a global `kestrel` linked and reach for it whenever you'd
+otherwise grep for a symbol.
+
+**Prefer `kestrel` over the Read tool for TypeScript source** (`view outline|symbol|body|
+region|context|members`, `find refs|def|impls|callers|callees`, `imports`/`exports`). Read on
+`.ts` is the textual habit kestrel replaces. Fall back to Read only when kestrel can't serve it
+— non-TS files, out-of-project files, or a missing op. Falling back on TS source = a gap: note
+what you needed + why no op fit, and file it as a feature/ergonomics issue.
+
+- **Link** (once, on the active Node 24 toolchain — `npm link` binds the bin to the *current*
+  Node version's bin dir, so relink after any `nvm use`):
+  `cd packages/cli && npm link` → `kestrel` on PATH.
+- **Rebuild before use** when core/cli changed: `pnpm build` (the link points at `dist/`).
+- **tsconfig:** pass the per-package config, e.g. `--tsconfig packages/core/tsconfig.json`.
+  The root `tsconfig.src.json` is a composite *base* (`${configDir}/src` → repo root), not a
+  loadable project. Paths are interpreted relative to **cwd**.
+- **When kestrel hits a bug or friction mid-task, file it** (don't just work around it): a
+  GitHub issue with `type:`/`severity:`/`scope:` labels, repro, root cause if known. Attach to
+  the `v1` milestone when it gates v1. This loop is the point of dogfooding — issues
+  #79–#82 came from one session. Verify the bug (read the code / re-run) before filing.
 
 ### Scripts (all via `pnpm exec nadle <task>`; `build`/`test` also as `pnpm <task>`)
 
@@ -40,24 +65,25 @@ Tests live in `packages/core/src/__tests__/`. Fixtures under `__tests__/fixtures
 - Cross-platform: ts-morph paths are forward-slash; normalize before string ops (Windows CI).
 - Verify before claiming done: run build + test + check; never assert green without output.
 
-## Commit messages — Google style
+## Commit messages — Conventional Commits
 
-- Subject: imperative mood, capitalized, **no trailing period**, ≤ ~50 chars.
-  `Implement the CLI`, not `implemented cli.` or `Added CLI.`
+- Subject: `type(scope): summary`. The `(scope)` is optional. Summary is imperative
+  mood, lower-case, **no trailing period**, and the whole subject is ≤ ~50 chars.
+  `feat(cli): add --version flag`, not `Added a version flag.`
+- Types: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `perf`, `build`, `ci`.
+- Scopes map to packages: `core`, `cli`, `mcp`. Omit the scope for repo-wide or
+  cross-cutting changes.
+- Breaking changes: append `!` after the type/scope (`feat(core)!: …`) and explain
+  in the body.
 - Blank line, then a body wrapping at ~72 chars explaining **what and why** (not how).
 - Use bullet lists in the body for multiple distinct changes.
 - One logical change per commit; keep them atomic.
 - Reference issues at the end when applicable (`Fixes #123`).
-- Co-author trailer on every commit:
-
-  ```
-  Co-Authored-By: Claude <noreply@anthropic.com>
-  ```
-
-  Use the running model id as the author name when known (e.g. `Claude Opus 4.8`).
 
 ## Git
 
 - Never commit to `main` directly when the change warrants review; otherwise small fixes on
   `main` are fine for this solo repo. Run lint + tests before committing.
+- `docs/superpowers/` (plans/specs) are local dev artifacts — gitignored, never in a PR.
+  Fine to keep on disk while working; exclude them from any commit/PR.
 - CI (`.github/workflows/ci.yml`) runs build / lint / test (cross-OS, Node 24) on push + PR.
