@@ -45,25 +45,76 @@ import {
 	renderCallHierarchy
 } from "@kestrel/core";
 
+import { serialize, clearSerialKey } from "./serialize.js";
+
 type ToolResult = { content: { type: "text"; text: string }[] };
 
-/** Warm engines, keyed by `tsconfig::engineKind` — reused across tool calls. */
+/**
+ * Max warm engines held at once. Each warm ts-morph Project is GB-scale on big repos
+ * (DESIGN §3), so an unbounded cache in a long-lived multi-project session can exhaust
+ * memory. Evict least-recently-used beyond this cap, disposing the evicted engine.
+ */
+const MAX_ENGINES = 4;
+
+/** Warm engines, keyed by `tsconfig::engineKind`. Map insertion order = LRU order. */
 const engines = new Map<string, AsyncSymbolEngine>();
 
-function engineFor(tsConfig: string, kind: EngineKind): AsyncSymbolEngine {
-	const key = `${tsConfig}::${kind}`;
-	let engine = engines.get(key);
+/** Get-or-create the warm engine for a key, enforcing the LRU cap (disposes evicted). */
+function rawEngineFor(key: string, tsConfig: string, kind: EngineKind): AsyncSymbolEngine {
+	const existing = engines.get(key);
 
-	if (engine === undefined) {
-		if (!existsSync(tsConfig)) {
-			throw new Error(`tsConfig not found: ${tsConfig} (pass an existing path to the project tsconfig.json)`);
-		}
+	if (existing !== undefined) {
+		// Touch: move to most-recently-used (re-insert at the end).
+		engines.delete(key);
+		engines.set(key, existing);
 
-		engine = createEngine({ engine: kind, tsConfigPath: tsConfig });
-		engines.set(key, engine);
+		return existing;
+	}
+
+	if (!existsSync(tsConfig)) {
+		throw new Error(`tsConfig not found: ${tsConfig} (pass an existing path to the project tsconfig.json)`);
+	}
+
+	const engine = createEngine({ engine: kind, tsConfigPath: tsConfig });
+	engines.set(key, engine);
+
+	// Evict LRU (oldest) entries beyond the cap; dispose them and drop their serial chain.
+	while (engines.size > MAX_ENGINES) {
+		const oldestKey = engines.keys().next().value as string;
+		const evicted = engines.get(oldestKey)!;
+		engines.delete(oldestKey);
+		clearSerialKey(oldestKey);
+		void evicted.dispose();
 	}
 
 	return engine;
+}
+
+/**
+ * The engine for a tsconfig/kind, wrapped so every async method call is serialized on a
+ * per-engine chain. ts-morph's `Project` and the LSP client are not reentrant; concurrent
+ * tool calls must not interleave on the same engine (DESIGN open-Q #6).
+ */
+function engineFor(tsConfig: string, kind: EngineKind): AsyncSymbolEngine {
+	const key = `${tsConfig}::${kind}`;
+	const engine = rawEngineFor(key, tsConfig, kind);
+
+	return new Proxy(engine, {
+		get(target, prop, receiver) {
+			const value = Reflect.get(target, prop, receiver);
+
+			if (typeof value !== "function") {
+				return value;
+			}
+
+			// `dispose` runs directly (shutdown path); every query method serializes per engine.
+			if (prop === "dispose") {
+				return value.bind(target);
+			}
+
+			return (...args: unknown[]) => serialize(key, () => Reflect.apply(value, target, args) as Promise<unknown>);
+		}
+	});
 }
 
 function json(value: unknown): ToolResult {
