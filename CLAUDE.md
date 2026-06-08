@@ -65,14 +65,12 @@ what you needed + why no op fit, and file it as a feature/ergonomics issue.
 
 ### Scripts (all via `pnpm exec nadle <task>`; `build`/`test` also as `pnpm <task>`)
 
-- `build` — `emit` (`tsc -b`, type-checks + emits every src) + `typecheck`
-  (`tsc -p tsconfig.check.json --noEmit`, the only pass covering tests) + `bundle` (tsup).
-- `test` (vitest) · `check` (eslint + prettier) · `format` (fix) · `clean`.
+- `pnpm exec nadle --list` — the full task catalog with descriptions. Use it instead of
+  memorizing task names.
+- nadle takes several tasks in one invocation and orders them by dependency, so run the whole
+  pre-commit gate in one call: `pnpm exec nadle build test format check`.
 - Run vitest with `--reporter=agent` for token-lean, agent-readable output, e.g.
   `pnpm exec vitest run --reporter=agent`.
-- Run `format` to fix prettier/eslint issues before commiting.
-- nadle runs several tasks in one invocation: `pnpm exec nadle format check` (fix, then
-  verify) or `pnpm exec nadle build test` — it orders them by dependency.
 
 ## Conventions
 
