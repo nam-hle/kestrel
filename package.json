@@ -15,8 +15,7 @@
 		"node": ">=24"
 	},
 	"scripts": {
-		"build": "nadle build",
-		"test": "nadle test"
+		"nadle": "nadle"
 	},
 	"prettier": "@nadle/prettier-config",
 	"pnpm": {

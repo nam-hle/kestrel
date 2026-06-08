@@ -201,10 +201,14 @@ Requires Node.js 24+ and pnpm. Task runner: [nadle](https://nadle.dev).
 
 ```bash
 pnpm install
-pnpm build               # nadle build (tsc project references + bundle)
-pnpm test                # nadle test (vitest)
-pnpm exec nadle check    # eslint + prettier
+pnpm nadle build         # tsc project references + bundle
+pnpm nadle test          # vitest
+pnpm nadle check         # eslint + prettier
+pnpm nadle --list        # all tasks
 ```
+
+nadle is the only task runner — invoke it as `pnpm nadle <task>` (it chains several in one
+call, ordered by dependency: `pnpm nadle build test format check`).
 
 ## License
 

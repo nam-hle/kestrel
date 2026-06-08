@@ -29,9 +29,10 @@ Tests live in `packages/core/src/__tests__/`. Fixtures under `__tests__/fixtures
 
 ## Tooling
 
-- Node 24+, pnpm, ESM throughout. `@types/node` pinned to v24 to match the runtime.
-- Task runner: **nadle** (`nadle.config.ts`) — the only runner; packages carry no scripts.
-  Engine: **ts-morph**. Bundler for the cli/mcp bins: **tsup** (one root `tsup.config.ts`).
+- Node 24+ (pinned in `.nvmrc`; `nvm use`), pnpm, ESM throughout. `@types/node` pinned to v24.
+- Task runner: **nadle** (`nadle.config.ts`) — the only runner. Root `package.json` exposes one
+  `nadle` script, so invoke every task as `pnpm nadle <task>`; there are no per-task pnpm
+  scripts. Engine: **ts-morph**. Bundler for the cli/mcp bins: **tsup** (one root `tsup.config.ts`).
 - Single root config per concern: `tsconfig.check.json` (whole-repo `noEmit`, used by both
   ESLint and `typecheck`), `vitest.config.ts`, `eslint.config.ts`, `tsup.config.ts`. tsconfig
   inheritance: `base` (noEmit) → `src` (composite emit, excludes tests) → per-package.
@@ -54,7 +55,7 @@ what you needed + why no op fit, and file it as a feature/ergonomics issue.
 - **Link** (once, on the active Node 24 toolchain — `npm link` binds the bin to the _current_
   Node version's bin dir, so relink after any `nvm use`):
   `cd packages/cli && npm link` → `symantic` on PATH.
-- **Rebuild before use** when core/cli changed: `pnpm build` (the link points at `dist/`).
+- **Rebuild before use** when core/cli changed: `pnpm nadle build` (the link points at `dist/`).
 - **tsconfig:** pass the per-package config, e.g. `--tsconfig packages/core/tsconfig.json`.
   The root `tsconfig.src.json` is a composite _base_ (`${configDir}/src` → repo root), not a
   loadable project. Paths are interpreted relative to **cwd**.
@@ -63,14 +64,14 @@ what you needed + why no op fit, and file it as a feature/ergonomics issue.
   the `v1` milestone when it gates v1. This loop is the point of dogfooding — issues
   #79–#82 came from one session. Verify the bug (read the code / re-run) before filing.
 
-### Scripts (all via `pnpm exec nadle <task>`; `build`/`test` also as `pnpm <task>`)
+### Tasks (all via `pnpm nadle <task>`)
 
-- `pnpm exec nadle --list` — the full task catalog with descriptions. Use it instead of
+- `pnpm nadle --list` — the full task catalog with descriptions. Use it instead of
   memorizing task names.
 - nadle takes several tasks in one invocation and orders them by dependency, so run the whole
-  pre-commit gate in one call: `pnpm exec nadle build test format check`.
+  pre-commit gate in one call: `pnpm nadle build test format check`.
 - Run vitest with `--reporter=agent` for token-lean, agent-readable output, e.g.
-  `pnpm exec vitest run --reporter=agent`.
+  `pnpm nadle testUnit -- --reporter=agent` (or `pnpm exec vitest run --reporter=agent`).
 
 ## Conventions
 
