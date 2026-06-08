@@ -157,6 +157,21 @@ describe("CLI integration", () => {
 			expect(ctx.typeRefs).toContain("Circle");
 			expect(Array.isArray(ctx.callees)).toBe(true);
 		}, 20_000);
+
+		it("view body --source prints the function source instead of the skeleton", async () => {
+			const { code, stdout } = await run(["view", "body", "--tsconfig", TSCONFIG, "src/consumer.ts:totalArea", "--source"]);
+
+			expect(code).toBe(0);
+			expect(stdout).toContain("export function totalArea");
+			expect(stdout).not.toContain("ForStatement"); // skeleton node kinds absent
+		}, 20_000);
+
+		it("view body hints at --source when the skeleton is short", async () => {
+			const { code, stderr } = await run(["view", "body", "--tsconfig", TSCONFIG, "src/consumer.ts:describeArea"]);
+
+			expect(code).toBe(0);
+			expect(stderr).toContain("--source");
+		}, 20_000);
 	});
 
 	describe("find family", () => {
@@ -171,6 +186,13 @@ describe("CLI integration", () => {
 
 			expect(code).toBe(0);
 			expect(stdout).toContain("makeCircle");
+		}, 20_000);
+
+		it("find symbol hints toward view outline for a filename-shaped query", async () => {
+			const { code, stderr } = await run(["find", "symbol", "--tsconfig", TSCONFIG, "some-missing-module"]);
+
+			expect(code).toBe(0);
+			expect(stderr).toContain("view outline");
 		}, 20_000);
 
 		it("find refs prints address-first text by default", async () => {

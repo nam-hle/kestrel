@@ -204,14 +204,36 @@ const viewMembers = defineCommand({
 	}
 });
 
+/** At or below this statement count the skeleton carries little over the source itself. */
+const SHORT_BODY_STATEMENTS = 3;
+
 const viewBody = defineCommand({
-	meta: { name: "body", description: "Outline the statement skeleton of a function" },
-	args: { json, engine, tsconfig, symbol: symbolArg, depth: { type: "string", description: "Nesting depth (default 1)" } },
+	meta: { name: "body", description: "Outline the statement skeleton of a function (--source for the code itself)" },
+	args: {
+		json,
+		engine,
+		tsconfig,
+		symbol: symbolArg,
+		depth: { type: "string", description: "Nesting depth (default 1)" },
+		source: { type: "boolean", description: "Print the function source instead of the statement skeleton" }
+	},
 	async run({ args }) {
 		await withEngine(args, async (e, tc) => {
 			const symbol = await resolveSymbolOrThrow(e, args.symbol);
+
+			if (args.source === true) {
+				const src = await e.symbolSource(symbol);
+				output({ tsconfig: tc, op: "view body" }, src, () => renderSource(src), args.json);
+
+				return;
+			}
+
 			const stmts = await e.outlineFunction(symbol, { depth: args.depth ? Number(args.depth) : undefined });
 			output({ tsconfig: tc, op: "view body" }, stmts, () => renderStatements(stmts), args.json);
+
+			if (stmts.length <= SHORT_BODY_STATEMENTS && args.json !== true) {
+				process.stderr.write("hint: short body — `view body --source` (or `view symbol`) shows the code itself\n");
+			}
 		});
 	}
 });
@@ -263,12 +285,21 @@ const findSymbol = defineCommand({
 			const cands = await e.searchSymbol(args.name, { contains: args.contains });
 			output({ tsconfig: tc, op: "find symbol" }, cands, () => renderCandidates(cands), args.json);
 
-			if (cands.length === 0 && args.contains !== true && args.json !== true) {
-				process.stderr.write(`hint: no exact match for "${args.name}" — retry with --contains for substring search\n`);
+			if (cands.length === 0 && args.json !== true) {
+				if (looksLikeFile(args.name)) {
+					process.stderr.write(`hint: "${args.name}" looks like a file, not a symbol — try \`view outline <file>\` to list its declarations\n`);
+				} else if (args.contains !== true) {
+					process.stderr.write(`hint: no exact match for "${args.name}" — retry with --contains for substring search\n`);
+				}
 			}
 		});
 	}
 });
+
+/** A query that reads like a file path/stem rather than a symbol: has a slash, a .ts(x) suffix, or is kebab-case. */
+function looksLikeFile(query: string): boolean {
+	return query.includes("/") || /\.tsx?$/.test(query) || (/-/.test(query) && query === query.toLowerCase());
+}
 
 const findDef = defineCommand({
 	args: { json, engine, tsconfig, symbol: symbolArg },
