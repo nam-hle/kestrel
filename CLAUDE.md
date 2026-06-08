@@ -63,6 +63,10 @@ what you needed + why no op fit, and file it as a feature/ergonomics issue.
   GitHub issue with `type:`/`severity:`/`scope:` labels, repro, root cause if known. Attach to
   the `v1` milestone when it gates v1. This loop is the point of dogfooding — issues
   #79–#82 came from one session. Verify the bug (read the code / re-run) before filing.
+- **A/B dogfood round:** the `dogfood-ab` skill (in `dev-skills/`, a maintainer tool — not in
+  the plugin; symlink it into `~/.claude/skills` to invoke) runs the structured experiment —
+  two agents answer one architecture question on a target repo, symantic-only vs grep-only —
+  and turns the tooling gap into verified, drafted issues. Found #90–#101.
 
 ### Tasks (all via `pnpm nadle <task>`)
 
