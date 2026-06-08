@@ -62,6 +62,26 @@ function insert(root: TreeNode, member: Member): void {
 	node.leaf = { line: member.position.line, kind: shortKind(member.kind), exported: member.exported === true };
 }
 
+/**
+ * Source line a tree node sorts by: its own declaration line, or — for a container with no
+ * leaf of its own, e.g. a namespace whose members were inserted but the namespace wasn't —
+ * the earliest line among its descendants. Without this, container nodes default to 0 and
+ * float above earlier top-level declarations, so the outline isn't in source order.
+ */
+function nodeLine(node: TreeNode): number {
+	if (node.leaf !== undefined) {
+		return node.leaf.line;
+	}
+
+	let min = Infinity;
+
+	for (const child of node.children.values()) {
+		min = Math.min(min, nodeLine(child));
+	}
+
+	return min === Infinity ? 0 : min;
+}
+
 function renderNode(name: string, node: TreeNode, indent: string, lines: string[]): void {
 	const leaf = node.leaf;
 	const tag = leaf?.exported === true ? " [x]" : "";
@@ -69,12 +89,7 @@ function renderNode(name: string, node: TreeNode, indent: string, lines: string[
 	const loc = leaf !== undefined ? `  L${leaf.line}` : "";
 	lines.push(`${indent}${meta}${name}${loc}${tag}`);
 
-	const childNames = [...node.children.keys()].sort((a, b) => {
-		const la = node.children.get(a)!.leaf?.line ?? 0;
-		const lb = node.children.get(b)!.leaf?.line ?? 0;
-
-		return la - lb;
-	});
+	const childNames = [...node.children.keys()].sort((a, b) => nodeLine(node.children.get(a)!) - nodeLine(node.children.get(b)!));
 
 	for (const childName of childNames) {
 		renderNode(childName, node.children.get(childName)!, `${indent}  `, lines);
@@ -90,12 +105,7 @@ export function renderFileOutline(file: string, outline: FileOutline): string {
 	}
 
 	const lines: string[] = [`${file}:`];
-	const topNames = [...root.children.keys()].sort((a, b) => {
-		const la = root.children.get(a)!.leaf?.line ?? 0;
-		const lb = root.children.get(b)!.leaf?.line ?? 0;
-
-		return la - lb;
-	});
+	const topNames = [...root.children.keys()].sort((a, b) => nodeLine(root.children.get(a)!) - nodeLine(root.children.get(b)!));
 
 	for (const name of topNames) {
 		renderNode(name, root.children.get(name)!, "  ", lines);

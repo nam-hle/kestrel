@@ -17,9 +17,9 @@ describe("renderFileOutline (compact tree)", () => {
 		expect(render("src/nested.ts")).toMatchInlineSnapshot(`
 			"src/nested.ts:
 			  namespace Model
+			    interface Node  L2 [x]
 			    namespace Inner
 			      interface Node  L7 [x]
-			    interface Node  L2 [x]
 			  namespace Runtime
 			    interface Node  L14 [x]"
 		`);
@@ -46,6 +46,18 @@ describe("renderFileOutline (compact tree)", () => {
 			  interface AreaCalculators  L36 [x]
 			  fn makeCalculators  L41 [x]
 			  fn makeSelectors  L50 [x]"
+		`);
+	});
+
+	test("lists a top-level declaration before a later namespace in source order (#98)", () => {
+		// A namespace node has no leaf line of its own; it must sort by its earliest member,
+		// not float to the top. TopFirst (L4) precedes LaterNamespace (L8) in source.
+		expect(render("src/outline-order.ts")).toMatchInlineSnapshot(`
+			"src/outline-order.ts:
+			  interface TopFirst  L4 [x]
+			  namespace LaterNamespace
+			    const value  L9 [x]
+			    fn helper  L11 [x]"
 		`);
 	});
 
