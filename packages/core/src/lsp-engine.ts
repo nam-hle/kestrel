@@ -8,6 +8,7 @@ import { resolve as resolvePath } from "node:path";
 import { readdirSync, readFileSync } from "node:fs";
 
 import { LspClient } from "./lsp/client.js";
+import { isTestFile } from "./test-file.js";
 import { readRegionFrom } from "./region.js";
 import { parsePageCursor } from "./cursor.js";
 import { parseQualifiedName } from "./resolve.js";
@@ -55,8 +56,6 @@ import type {
 export interface LspEngineOptions {
 	tsConfigPath: string;
 }
-
-const isTestFile = (file: string): boolean => /(\.test\.|\.spec\.|\/__tests__\/|\/e2e\/)/.test(file);
 
 /** An LSP call-hierarchy item (subset we use). */
 interface CallItem {

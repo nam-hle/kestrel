@@ -8,6 +8,7 @@ import { resolve as resolvePath } from "node:path";
 import { Node, Project } from "ts-morph";
 import type { SourceFile } from "ts-morph";
 
+import { isTestFile } from "./test-file.js";
 import { readRegionFrom } from "./region.js";
 import { parsePageCursor } from "./cursor.js";
 import { classifyReference } from "./usages.js";
@@ -52,11 +53,6 @@ import type {
 export interface EngineOptions {
 	/** Path to a tsconfig.json. */
 	tsConfigPath: string;
-}
-
-/** Heuristic: is this file path a test file? */
-function isTestFile(file: string): boolean {
-	return /(\.test\.|\.spec\.|\/__tests__\/|\/e2e\/)/.test(file);
 }
 
 /**

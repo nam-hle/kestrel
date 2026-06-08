@@ -3,6 +3,7 @@ import { test, expect, describe } from "vitest";
 
 import { classifyReference } from "../usages.js";
 import type { ReferenceKind } from "../index.js";
+import { CLASSIFY_CORPUS } from "./fixtures/classify-corpus.js";
 
 /** Build a one-file project and return identifiers matching `name`. */
 function identifiers(code: string, name: string) {
@@ -51,5 +52,17 @@ describe("classifyReference", () => {
 
 	test("plain reference -> read", () => {
 		expect(kindsOf(`let x = 1; const y = x + 1;`, "x")).toContain("read");
+	});
+
+	// The shared corpus both engines must satisfy (the LSP side runs it in
+	// lsp/classify-parity.test.ts). Keeps the two classify impls from drifting.
+	describe("shared corpus (ts-morph)", () => {
+		for (const { code, name, expected, occurrence } of CLASSIFY_CORPUS) {
+			test(`${expected}: ${code}`, () => {
+				const node = identifiers(code, name)[occurrence];
+				expect(node).toBeDefined();
+				expect(classifyReference(node!)).toBe(expected);
+			});
+		}
 	});
 });
