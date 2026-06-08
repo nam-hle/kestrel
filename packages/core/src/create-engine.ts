@@ -31,6 +31,7 @@ export function asAsync(engine: SymbolEngine): AsyncSymbolEngine {
 		searchSymbol: (name, options) => Promise.resolve(engine.searchSymbol(name, options)),
 		findUsages: (symbol, options) => Promise.resolve(engine.findUsages(symbol, options)),
 		findImplementations: (symbol) => Promise.resolve(engine.findImplementations(symbol)),
+		membersByName: (qualifiedName) => Promise.resolve(engine.membersByName(qualifiedName)),
 		resolveSymbol: (qualifiedName) => Promise.resolve(engine.resolveSymbol(qualifiedName)),
 		callHierarchy: (symbol, options) => Promise.resolve(engine.callHierarchy(symbol, options)),
 		outlineFunction: (symbol, options) => Promise.resolve(engine.outlineFunction(symbol, options)),

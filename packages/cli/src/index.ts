@@ -198,7 +198,9 @@ const viewMembers = defineCommand({
 	meta: { name: "members", description: "Outline the members of a class/interface/namespace" },
 	async run({ args }) {
 		await withEngine(args, async (e, tc) => {
-			const members = await e.outlineSymbol(await resolveSymbolOrThrow(e, args.symbol));
+			// membersByName resolves the name itself and folds a declaration merge
+			// (interface+namespace) into one list, instead of erroring on ambiguity.
+			const members = await e.membersByName(args.symbol);
 			output({ tsconfig: tc, op: "view members" }, members, () => renderMembers(members), args.json);
 		});
 	}

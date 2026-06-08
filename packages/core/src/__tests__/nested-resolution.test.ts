@@ -66,4 +66,13 @@ describe("namespace-nested resolution", () => {
 
 		expect(result.symbol.position.line).toBe(1);
 	});
+
+	test("membersByName folds a merged interface+namespace into one member list (#97)", () => {
+		const engine = new Engine({ tsConfigPath });
+
+		const members = engine.membersByName("src/merged.ts:Summary").map((m) => m.name);
+
+		expect(members).toContain("total"); // interface member
+		expect(members).toContain("isEmpty"); // namespace member
+	});
 });

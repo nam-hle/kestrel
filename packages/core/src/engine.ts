@@ -456,6 +456,24 @@ export class Engine implements SymbolEngine {
 		return this.#declarationsFor(symbol).flatMap((decl) => buildSymbolOutline(decl, base, symbol.qualifiedName));
 	}
 
+	/**
+	 * Members of a name, folding a declaration merge (e.g. `interface X` + `namespace X`)
+	 * into one list. Resolving such a name with `resolveSymbol` reports `ambiguous`, but for
+	 * members the merged declarations are one logical symbol — outline them all together.
+	 */
+	public membersByName(qualifiedName: string): Member[] {
+		const { file, segments } = parseQualifiedName(qualifiedName);
+		const sourceFile = this.#getSourceFile(file);
+
+		if (!sourceFile) {
+			return [];
+		}
+
+		const base = this.#baseDir();
+
+		return findDeclarationsThroughReExports(sourceFile, segments).flatMap((decl) => buildSymbolOutline(decl.node, base, qualifiedName));
+	}
+
 	/** Statement-level skeleton of a function body. `depth` controls nesting (default 1). */
 	public outlineFunction(symbol: SymbolHandle, options?: OutlineFunctionOptions): StatementNode[] {
 		const depth = options?.depth ?? 1;

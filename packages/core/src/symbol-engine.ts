@@ -30,6 +30,8 @@ export interface SymbolEngine {
 	listImports(path: string): ImportInfo[];
 	publicSurface(path: string): Candidate[];
 	outlineSymbol(symbol: SymbolHandle): Member[];
+	/** Members of a name, folding a declaration merge (interface+namespace) into one list. */
+	membersByName(qualifiedName: string): Member[];
 	symbolSource(symbol: SymbolHandle): SourceResult[];
 	symbolContext(symbol: SymbolHandle): SymbolContext;
 	resolveSymbol(qualifiedName: string): ResolveResult;

@@ -501,7 +501,11 @@ export class LspEngine {
 	}
 
 	public async outlineSymbol(symbol: SymbolHandle): Promise<Member[]> {
-		const { file, segments } = parseQualifiedName(symbol.qualifiedName);
+		return this.membersByName(symbol.qualifiedName);
+	}
+
+	public async membersByName(qualifiedName: string): Promise<Member[]> {
+		const { file, segments } = parseQualifiedName(qualifiedName);
 		const hits = await this.#hits(file, segments);
 		const text = this.#read(file);
 
