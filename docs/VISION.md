@@ -4,7 +4,8 @@
 
 Status: **vision / pre-implementation**. Captured from a design session on 2026-06-06.
 This document is the source of truth for _what we are building and why_. Architecture
-detail lives in [DESIGN.md](./DESIGN.md) (in progress).
+detail lives in [DESIGN.md](./DESIGN.md) (in progress); the values that adjudicate
+tradeoffs live in [PRINCIPLES.md](./PRINCIPLES.md).
 
 ## One-line
 

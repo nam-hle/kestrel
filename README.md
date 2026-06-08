@@ -93,7 +93,8 @@ Commands group by intent: **`view`** (read code) and **`find`** (locate / trace)
 | `usage <file>`                      | per-export reference counts of an entry (dead-code in one call)                 |
 
 See [docs/VISION.md](docs/VISION.md) for full scope, [docs/DESIGN.md](docs/DESIGN.md) for
-architecture, [docs/ADDRESSING.md](docs/ADDRESSING.md) for the `file:Name::nested#index` scheme.
+architecture, [docs/PRINCIPLES.md](docs/PRINCIPLES.md) for the values that drive the roadmap,
+[docs/ADDRESSING.md](docs/ADDRESSING.md) for the `file:Name::nested#index` scheme.
 Modification (rename / move) is deferred. Multi-language is out of scope — TypeScript only.
 
 ### symantic + grep
