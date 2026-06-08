@@ -1,7 +1,7 @@
 # kestrel — Design
 
 Status: **in progress**. Section 1 (architecture) approved in session. Sections 2+ pending.
-Reference: [VISION.md](./VISION.md), [PRIOR-ART.md](./PRIOR-ART.md).
+Reference: [VISION.md](./VISION.md).
 
 ## Approach (chosen): Warm core engine + thin adapters
 
@@ -84,4 +84,4 @@ The dominant risk class for a read-only v1. Targets + mitigations to decide:
 
 ## Naming
 
-Name: **kestrel** (chosen 2026-06-06). See [NAMING.md](./NAMING.md).
+Name: **kestrel** (chosen 2026-06-06).

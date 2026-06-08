@@ -105,8 +105,6 @@ DESIGN). The analysis engine sits behind `resolveSymbol` / `findUsages` and is s
   typechecker = the exact thing this project refuses to do. Go (tsgo) gets native speed
   _without_ reinventing semantics.
 
-See [PRIOR-ART.md](./PRIOR-ART.md) for the engine survey.
-
 ## Key risks
 
 - **Cold start.** ts-morph loads + typechecks the whole project on first call; big repos = slow

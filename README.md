@@ -30,7 +30,7 @@ kestrel is the layer those bridges skip:
   these by pass-through.
 
 The engine (ts-morph today, maybe tsgo later) is commoditized. The output contract is the
-durable part — see [docs/ROADMAP.md](docs/ROADMAP.md).
+durable part — see the [v1 roadmap epic](https://github.com/nam-hle/kestrel/issues/78).
 
 ## What it does (v1, read-only)
 

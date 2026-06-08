@@ -1,7 +1,8 @@
 # kestrel — Benchmark spec (the wedge proof)
 
 Purpose: turn the asserted claims ("token-lean", "fewer false hits") into measured numbers.
-This is Phase 0 of the [ROADMAP](./ROADMAP.md) and blocks the repositioning.
+This is milestone M4 of the [v1 roadmap epic](https://github.com/nam-hle/kestrel/issues/78)
+and blocks the repositioning.
 
 ## Opponent
 
