@@ -9,11 +9,23 @@ scope and architecture.
 ```
 packages/
   core/   warm ts-morph Project, symbol resolution, query + outline ops (transport-agnostic)
-  mcp/    MCP server adapter (stub)
+  mcp/    MCP server adapter
   cli/    CLI adapter (citty subcommands, JSON output)
+skills/   the using-symantic Claude Code skill (shipped as a plugin via .claude-plugin/)
+docs/     project docs (see below)
 ```
 
 Tests live in `packages/core/src/__tests__/`. Fixtures under `__tests__/fixtures/`.
+
+### Docs (`docs/`)
+
+- `VISION.md` — what we're building and why; scope, the shipped op set, engine roadmap.
+- `DESIGN.md` — architecture (core ↔ adapters, the engine interface).
+- `PRINCIPLES.md` — the values that drive the roadmap and adjudicate tradeoffs; consult it
+  when a change forces a fast-vs-correct-vs-token-lean call.
+- `ADDRESSING.md` — the `file:Name::nested#index` qualified-name scheme.
+
+`docs/superpowers/` (plans/specs) are local dev artifacts — gitignored, never committed.
 
 ## Tooling
 

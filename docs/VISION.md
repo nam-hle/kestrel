@@ -2,10 +2,11 @@
 
 > Semantic symbol intelligence (read/analyse) for TypeScript, shaped for AI agents.
 
-Status: **vision / pre-implementation**. Captured from a design session on 2026-06-06.
-This document is the source of truth for _what we are building and why_. Architecture
-detail lives in [DESIGN.md](./DESIGN.md) (in progress); the values that adjudicate
-tradeoffs live in [PRINCIPLES.md](./PRINCIPLES.md).
+Status: **early development — read-only core engine + CLI + MCP server all working.**
+Originally captured from a design session on 2026-06-06 and kept current as the read path
+ships. This document is the source of truth for _what we are building and why_. Architecture
+detail lives in [DESIGN.md](./DESIGN.md); the values that adjudicate tradeoffs live in
+[PRINCIPLES.md](./PRINCIPLES.md); the addressing scheme in [ADDRESSING.md](./ADDRESSING.md).
 
 ## One-line
 
@@ -45,22 +46,35 @@ an **MCP server** (native agent tools, JSON) and a **CLI** (`tool refs Foo --jso
 | Output detail     | minimal / snippet / block        | **Minimal by default** (`file:line:col` + kind); snippet/block via flag                |
 | Architecture      | stateless / warm-core / hybrid   | **Warm core engine + thin adapters**                                                   |
 
-## In scope (v1) — read/analyse only
+## In scope — read/analyse only (shipped)
 
-- `find_usages(symbol)` — all references: file:line:col + kind (call / import / type-ref).
-- `find_implementations(symbol)` — implementors of interface / abstract.
-- `find_definition(symbol)` — declaration site.
-- `outline_file(path)` — structure of a file: exports, classes, interfaces, functions + their
-  signatures and line positions. Deterministic AST walk; token-lean "table of contents".
-- `outline_symbol(symbol)` — members of a class/interface/namespace (methods, props + signatures).
-- `outline_function(symbol)` — deterministic statement-level skeleton of a function body:
-  declarations, loops, conditionals, calls, returns (line positions). Expandable depth; no LLM.
-- Output: minimal default, `--context=none|snippet|block` opt-in.
+Ops are grouped by intent under two CLI verbs — `view` (read code) and `find` (locate /
+trace) — plus top-level `resolve` / `imports` / `exports` / `usage`. (MCP exposes the same set
+as `view_*` / `find_*` tools.)
+
+- `find refs <sym>` — all references, classified by kind (call / import / type-ref / read /
+  write), capped + paginated.
+- `find impls <sym>` — implementors of an interface / abstract.
+- `find def <sym>` — declaration site(s); handles declaration merging.
+- `find callers` / `find callees <sym>` — incoming / outgoing call hierarchy, bounded depth.
+- `find symbol <name>` — repo-wide search (`--contains` for substring); the orientation entry
+  point when the file is unknown.
+- `view outline <file>` — file structure: declarations (incl. nested) + re-exports, in source
+  order. Token-lean "table of contents".
+- `view members <sym>` — members of a class / interface / namespace (folds declaration merges).
+- `view body <sym>` — statement-level skeleton of a function body (`--source` for the code).
+- `view context <sym>` — source + signature + resolved callees + referenced types (the former
+  `get_symbol_context`, promoted from vision-level once the outline ops proved out).
+- `view symbol` / `view region` / `view file` — exact source of a declaration / a line range /
+  a whole file.
+- `imports` / `exports <file>` — a file's imports / transitive public surface (expands
+  `export *`); `usage <file>` — per-export reference counts (dead-code in one call).
+- Output: token-lean, address-first text by default; `--json` for structured form;
+  `--context=none|snippet|block` on references.
 - Qualified-name addressing; ambiguity → candidate list with positions.
 - Result-set bounding: cap + paginate large reference sets, count-only mode (token-lean).
 
-All read-only: symantic never writes files in v1.
-**Call-hierarchy** and **dependency-graph** queries are vision-level (post-v1).
+All read-only: symantic never writes files. **Dependency-graph** queries remain vision-level.
 
 ## Out of scope
 
@@ -69,8 +83,6 @@ Deferred (revisit once read path proven):
 - **Modification — `rename` / `move`** (was v1). Reintroduces atomic-apply, rollback,
   stale-AST-vs-disk, and move-semantics (barrels / `paths` aliases / cycles) risk classes.
 - Signature change / extract / inline refactors; generic agent-described codemods.
-- **`get_symbol_context`** — deterministic context slice (signature + body + resolved callees
-  - referenced types) for an agent to reason over. Extends the outline ops; vision-level.
 
 Never (anti-goal):
 
@@ -90,15 +102,16 @@ Deferred — possibly forever:
 The core is **transport-agnostic and engine-agnostic by design** (core ↔ adapters split in
 DESIGN). The analysis engine sits behind `resolveSymbol` / `findUsages` and is swappable.
 
-- **v1 engine: ts-morph** (TypeScript compiler API, Node). Mature, exact, `findReferences()` /
-  `getImplementations()` ship today. Matches the thesis: borrow proven semantics, build
+- **Default engine: ts-morph** (TypeScript compiler API, Node). Mature, exact, `findReferences()`
+  / `getImplementations()` ship today. Matches the thesis: borrow proven semantics, build
   ergonomics. Cost = Node runtime + cold-start/typecheck latency (see Key risks).
-- **Vision engine: tsgo (Go)** — Microsoft's native port of the TypeScript compiler
-  (`typescript-go`), ~10x faster typecheck, embeddable programmatic API (`@typescript/api`)
-  - LSP. Currently preview. This is symantic's cold-start / perf escape hatch: same
-    compiler-accurate semantics, native speed, no Node warm-up. Adopt once it GAs _and_
-    exposes a stable embeddable find-references API. Likely
-    shape: Go sidecar/binary behind the same core interface, or core itself reimplemented in Go.
+- **Opt-in engine: tsgo (Go), shipped as `--engine lsp`** — Microsoft's native port of the
+  TypeScript compiler (`typescript-go`), faster on the hot path, driven over LSP. It is the
+  cold-start / perf escape hatch: same compiler-accurate semantics, native speed. Wired behind
+  the same core interface and selectable today via `--engine lsp` (CLI) / `engine: "lsp"` (MCP),
+  with `@typescript/native-preview` as an _optional_ dependency. Still preview-grade — the
+  ts-morph engine stays the default until tsgo's embeddable API stabilizes; parity gaps fall
+  back to the default. Endgame: tsgo as the default once it GAs with a stable API.
 - **Not Rust.** The Rust semantic-typechecker tier is not viable: STC (the tsc-compatible Rust
   checker) is **archived/abandoned** (2025); Ezno / tsz are research-grade, not at tsc parity.
   Rust TS tooling (SWC, oxc, ast-grep) is **syntactic only** — fast AST, no type-aware refs —
