@@ -117,6 +117,8 @@ export interface Member {
 
 /** File-level structural outline ("table of contents"). */
 export interface FileOutline {
+	/** Everything else carrying structure: namespaces, enums, type aliases, type members. */
+	others: Member[];
 	exports: Member[];
 	classes: Member[];
 	functions: Member[];

@@ -205,7 +205,7 @@ export function buildSymbolOutline(decl: Node, baseDir: string, ownerQualifiedNa
 }
 
 export function buildFileOutline(sourceFile: SourceFile, baseDir: string): FileOutline {
-	const outline: FileOutline = { exports: [], classes: [], functions: [], variables: [], interfaces: [] };
+	const outline: FileOutline = { others: [], exports: [], classes: [], functions: [], variables: [], interfaces: [] };
 
 	// outlineDeclarations = top-level + namespaces + type members (no function-body locals).
 	for (const { node, path } of outlineDeclarations(sourceFile)) {
@@ -225,6 +225,9 @@ export function buildFileOutline(sourceFile: SourceFile, baseDir: string): FileO
 			const init = node.getInitializer();
 			const isFn = init !== undefined && (Node.isArrowFunction(init) || Node.isFunctionExpression(init));
 			(isFn ? outline.functions : outline.variables).push(member);
+		} else {
+			// Namespaces, enums, type aliases, and type members — still carry export/modifier flags.
+			outline.others.push(member);
 		}
 
 		if (exported) {

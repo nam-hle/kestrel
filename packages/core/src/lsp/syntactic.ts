@@ -241,7 +241,7 @@ function memberOf({ sf, kind, name, node, path, qualified }: MemberArgs): Member
 
 export function buildOutline(path: string, text: string): FileOutline {
 	const sf = parse(path, text);
-	const outline: FileOutline = { classes: [], exports: [], functions: [], variables: [], interfaces: [] };
+	const outline: FileOutline = { others: [], classes: [], exports: [], functions: [], variables: [], interfaces: [] };
 	walkOutline({ sf, path, outline }, sf.statements, "");
 
 	return outline;
@@ -322,13 +322,14 @@ function walkOutline(walk: OutlineWalk, statements: readonly ts.Statement[], pre
 			outline.functions.push(member);
 		} else if (ts.isModuleDeclaration(stmt) && ts.isIdentifier(stmt.name)) {
 			member = memberOf({ sf, path, node: stmt, kind: "ModuleDeclaration", name: dotted(stmt.name.text) });
+			outline.others.push(member); // the namespace node itself, so it renders with flags
 
 			if (isExported(stmt)) {
 				outline.exports.push(member);
 			}
 
 			walkOutline(walk, moduleStatements(stmt), dotted(stmt.name.text));
-			continue; // namespace itself isn't a class/interface/fn/var bucket
+			continue;
 		} else if (ts.isVariableStatement(stmt)) {
 			for (const decl of stmt.declarationList.declarations) {
 				if (ts.isIdentifier(decl.name)) {

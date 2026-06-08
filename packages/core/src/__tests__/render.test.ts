@@ -16,12 +16,15 @@ describe("renderFileOutline (compact tree)", () => {
 	test("namespaced file factors prefixes into a tree", () => {
 		expect(render("src/nested.ts")).toMatchInlineSnapshot(`
 			"src/nested.ts:
-			  ns Model
+			  E ns Model  L1
 			    E iface Node  L2
-			    ns Inner
+			      prop id  L3
+			    E ns Inner  L6
 			      E iface Node  L7
-			  ns Runtime
+			        prop deep  L8
+			  E ns Runtime  L13
 			    E iface Node  L14
+			      prop live  L15
 			—
 			E=export"
 		`);
@@ -45,7 +48,9 @@ describe("renderFileOutline (compact tree)", () => {
 			  E const averageArea  L12
 			  E fn describeArea  L22
 			  E cls AreaService  L29
+			    prop compute  L31
 			  E iface AreaCalculators  L36
+			    prop mean  L37
 			  E fn makeCalculators  L41
 			  E fn makeSelectors  L50
 			—
@@ -59,7 +64,8 @@ describe("renderFileOutline (compact tree)", () => {
 		expect(render("src/outline-order.ts")).toMatchInlineSnapshot(`
 			"src/outline-order.ts:
 			  E iface TopFirst  L4
-			  ns LaterNamespace
+			    prop id  L5
+			  E ns LaterNamespace  L8
 			    E const value  L9
 			    E fn helper  L11
 			—
@@ -71,10 +77,18 @@ describe("renderFileOutline (compact tree)", () => {
 		expect(render("src/modifiers.ts")).toMatchInlineSnapshot(`
 			"src/modifiers.ts:
 			  EA cls Widget  L3
+			    SR prop kind  L4
+			    R prop id  L5
+			    O prop label  L6
+			    A meth render  L8
+			    Y meth load  L10
+			    S meth create  L14
 			  E iface WidgetProps  L19
+			    prop title  L20
+			    O prop subtitle  L21
 			  ED fn makeWidget  L24
 			—
-			E=export  A=abstract  D=default"
+			E=export  A=abstract  S=static  R=readonly  Y=async  O=optional  D=default"
 		`);
 	});
 

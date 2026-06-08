@@ -162,7 +162,7 @@ function renderNode(name: string, node: TreeNode, indent: string, sink: OutlineS
 export function renderFileOutline(file: string, outline: FileOutline): string {
 	const root: TreeNode = { children: new Map() };
 
-	for (const member of [...outline.classes, ...outline.interfaces, ...outline.functions, ...outline.variables]) {
+	for (const member of [...outline.classes, ...outline.interfaces, ...outline.functions, ...outline.variables, ...outline.others]) {
 		insert(root, member);
 	}
 
