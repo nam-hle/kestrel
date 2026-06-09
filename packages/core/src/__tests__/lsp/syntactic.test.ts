@@ -1,6 +1,6 @@
 import { it, expect, describe } from "vitest";
 
-import { classifyAt, buildOutline, parseImports, topLevelExports, functionSkeleton } from "../../lsp/syntactic.js";
+import { classifyAt, buildOutline, parseImports, topLevelExports, functionSkeleton, outlineSymbolMembers } from "../../lsp/syntactic.js";
 
 const consumer = `import { makeCircle, Circle } from "./shapes.js";
 
@@ -99,6 +99,39 @@ export namespace Runtime {
 
 		expect(o.variables.map((m) => m.name)).toEqual(["Events::onClick"]);
 		expect(o.functions.map((m) => m.name)).toEqual(["Events::handle"]);
+	});
+});
+
+describe("outlineSymbolMembers", () => {
+	const nested = `export namespace Model {
+	export interface Node { id: string; }
+	export namespace Inner {
+		export interface Node { deep: boolean; }
+	}
+}
+`;
+
+	it("enumerates a namespace's direct members with owner-prefixed qualified names", () => {
+		// "Model" identifier is on line 0; land the offset on it.
+		const members = outlineSymbolMembers("src/nested.ts", nested, { line: 0, character: 17 });
+		expect(members.map((m) => m.name).sort()).toEqual(["Inner", "Node"]);
+		expect(members.map((m) => m.qualifiedName).sort()).toEqual(["src/nested.ts:Model::Inner", "src/nested.ts:Model::Node"]);
+	});
+
+	const merged = `export interface Summary { total: number; }
+
+export namespace Summary {
+	export const EMPTY = { total: 0 };
+	export function isEmpty(): boolean { return true; }
+}
+`;
+
+	it("enumerates a namespace's const and function members (the namespace half of a merged symbol)", () => {
+		// "Summary" on the namespace line (line 2). The interface half is enumerated separately
+		// from its own position; membersByName merges per-declaration hits.
+		const members = outlineSymbolMembers("src/merged.ts", merged, { line: 2, character: 18 });
+		const names = members.map((m) => m.name).sort();
+		expect(names).toEqual(["EMPTY", "isEmpty"]);
 	});
 });
 

@@ -54,20 +54,26 @@ function flatten(symbols: DocumentSymbol[], prefix: string, inBody: boolean): Sy
  * last path component at any depth. Returns every match (caller disambiguates by #index).
  */
 export function resolveInSymbols(symbols: DocumentSymbol[], segments: string[]): SymbolHit[] {
-	// Exclude function/method body locals: ts-morph's resolver matches top-level + namespace +
-	// type members, never body-locals. tsgo's documentSymbol descends into bodies, so a bare
-	// name would otherwise collide a top-level decl with a same-named local (false ambiguous).
-	const all = flatten(symbols, "", false).filter((h) => !h.inBody);
+	const all = flatten(symbols, "", false);
 
 	if (segments.length > 1) {
+		// An explicit qualified path (e.g. "build::rows") is unambiguous — match it against
+		// the full tree, body-locals included, so function-scoped declarations are addressable.
 		const target = joinSegments(segments);
 
 		return all.filter((h) => h.path === target);
 	}
 
+	// A bare name excludes function/method body-locals: ts-morph's resolver matches top-level +
+	// namespace + type members only, and tsgo's documentSymbol descends into bodies, so a bare
+	// name would otherwise collide a top-level decl with a same-named local (false ambiguous).
 	const name = segments[0]!;
 
 	return all.filter((h) => {
+		if (h.inBody) {
+			return false;
+		}
+
 		const parts = splitName(h.path);
 
 		return parts[parts.length - 1] === name;

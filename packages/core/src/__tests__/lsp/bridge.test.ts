@@ -83,4 +83,24 @@ describe("resolveInSymbols", () => {
 		const hits = resolveInSymbols(tree, ["area"]);
 		expect(hits.map((h) => h.path).sort()).toEqual(["Circle::area", "Shape::area"]);
 	});
+
+	// An explicit qualified path is unambiguous, so it DOES reach body-locals — a bare name
+	// excludes them, but "build::rows" names exactly one declaration.
+	it("resolves a function-local declaration via its qualified path", () => {
+		const withLocal: DocumentSymbol[] = [
+			{
+				name: "build",
+				range: sel(0, 0),
+				selectionRange: sel(0, 16),
+				kind: LspSymbolKind.Function,
+				children: [{ name: "rows", range: sel(1, 7), selectionRange: sel(1, 7), kind: LspSymbolKind.Variable }]
+			}
+		];
+
+		const hits = resolveInSymbols(withLocal, ["build", "rows"]);
+		expect(hits).toHaveLength(1);
+		expect(hits[0]!.path).toBe("build::rows");
+		expect(hits[0]!.inBody).toBe(true);
+		expect(hits[0]!.position).toEqual({ line: 1, character: 7 });
+	});
 });

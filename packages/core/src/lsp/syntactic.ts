@@ -400,18 +400,50 @@ export function outlineSymbolMembers(path: string, text: string, pos: LspPositio
 	// and unnamed members (constructor) named by their kind ("Constructor").
 	const push = (name: string, node: ts.Node): void => {
 		const qualified = prefix === "" ? `${path}:${name}` : `${path}:${prefix}${NS_SEP}${name}`;
-		members.push(memberOf({ sf, path, name, node, qualified, kind: ts.SyntaxKind[node.kind] }));
+		// SyntaxKind[VariableStatement] aliases to "FirstStatement"; report the real kind name.
+		const kind = ts.isVariableStatement(node) ? "VariableStatement" : ts.SyntaxKind[node.kind];
+		members.push(memberOf({ sf, path, name, node, kind, qualified }));
 	};
 
-	if (ts.isClassDeclaration(owner) || ts.isInterfaceDeclaration(owner)) {
-		for (const m of owner.members) {
-			if (m.name !== undefined && ts.isIdentifier(m.name)) {
-				push(m.name.text, m);
-			} else if (ts.isConstructorDeclaration(m)) {
-				push("Constructor", m);
+	// A statement's declared name, if any. Handles `const X = ...` (the name lives on the
+	// single VariableDeclaration, not the statement) plus directly-named declarations.
+	const statementName = (stmt: ts.Statement): string | undefined => {
+		if (ts.isVariableStatement(stmt)) {
+			const [first, ...rest] = stmt.declarationList.declarations;
+
+			return rest.length === 0 && first !== undefined && ts.isIdentifier(first.name) ? first.name.text : undefined;
+		}
+
+		const named = (stmt as ts.Statement & { name?: ts.Node }).name;
+
+		return named !== undefined && ts.isIdentifier(named) ? named.text : undefined;
+	};
+
+	const enumerate = (decl: ts.Node): void => {
+		if (ts.isClassDeclaration(decl) || ts.isInterfaceDeclaration(decl)) {
+			for (const m of decl.members) {
+				if (m.name !== undefined && ts.isIdentifier(m.name)) {
+					push(m.name.text, m);
+				} else if (ts.isConstructorDeclaration(m)) {
+					push("Constructor", m);
+				}
+			}
+		} else if (ts.isModuleDeclaration(decl) && decl.body !== undefined && ts.isModuleBlock(decl.body)) {
+			// Namespace: enumerate its direct named statements (mirrors ts-morph's module branch).
+			for (const stmt of decl.body.statements) {
+				const name = statementName(stmt);
+
+				if (name !== undefined) {
+					push(name, stmt);
+				}
 			}
 		}
-	}
+	};
+
+	// Enumerate the single declaration at this position. Declaration merging
+	// (`interface X` + `namespace X`) is handled by the caller (membersByName), which
+	// passes one position per merged declaration.
+	enumerate(owner);
 
 	return members;
 }
