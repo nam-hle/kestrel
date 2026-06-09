@@ -17,8 +17,8 @@ concurrency:
 
 jobs:
   # On push to main: maintain a release PR (version bumps + CHANGELOGs) from the
-  # Conventional Commits. Merging it tags the release (e.g. `core/v0.3.0`) and the
-  # publish job below runs in the same workflow run when a release was created.
+  # Conventional Commits. Merging it tags the release (e.g. `v0.3.1`) and the publish
+  # job below runs in the same workflow run when a release was created.
   release-please:
     name: Release PR
     if: github.ref == 'refs/heads/main'
@@ -28,10 +28,10 @@ jobs:
       contents: write
       pull-requests: write
     outputs:
-      # On a release: the paths release-please actually cut. On manual dispatch: every
-      # package, so the escape hatch republishes the whole workspace.
+      # Publish on any release or a manual dispatch. The packages version in lockstep
+      # and always ship together, so we publish the whole workspace — not just the
+      # paths release-please reports (single-tag mode only lists the primary package).
       should_publish: ${{ steps.release.outputs.releases_created == 'true' || github.event_name == 'workflow_dispatch' }}
-      paths: ${{ steps.paths.outputs.paths }}
     steps:
       - uses: googleapis/release-please-action@5c625bfb5d1ff62eadeeb3772007f7f66fdcf071 # v4
         id: release
@@ -43,22 +43,11 @@ jobs:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
 
-      - name: Resolve packages to publish
-        id: paths
-        env:
-          RELEASED: ${{ steps.release.outputs.paths_released }}
-          EVENT: ${{ github.event_name }}
-        run: |
-          if [ "$EVENT" = "workflow_dispatch" ]; then
-            echo 'paths=["packages/core","packages/cli","packages/mcp"]' >> "$GITHUB_OUTPUT"
-          else
-            echo "paths=${RELEASED:-[]}" >> "$GITHUB_OUTPUT"
-          fi
-
-  # When release-please cut a release this run, publish each released package to
-  # npm via OIDC trusted publishing (no token — keyless, with provenance). Driven
-  # by the release-please outputs, not a tag push: tags pushed by the action don't
-  # re-trigger workflows, so a tag-triggered job would never fire.
+  # When release-please cut a release this run (or on manual dispatch), publish every
+  # package to npm via OIDC trusted publishing (no token — keyless, with provenance).
+  # Driven by the release-please output, not a tag push: tags pushed by the action
+  # don't re-trigger workflows, so a tag-triggered job would never fire. Already-
+  # published versions fail their own matrix leg harmlessly (fail-fast is off).
   publish:
     name: Publish
     needs: release-please
@@ -73,7 +62,10 @@ jobs:
       # others — each publish is independent.
       fail-fast: false
       matrix:
-        path: ${{ fromJSON(needs.release-please.outputs.paths) }}
+        path:
+          - packages/core
+          - packages/cli
+          - packages/mcp
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - uses: ./.github/actions/setup
