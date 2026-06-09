@@ -1,6 +1,6 @@
 {
 	"name": "@symantic/mcp",
-	"version": "0.2.0",
+	"version": "0.3.0",
 	"type": "module",
 	"description": "symantic MCP server — semantic TypeScript code navigation for AI agents",
 	"keywords": [
