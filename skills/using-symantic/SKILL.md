@@ -47,6 +47,10 @@ reference counts), `resolve` (qualified name → symbol or candidates). Flags: `
 - `::` separates nesting segments (namespace / class / interface / module).
 - `#index` disambiguates same-name collisions (overloads, declaration merging), e.g. `f#1`.
 - **Outputs are re-feedable**: a symbol address in one result is valid input to the next op.
+- **Nested declarations are addressable too** — don't Read a line range to see one method,
+  property, or nested type. `view symbol <file>:Owner::member` (or `view members <file>:Owner`)
+  returns just that member. A line-range `view region` / Read is a habit fallback here, not a
+  necessity.
 
 Example chain:
 
@@ -79,6 +83,13 @@ Common trap: reaching for a shell `find -iname '*foo*'` to locate a feature. Try
 `symantic find symbol Foo --contains` first — it searches symbol names across the project and
 hands back addresses you can drill straight into. Fall to shell `find` only when you're after a
 _file path / non-TS file_, not a symbol.
+
+**Orienting by _concept_, not a known name?** (e.g. "where is data loading triggered?", "is
+there a saga layer?") Don't grep the source — cast `find symbol --contains` with a broad
+fragment of the concept (`load`, `saga`, `dispatch`, `reducer`) **first**. It surfaces every
+matching symbol across the whole project, including layers in directories you haven't opened —
+the exact case where grep makes you miss code that lives where you didn't look. Only grep the
+concept when a sensible fragment genuinely yields nothing.
 
 ## When to fall back to Read/grep
 

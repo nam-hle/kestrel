@@ -22,7 +22,7 @@ import type {
 
 interface TreeNode {
 	children: Map<string, TreeNode>;
-	leaf?: { kind: string; line: number; tags?: string[]; exported: boolean; modifiers?: string[]; };
+	leaf?: { kind: string; line: number; tags?: string[]; exported: boolean; modifiers?: string[] };
 }
 
 /** Bracketed JSDoc release-tag prefix, e.g. `[deprecated] `; empty when none. */

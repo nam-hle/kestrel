@@ -7,9 +7,9 @@ history, not comparable on fallback count.
 
 ## Fixed-question series (symantic-preferred arm; fallback count comparable)
 
-| Round | Repo | Date | Fixed-Q | Fallbacks (raw / verified-gap) | Issues |
-|---|---|---|---|---|---|
-| 4 | overview-engine | 2026-06-09 | v1 | 6 / **0** | none |
+| Round | Repo            | Date       | Fixed-Q | Fallbacks (raw / verified-gap) | Issues |
+| ----- | --------------- | ---------- | ------- | ------------------------------ | ------ |
+| 4     | overview-engine | 2026-06-09 | v1      | 6 / **0**                      | none   |
 
 Round 4 notes: all 6 grep fallbacks were operator error / habit, not capability
 gaps. `find symbol <fragment> --contains` (e.g. `load`, `Saga`) surfaces the
@@ -23,8 +23,8 @@ round 4 found none.
 
 ## Pre-series history (strict symantic-only arm; ad-hoc questions)
 
-| Round | Repo | Question | Verified gaps → issues |
-|---|---|---|---|
-| 1 | tree-engine | node expand/collapse flow | #102, #103 (lsp namespace + function-scope parity) |
-| 2 | overview-engine | column sorting flow | #104 (lsp interface-member dump) |
-| 3 | relationship-engine | add-link flow | #105 (JSDoc release tags not surfaced) |
+| Round | Repo                | Question                  | Verified gaps → issues                             |
+| ----- | ------------------- | ------------------------- | -------------------------------------------------- |
+| 1     | tree-engine         | node expand/collapse flow | #102, #103 (lsp namespace + function-scope parity) |
+| 2     | overview-engine     | column sorting flow       | #104 (lsp interface-member dump)                   |
+| 3     | relationship-engine | add-link flow             | #105 (JSDoc release tags not surfaced)             |
