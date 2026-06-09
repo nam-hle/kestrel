@@ -3,8 +3,8 @@
 	"bump-minor-pre-major": true,
 	"bump-patch-for-minor-pre-major": true,
 
-	"separate-pull-requests": true,
-	"pull-request-title-pattern": "chore: release${component} v${version}",
+	"separate-pull-requests": false,
+	"group-pull-request-title-pattern": "chore: release v${version}",
 
 	"include-component-in-tag": true,
 	"tag-separator": "/",
@@ -22,9 +22,13 @@
 	],
 
 	"packages": {
-		"packages/core": { "release-type": "node" },
-		"packages/cli": { "release-type": "node" },
-		"packages/mcp": { "release-type": "node" }
+		"packages/core": { "release-type": "node", "component": "core" },
+		"packages/cli": { "release-type": "node", "component": "cli" },
+		"packages/mcp": { "release-type": "node", "component": "mcp" }
 	},
-	"plugins": [{ "type": "sentence-case" }, { "type": "node-workspace", "update-peer-dependencies": true }]
+	"plugins": [
+		{ "type": "sentence-case" },
+		{ "type": "node-workspace", "update-peer-dependencies": true },
+		{ "type": "linked-versions", "groupName": "symantic", "components": ["core", "cli", "mcp"] }
+	]
 }
