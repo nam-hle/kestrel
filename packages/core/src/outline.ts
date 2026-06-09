@@ -5,6 +5,7 @@
 import { Node } from "ts-morph";
 import type { Statement, SourceFile } from "ts-morph";
 
+import { RELEASE_TAGS } from "./types.js";
 import type { Member, FileOutline, StatementNode } from "./types.js";
 import { position, joinSegments, outlineDeclarations } from "./resolve.js";
 
@@ -71,9 +72,25 @@ function modifiersOf(node: Node): string[] {
 	return mods;
 }
 
+/** JSDoc release tags on a node, in RELEASE_TAGS display order. */
+export function tagsOf(node: Node): string[] {
+	// A `const`/`let` declaration carries its JSDoc on the enclosing VariableStatement, not
+	// the VariableDeclaration the outline walk hands us.
+	const docHost = Node.isVariableDeclaration(node) ? (node.getVariableStatement() ?? node) : node;
+
+	if (!Node.isJSDocable(docHost)) {
+		return [];
+	}
+
+	const present = new Set(docHost.getJsDocs().flatMap((doc) => doc.getTags().map((t) => t.getTagName().toLowerCase())));
+
+	return RELEASE_TAGS.filter((t) => present.has(t));
+}
+
 function toMember(node: Node, name: string, baseDir: string): Member {
 	const typeParameters = typeParametersOf(node);
 	const modifiers = modifiersOf(node);
+	const tags = tagsOf(node);
 
 	return {
 		name,
@@ -81,6 +98,7 @@ function toMember(node: Node, name: string, baseDir: string): Member {
 		signature: signatureOf(node),
 		position: position(node, baseDir),
 		...(modifiers.length > 0 ? { modifiers } : {}),
+		...(tags.length > 0 ? { tags } : {}),
 		...(typeParameters !== undefined ? { typeParameters } : {})
 	};
 }

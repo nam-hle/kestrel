@@ -22,7 +22,12 @@ import type {
 
 interface TreeNode {
 	children: Map<string, TreeNode>;
-	leaf?: { kind: string; line: number; exported: boolean; modifiers?: string[] };
+	leaf?: { kind: string; line: number; tags?: string[]; exported: boolean; modifiers?: string[]; };
+}
+
+/** Bracketed JSDoc release-tag prefix, e.g. `[deprecated] `; empty when none. */
+function tagPrefix(tags: string[] | undefined): string {
+	return tags !== undefined && tags.length > 0 ? `${tags.map((t) => `[${t}]`).join(" ")} ` : "";
 }
 
 const KIND_SHORT: Record<string, string> = {
@@ -113,7 +118,8 @@ function insert(root: TreeNode, member: Member): void {
 		line: member.position.line,
 		kind: shortKind(member.kind),
 		exported: member.exported === true,
-		...(member.modifiers !== undefined ? { modifiers: member.modifiers } : {})
+		...(member.modifiers !== undefined ? { modifiers: member.modifiers } : {}),
+		...(member.tags !== undefined ? { tags: member.tags } : {})
 	};
 }
 
@@ -148,8 +154,9 @@ function renderNode(name: string, node: TreeNode, indent: string, sink: OutlineS
 	const kind = leaf !== undefined ? leaf.kind : "ns";
 	const flags = leaf !== undefined ? flagToken(leaf.exported, leaf.modifiers, sink.used) : "";
 	const prefix = flags !== "" ? `${flags} ` : "";
+	const tags = leaf !== undefined ? tagPrefix(leaf.tags) : "";
 	const loc = leaf !== undefined ? `  L${leaf.line}` : "";
-	sink.lines.push(`${indent}${prefix}${kind} ${name}${loc}`);
+	sink.lines.push(`${indent}${tags}${prefix}${kind} ${name}${loc}`);
 
 	const childNames = [...node.children.keys()].sort((a, b) => nodeLine(node.children.get(a)!) - nodeLine(node.children.get(b)!));
 
@@ -292,7 +299,7 @@ export function renderMembers(members: Member[]): string {
 		const flags = flagToken(m.exported === true, m.modifiers, used);
 		const prefix = flags !== "" ? `${flags} ` : "";
 
-		return `${prefix}${shortKind(m.kind)} ${m.name}\tL${m.position.line}`;
+		return `${tagPrefix(m.tags)}${prefix}${shortKind(m.kind)} ${m.name}\tL${m.position.line}`;
 	});
 	const foot = legend(used);
 

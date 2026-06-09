@@ -96,10 +96,31 @@ export interface UsagesResult {
 	references: Reference[];
 }
 
+/**
+ * JSDoc release tags symantic surfaces as a navigation signal. Order is the display order
+ * used when a declaration carries more than one.
+ */
+export const RELEASE_TAGS = ["deprecated", "internal", "alpha", "beta", "experimental", "public"] as const;
+
+/**
+ * Prepend a synthesized release-tag JSDoc line to a declaration's source, so `view symbol`
+ * echoes the navigation signal without reproducing the (possibly long) original comment.
+ * Returns `source` unchanged when there are no tags.
+ */
+export function withTagComment(tags: string[] | undefined, source: string): string {
+	return tags !== undefined && tags.length > 0 ? `/** ${tags.map((t) => `@${t}`).join(" ")} */\n${source}` : source;
+}
+
 /** A member of a class / interface / namespace. */
 export interface Member {
 	name: string;
 	kind: string;
+	/**
+	 * JSDoc release tags present on the declaration, lower-cased: any of `deprecated`,
+	 * `internal`, `alpha`, `beta`, `experimental`, `public`. A navigation signal — e.g. a
+	 * `deprecated` symbol is superseded, an `internal` one is not part of the public API.
+	 */
+	tags?: string[];
 	signature: string;
 	position: Position;
 	/** Whether the declaration is exported from its file. */

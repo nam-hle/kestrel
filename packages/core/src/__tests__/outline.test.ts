@@ -28,6 +28,21 @@ describe("outlineFile", () => {
 		expect(names).toContain("Runtime::Node");
 	});
 
+	test("surfaces JSDoc release tags on declarations (ts-morph)", () => {
+		const engine = new Engine({ tsConfigPath });
+
+		const outline = engine.outlineFile("src/tags.ts");
+		const tagsOf = (name: string): string[] | undefined =>
+			[...outline.functions, ...outline.interfaces, ...outline.variables].find((m) => m.name === name)?.tags;
+
+		expect(tagsOf("staleFn")).toEqual(["deprecated"]);
+		expect(tagsOf("freshFn")).toBeUndefined();
+		expect(tagsOf("InternalShape")).toEqual(["internal"]);
+		expect(tagsOf("draft")).toEqual(["beta"]);
+		// Multiple tags keep RELEASE_TAGS display order (deprecated before internal).
+		expect(tagsOf("doubleTagged")).toEqual(["deprecated", "internal"]);
+	});
+
 	test("surfaces re-exports from a barrel file", () => {
 		const engine = new Engine({ tsConfigPath });
 

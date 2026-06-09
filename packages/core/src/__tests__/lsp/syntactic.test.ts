@@ -110,6 +110,35 @@ export namespace Runtime {
 	});
 });
 
+describe("buildOutline release tags", () => {
+	const tagged = `/** @deprecated use freshFn */
+export function staleFn(): void {}
+
+export function freshFn(): void {}
+
+/** @internal */
+export interface InternalShape { x: number; }
+
+/** @beta */
+export const draft = 1;
+
+/** @deprecated @internal */
+export function doubleTagged(): void {}
+`;
+
+	it("surfaces JSDoc release tags on declarations (lsp syntactic)", () => {
+		const o = buildOutline("src/tags.ts", tagged);
+		const all = [...o.functions, ...o.interfaces, ...o.variables];
+		const tagsOf = (name: string): string[] | undefined => all.find((m) => m.name === name)?.tags;
+
+		expect(tagsOf("staleFn")).toEqual(["deprecated"]);
+		expect(tagsOf("freshFn")).toBeUndefined();
+		expect(tagsOf("InternalShape")).toEqual(["internal"]);
+		expect(tagsOf("draft")).toEqual(["beta"]);
+		expect(tagsOf("doubleTagged")).toEqual(["deprecated", "internal"]);
+	});
+});
+
 describe("outlineSymbolMembers", () => {
 	const nested = `export namespace Model {
 	export interface Node { id: string; }
@@ -223,6 +252,14 @@ describe("declarationSourceAt", () => {
 		// "id" property on line 2.
 		const src = declarationSourceAt(iface, { line: 2, character: 10 });
 		expect(src).toBe("readonly id: number;");
+	});
+
+	it("echoes a release-tag JSDoc line before the declaration (#105)", () => {
+		const tagged = `/** @deprecated use freshFn */
+export function staleFn(): void {}
+`;
+		const src = declarationSourceAt(tagged, { line: 1, character: 17 });
+		expect(src).toBe("/** @deprecated */\nexport function staleFn(): void {}");
 	});
 });
 

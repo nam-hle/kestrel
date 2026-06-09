@@ -36,6 +36,20 @@ describe("member resolution", () => {
 		expect(result.symbol.position.line).toBe(7);
 	});
 
+	test("view symbol echoes the release-tag JSDoc before the declaration (#105)", () => {
+		const engine = new Engine({ tsConfigPath });
+
+		const result = engine.resolveSymbol("src/tags.ts:staleFn");
+		expect(result.kind).toBe("symbol");
+
+		if (result.kind !== "symbol") {
+			return;
+		}
+
+		const [source] = engine.symbolSource(result.symbol);
+		expect(source?.source).toBe("/** @deprecated */\nexport function staleFn(): void {}");
+	});
+
 	test("search finds same-named members across types as candidates", () => {
 		const engine = new Engine({ tsConfigPath });
 

@@ -7,6 +7,7 @@ import ts from "typescript";
 
 import { NS_SEP } from "../resolve.js";
 import type { LspPosition } from "./protocol.js";
+import { RELEASE_TAGS, withTagComment } from "../types.js";
 import type { Member, ImportInfo, FileOutline, ReferenceKind, StatementNode } from "../types.js";
 
 function parse(path: string, text: string): ts.SourceFile {
@@ -224,9 +225,19 @@ interface MemberArgs {
 	qualified?: string;
 }
 
+/** JSDoc release tags on a node, in RELEASE_TAGS display order. */
+function tagsOf(node: ts.Node): string[] {
+	// A `const`/`let` declaration carries its JSDoc on the enclosing VariableStatement.
+	const host = ts.isVariableDeclaration(node) && node.parent.parent !== undefined ? node.parent.parent : node;
+	const present = new Set(ts.getJSDocTags(host).map((t) => t.tagName.text.toLowerCase()));
+
+	return RELEASE_TAGS.filter((t) => present.has(t));
+}
+
 function memberOf({ sf, kind, name, node, path, qualified }: MemberArgs): Member {
 	const { col, line } = posOf(sf, node.getStart(sf));
 	const tps = typeParamsOf(node);
+	const tags = tagsOf(node);
 
 	return {
 		name,
@@ -235,6 +246,7 @@ function memberOf({ sf, kind, name, node, path, qualified }: MemberArgs): Member
 		exported: isExported(node),
 		position: { col, line, file: path },
 		qualifiedName: qualified ?? `${path}:${name}`,
+		...(tags.length > 0 ? { tags } : {}),
 		...(tps !== undefined ? { typeParameters: tps } : {})
 	};
 }
@@ -559,7 +571,12 @@ export function declarationSourceAt(text: string, pos: LspPosition): string | un
 
 	visit(sf);
 
-	return decl?.getText(sf);
+	if (decl === undefined) {
+		return undefined;
+	}
+
+	// Echo the release-tag JSDoc so `view symbol` carries the navigation signal.
+	return withTagComment(tagsOf(decl), decl.getText(sf));
 }
 
 /** Distinct named types referenced anywhere in the given declaration source. */

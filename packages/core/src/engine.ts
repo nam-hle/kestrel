@@ -9,13 +9,14 @@ import { Node, Project } from "ts-morph";
 import type { SourceFile } from "ts-morph";
 
 import { isTestFile } from "./test-file.js";
+import { withTagComment } from "./types.js";
 import { readRegionFrom } from "./region.js";
 import { parsePageCursor } from "./cursor.js";
 import { classifyReference } from "./usages.js";
 import type { SymbolEngine } from "./symbol-engine.js";
 import { buildCallHierarchy } from "./call-hierarchy.js";
 import { typeRefsIn, signatureOfSource } from "./lsp/syntactic.js";
-import { buildFileOutline, buildSymbolOutline, buildFunctionOutline } from "./outline.js";
+import { tagsOf, buildFileOutline, buildSymbolOutline, buildFunctionOutline } from "./outline.js";
 import {
 	position,
 	splitName,
@@ -356,7 +357,7 @@ export class Engine implements SymbolEngine {
 		return this.#declarationsFor(symbol).map((node) => {
 			const handle = declarationToHandle({ node, path }, file, base);
 
-			return { source: node.getText(), position: handle.position, qualifiedName: handle.qualifiedName };
+			return { position: handle.position, qualifiedName: handle.qualifiedName, source: withTagComment(tagsOf(node), node.getText()) };
 		});
 	}
 

@@ -30,6 +30,20 @@ describe("renderFileOutline (compact tree)", () => {
 		`);
 	});
 
+	test("prefixes JSDoc release tags before the flags (#105)", () => {
+		expect(render("src/tags.ts")).toMatchInlineSnapshot(`
+			"src/tags.ts:
+			  [deprecated] E fn staleFn  L4
+			  E fn freshFn  L6
+			  [internal] E iface InternalShape  L9
+			    prop x  L10
+			  [beta] E const draft  L17
+			  [deprecated] [internal] E fn doubleTagged  L20
+			—
+			E=export"
+		`);
+	});
+
 	test("quoted, dotted module name renders as a single node (not split on dots)", () => {
 		const tree = render("src/augment.d.ts");
 
