@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.3.1](https://github.com/nam-hle/symantic/compare/v0.3.0...v0.3.1) (2026-06-09)
+
+
+### Internal
+
+* Release 0.3.1 ([3df2faa](https://github.com/nam-hle/symantic/commit/3df2faa9555d7aa36fd327c6f7c33ef0b044ccc6))
+* Release 0.3.1 ([f8ac888](https://github.com/nam-hle/symantic/commit/f8ac88863900a7137abd6831d71940eda9630d1b))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @symantic/core bumped to 0.3.1
+
 ## [0.3.0](https://github.com/nam-hle/symantic/compare/cli/v0.2.0...cli/v0.3.0) (2026-06-09)
 
 
