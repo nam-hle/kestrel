@@ -35,11 +35,16 @@ function run(args: Record<string, unknown>): string {
 
 describe("gain command run", () => {
 	let origHome: string | undefined;
+	let origUserProfile: string | undefined;
 
 	beforeEach(() => {
 		const home = mkdtempSync(join(tmpdir(), "symantic-gain-run-"));
+		// homedir() reads HOME on POSIX, USERPROFILE on Windows. Set both so the test is hermetic
+		// on every platform.
 		origHome = process.env.HOME;
+		origUserProfile = process.env.USERPROFILE;
 		process.env.HOME = home;
+		process.env.USERPROFILE = home;
 		// Seed two entries in the temp ledger.
 		const path = ledgerPath();
 		record({ ts: 1, files: 2, cwd: "/proj", op: "find refs", symanticTokens: 20, baselineTokens: 100 }, path);
@@ -51,6 +56,12 @@ describe("gain command run", () => {
 			delete process.env.HOME;
 		} else {
 			process.env.HOME = origHome;
+		}
+
+		if (origUserProfile === undefined) {
+			delete process.env.USERPROFILE;
+		} else {
+			process.env.USERPROFILE = origUserProfile;
 		}
 	});
 

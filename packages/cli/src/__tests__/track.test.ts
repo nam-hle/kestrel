@@ -14,11 +14,16 @@ import { ledgerPath } from "../gain/ledger.js";
 describe("recordGain", () => {
 	let home: string;
 	let origHome: string | undefined;
+	let origUserProfile: string | undefined;
 
 	beforeEach(() => {
 		home = mkdtempSync(join(tmpdir(), "symantic-track-"));
+		// homedir() reads HOME on POSIX, USERPROFILE on Windows. Set both so the test is hermetic
+		// on every platform.
 		origHome = process.env.HOME;
+		origUserProfile = process.env.USERPROFILE;
 		process.env.HOME = home;
+		process.env.USERPROFILE = home;
 	});
 
 	afterEach(() => {
@@ -26,6 +31,12 @@ describe("recordGain", () => {
 			delete process.env.HOME;
 		} else {
 			process.env.HOME = origHome;
+		}
+
+		if (origUserProfile === undefined) {
+			delete process.env.USERPROFILE;
+		} else {
+			process.env.USERPROFILE = origUserProfile;
 		}
 	});
 
