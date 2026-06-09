@@ -4,7 +4,7 @@
 	"bump-patch-for-minor-pre-major": true,
 
 	"separate-pull-requests": false,
-	"group-pull-request-title-pattern": "chore: release v${version}",
+	"group-pull-request-title-pattern": "chore: release ${branch}",
 
 	"include-component-in-tag": true,
 	"tag-separator": "/",
