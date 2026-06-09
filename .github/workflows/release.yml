@@ -84,6 +84,8 @@ jobs:
           node-version: 24
           registry-url: https://registry.npmjs.org
 
+      # pnpm publish rewrites the `workspace:*` protocol to the real version in the
+      # published tarball; plain `npm publish` ships the literal string and breaks installs.
       - name: Publish to npm
-        run: npm publish --provenance --access public
+        run: pnpm publish --provenance --access public --no-git-checks
         working-directory: ${{ matrix.path }}
