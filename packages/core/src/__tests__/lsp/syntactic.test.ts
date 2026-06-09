@@ -1,6 +1,14 @@
 import { it, expect, describe } from "vitest";
 
-import { classifyAt, buildOutline, parseImports, topLevelExports, functionSkeleton, outlineSymbolMembers } from "../../lsp/syntactic.js";
+import {
+	classifyAt,
+	buildOutline,
+	parseImports,
+	topLevelExports,
+	functionSkeleton,
+	declarationSourceAt,
+	outlineSymbolMembers
+} from "../../lsp/syntactic.js";
 
 const consumer = `import { makeCircle, Circle } from "./shapes.js";
 
@@ -195,6 +203,26 @@ describe("buildOutline exports", () => {
 		const localFn = o.exports.find((m) => m.name === "localFn");
 		expect(localFn).toBeDefined();
 		expect(localFn!.kind).toBe("FunctionDeclaration");
+	});
+});
+
+describe("declarationSourceAt", () => {
+	const iface = `export interface Greeter {
+	greet(name: string): string;
+	readonly id: number;
+}
+`;
+
+	it("returns just the interface method member, not the whole interface", () => {
+		// "greet" member on line 1 (0-based), after one tab.
+		const src = declarationSourceAt(iface, { line: 1, character: 1 });
+		expect(src).toBe("greet(name: string): string;");
+	});
+
+	it("returns just an interface property signature member", () => {
+		// "id" property on line 2.
+		const src = declarationSourceAt(iface, { line: 2, character: 10 });
+		expect(src).toBe("readonly id: number;");
 	});
 });
 

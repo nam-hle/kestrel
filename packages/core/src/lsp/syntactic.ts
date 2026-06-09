@@ -543,7 +543,13 @@ export function declarationSourceAt(text: string, pos: LspPosition): string | un
 			ts.isModuleDeclaration(node) ||
 			ts.isVariableStatement(node) ||
 			ts.isMethodDeclaration(node) ||
-			ts.isPropertyDeclaration(node)
+			ts.isPropertyDeclaration(node) ||
+			// Interface members: signatures, not declarations. Without these the deepest
+			// match is the enclosing interface, so a member address dumps the whole interface.
+			ts.isMethodSignature(node) ||
+			ts.isPropertySignature(node) ||
+			ts.isGetAccessorDeclaration(node) ||
+			ts.isSetAccessorDeclaration(node)
 		) {
 			decl = node;
 		}
