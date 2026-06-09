@@ -6,8 +6,7 @@
 	"separate-pull-requests": false,
 	"group-pull-request-title-pattern": "chore: release ${branch}",
 
-	"include-component-in-tag": true,
-	"tag-separator": "/",
+	"include-component-in-tag": false,
 
 	"changelog-sections": [
 		{ "type": "feat", "section": "Features" },
