@@ -21,6 +21,7 @@ export function asAsync(engine: SymbolEngine): AsyncSymbolEngine {
 		dispose: () => Promise.resolve(),
 		refreshIfStale: () => Promise.resolve(engine.refreshIfStale()),
 		outlineFile: (path) => Promise.resolve(engine.outlineFile(path)),
+		sourceFileCount: () => Promise.resolve(engine.sourceFileCount()),
 		listImports: (path) => Promise.resolve(engine.listImports(path)),
 		publicSurface: (path) => Promise.resolve(engine.publicSurface(path)),
 		symbolSource: (symbol) => Promise.resolve(engine.symbolSource(symbol)),

@@ -7,6 +7,8 @@ import { resolve as resolvePath } from "node:path";
  */
 import { readdirSync, readFileSync } from "node:fs";
 
+import ts from "typescript";
+
 import { shortKind } from "./render.js";
 import { LspClient } from "./lsp/client.js";
 import { isTestFile } from "./test-file.js";
@@ -171,6 +173,14 @@ export class LspEngine {
 		}
 	}
 
+	/** Number of source files the tsconfig declares — 0 signals a non-loadable (base) tsconfig. */
+	public sourceFileCount(): Promise<number> {
+		const configFile = ts.readConfigFile(resolvePath(this.options.tsConfigPath), ts.sys.readFile);
+		const parsed = ts.parseJsonConfigFileContent(configFile.config ?? {}, ts.sys, this.#root);
+
+		return Promise.resolve(parsed.fileNames.length);
+	}
+
 	public async dispose(): Promise<void> {
 		await this.#client?.dispose();
 		this.#client = undefined;
@@ -276,6 +286,12 @@ export class LspEngine {
 			}
 
 			const position = locationToPosition(loc, this.#root);
+
+			// tsgo's workspace index can reach outside the tsconfig's file set (e.g. emitted
+			// lib/**/*.d.ts) — declaration outputs are build-artifact twins of source hits, skip.
+			if (position.file.endsWith(".d.ts")) {
+				continue;
+			}
 
 			if (options?.excludeTests === true && isTestFile(position.file)) {
 				continue;

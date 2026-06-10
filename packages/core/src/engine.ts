@@ -136,6 +136,11 @@ export class Engine implements SymbolEngine {
 			.replace(/\/[^/]*$/, "");
 	}
 
+	/** Number of source files in the loaded project — 0 signals a non-loadable (base) tsconfig. */
+	public sourceFileCount(): number {
+		return this.#getProject().getSourceFiles().length;
+	}
+
 	/** Re-read files changed out-of-band before answering. See DESIGN open-Q (staleness). */
 	public refreshIfStale(): void {
 		if (this.#project === undefined) {

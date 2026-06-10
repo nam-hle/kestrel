@@ -73,6 +73,12 @@ async function withEngine(
 	const engineInstance = createEngine({ tsConfigPath, engine: args.engine as EngineKind | undefined });
 
 	try {
+		if ((await engineInstance.sourceFileCount()) === 0) {
+			process.stderr.write(
+				`warning: project loaded 0 source files from ${tsConfigPath} — likely a shared base config; pass a per-package tsconfig via --tsconfig\n`
+			);
+		}
+
 		await fn(engineInstance, tsConfigPath);
 	} catch (error) {
 		process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);

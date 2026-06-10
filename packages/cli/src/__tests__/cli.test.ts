@@ -240,6 +240,24 @@ describe("CLI integration", () => {
 		}, 10_000);
 	});
 
+	describe("0-file project warning", () => {
+		const BASE_CONFIG_DIR = join(__dirname, "..", "..", "..", "core", "src", "__tests__", "fixtures", "base-config");
+
+		it("warns on stderr when the discovered tsconfig yields no source files", async () => {
+			const { code, stderr } = await run(["find", "symbol", "fooMarker"], BASE_CONFIG_DIR);
+
+			expect(code).toBe(0);
+			expect(stderr).toContain("0 source files");
+			expect(stderr).toContain("--tsconfig");
+		}, 20_000);
+
+		it("does not warn for a project with source files", async () => {
+			const { stderr } = await run(["find", "symbol", "makeCircle", "--tsconfig", TSCONFIG]);
+
+			expect(stderr).not.toContain("0 source files");
+		}, 20_000);
+	});
+
 	describe("tsconfig auto-discovery (--tsconfig optional)", () => {
 		it("discovers the nearest tsconfig.json from cwd when --tsconfig is omitted", async () => {
 			// Run from the fixture dir (which has a tsconfig.json) without --tsconfig.

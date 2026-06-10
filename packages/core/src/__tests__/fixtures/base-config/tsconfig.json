@@ -1,0 +1,10 @@
+{
+	// Shared-base shape: include points at a src/ dir that does not exist next to this
+	// config — a loadable-looking tsconfig that yields a 0-file project (issue #114).
+	"include": ["src/**/*.ts"],
+	"compilerOptions": {
+		"module": "nodenext",
+		"target": "es2022",
+		"strict": true
+	}
+}
