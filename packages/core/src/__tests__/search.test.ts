@@ -81,4 +81,22 @@ describe.skipIf(!binAvailable)("searchSymbol (lsp engine, cold index)", () => {
 			await lsp.dispose();
 		}
 	}, 30_000);
+
+	test("classifies the symbol kind, matching the ts-morph engine", async () => {
+		// workspace/symbol carries an LSP SymbolKind; dropping it to "unknown" robbed the
+		// orientation signal (can't tell an interface from a fn at a glance). The lsp engine
+		// must map it to the same ts-morph getKindName() string the renderer compacts.
+		const lsp = new LspEngine({ tsConfigPath });
+
+		try {
+			const iface = await lsp.searchSymbol("Shape", { contains: true });
+			const circle = iface.find((h) => h.qualifiedName === "src/shapes.ts:Shape");
+			expect(circle?.kind).toBe("InterfaceDeclaration");
+
+			const fn = await lsp.searchSymbol("makeCircle");
+			expect(fn[0]?.kind).toBe("FunctionDeclaration");
+		} finally {
+			await lsp.dispose();
+		}
+	}, 30_000);
 });

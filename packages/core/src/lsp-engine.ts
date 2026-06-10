@@ -12,9 +12,9 @@ import { isTestFile } from "./test-file.js";
 import { readRegionFrom } from "./region.js";
 import { parsePageCursor } from "./cursor.js";
 import { parseQualifiedName } from "./resolve.js";
-import { LspSymbolKind } from "./lsp/protocol.js";
 import { resolveInSymbols } from "./lsp/bridge.js";
 import { resolveProjectFile } from "./lsp/resolve-path.js";
+import { LspSymbolKind, lspSymbolKindToName } from "./lsp/protocol.js";
 import type { LspLocation, LspPosition, DocumentSymbol } from "./lsp/protocol.js";
 import { lspToPosition, uriToRelative, asLocationOrNull, locationToPosition } from "./lsp/translate.js";
 import {
@@ -262,7 +262,7 @@ export class LspEngine {
 	public async searchSymbol(name: string, options?: SearchOptions): Promise<Candidate[]> {
 		const client = await this.#ready();
 		await this.#warmIndex(client);
-		const results = (await client.request("workspace/symbol", { query: name })) as { name: string; location: unknown }[] | null;
+		const results = (await client.request("workspace/symbol", { query: name })) as { name: string; kind?: number; location: unknown }[] | null;
 		const matches = (results ?? []).filter((r) => (options?.contains === true ? r.name.toLowerCase().includes(name.toLowerCase()) : r.name === name));
 		const candidates: Candidate[] = [];
 
@@ -275,7 +275,8 @@ export class LspEngine {
 			}
 
 			const position = locationToPosition(loc, this.#root);
-			candidates.push({ position, kind: "unknown", qualifiedName: `${position.file}:${r.name}` });
+			const kind = r.kind === undefined ? "unknown" : lspSymbolKindToName(r.kind);
+			candidates.push({ kind, position, qualifiedName: `${position.file}:${r.name}` });
 		}
 
 		return candidates;
