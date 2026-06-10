@@ -91,6 +91,22 @@ matching symbol across the whole project, including layers in directories you ha
 the exact case where grep makes you miss code that lives where you didn't look. Only grep the
 concept when a sensible fragment genuinely yields nothing.
 
+**Tracing a whole flow? Cast for _every_ layer's vocabulary, not just the first hit.** An
+end-to-end flow (UI → action → reducer/saga → server → render) spans several layers, each with
+its own naming. Casting `find symbol reducer/saga --contains` finds the client-state half but
+**stops there** — the server-data half lives under different words (`provider`, `loader`,
+`query`, `request`, `executePlan`, `fetch`). Enumerate the layers you expect _up front_ and
+cast a fragment for each; a flow that "delegates to the framework" often still has a local
+provider/loader doing the real work. The kind column (`cls`/`fn`/`iface`) on each `--contains`
+hit is your cheapest orientation signal — a `…Provider`/`…Loader` _class_ among `fn` hits is
+often the server seam.
+
+When a `--contains` cast drowns in test-file hits (`*.test.ts`, `__tests__/`, `e2e/`) on a
+project whose tsconfig includes tests, add **`--exclude-tests`** to drop them — don't pipe the
+output through `grep -v test`. When a fragment collides with unrelated symbols (e.g. `action`
+matching `ActionBar`/`RowAction` components), narrow by declaration kind with
+**`--kind cls,iface,fn,ns,const,type,enum`** instead of eyeballing a long list.
+
 ## When to fall back to Read/grep
 
 Only when symantic can't serve it: non-TS file, file outside the tsconfig project, no

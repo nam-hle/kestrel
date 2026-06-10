@@ -39,6 +39,36 @@ export enum LspSymbolKind {
 	TypeParameter = 26
 }
 
+/**
+ * Map an LSP `SymbolKind` (from `workspace/symbol`) to the ts-morph `getKindName()` string the
+ * renderer's KIND_SHORT table compacts — so the lsp engine reports the same kind as ts-morph.
+ * Falls back to "unknown" for kinds we don't model (the renderer prints those verbatim).
+ */
+export function lspSymbolKindToName(kind: LspSymbolKind | number): string {
+	switch (kind) {
+		case LspSymbolKind.Class:
+			return "ClassDeclaration";
+		case LspSymbolKind.Interface:
+			return "InterfaceDeclaration";
+		case LspSymbolKind.Function:
+			return "FunctionDeclaration";
+		case LspSymbolKind.Method:
+			return "MethodDeclaration";
+		case LspSymbolKind.Property:
+			return "PropertyDeclaration";
+		case LspSymbolKind.Namespace:
+		case LspSymbolKind.Module:
+			return "ModuleDeclaration";
+		case LspSymbolKind.Variable:
+		case LspSymbolKind.Constant:
+			return "VariableDeclaration";
+		case LspSymbolKind.TypeParameter:
+			return "TypeParameter";
+		default:
+			return "unknown";
+	}
+}
+
 /** Hierarchical document symbol (tsgo returns this nested form). */
 export interface DocumentSymbol {
 	name: string;

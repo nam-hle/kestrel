@@ -8,6 +8,7 @@ import { resolve as resolvePath } from "node:path";
 import { Node, Project } from "ts-morph";
 import type { SourceFile } from "ts-morph";
 
+import { shortKind } from "./render.js";
 import { isTestFile } from "./test-file.js";
 import { withTagComment } from "./types.js";
 import { readRegionFrom } from "./region.js";
@@ -211,9 +212,14 @@ export class Engine implements SymbolEngine {
 
 		const candidates: Candidate[] = [];
 		const base = this.#baseDir();
+		const kindSet = options?.kinds !== undefined && options.kinds.length > 0 ? new Set(options.kinds) : undefined;
 
 		for (const sourceFile of this.#getProject().getSourceFiles()) {
 			const rel = toRelative(sourceFile.getFilePath(), base);
+
+			if (options?.excludeTests === true && isTestFile(rel)) {
+				continue;
+			}
 
 			for (const decl of allDeclarations(sourceFile)) {
 				const segments = splitName(decl.path);
@@ -222,11 +228,13 @@ export class Engine implements SymbolEngine {
 					continue;
 				}
 
-				candidates.push({
-					kind: decl.node.getKindName(),
-					position: position(decl.node, base),
-					qualifiedName: `${rel}:${decl.path}`
-				});
+				const kind = decl.node.getKindName();
+
+				if (kindSet !== undefined && !kindSet.has(shortKind(kind))) {
+					continue;
+				}
+
+				candidates.push({ kind, position: position(decl.node, base), qualifiedName: `${rel}:${decl.path}` });
 			}
 		}
 

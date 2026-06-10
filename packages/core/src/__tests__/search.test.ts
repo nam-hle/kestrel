@@ -44,6 +44,31 @@ describe("searchSymbol", () => {
 		expect(engine.searchSymbol("DoesNotExistAnywhere")).toEqual([]);
 	});
 
+	test("excludeTests drops hits that live in test files", () => {
+		const engine = new Engine({ tsConfigPath });
+
+		// `fromTest` is declared in src/e2e/usage.ts — a test path per isTestFile.
+		const all = engine.searchSymbol("fromTest").map((h) => h.qualifiedName);
+		const prod = engine.searchSymbol("fromTest", { excludeTests: true }).map((h) => h.qualifiedName);
+
+		expect(all).toContain("src/e2e/usage.ts:fromTest");
+		expect(prod).not.toContain("src/e2e/usage.ts:fromTest");
+	});
+
+	test("kinds filters hits to the given short kinds", () => {
+		const engine = new Engine({ tsConfigPath });
+
+		// "Area" spans a fn (totalArea), const (averageArea), class (AreaService), iface (AreaCalculators).
+		const classes = engine.searchSymbol("Area", { contains: true, kinds: ["cls"] }).map((h) => h.qualifiedName);
+		const ifaces = engine.searchSymbol("Area", { contains: true, kinds: ["iface"] }).map((h) => h.qualifiedName);
+
+		expect(classes).toContain("src/consumer.ts:AreaService");
+		expect(classes).not.toContain("src/consumer.ts:totalArea");
+		expect(classes).not.toContain("src/consumer.ts:AreaCalculators");
+		expect(ifaces).toContain("src/consumer.ts:AreaCalculators");
+		expect(ifaces).not.toContain("src/consumer.ts:AreaService");
+	});
+
 	test("finds a shorthand method declared inside an object literal", () => {
 		const engine = new Engine({ tsConfigPath });
 
@@ -77,6 +102,37 @@ describe.skipIf(!binAvailable)("searchSymbol (lsp engine, cold index)", () => {
 		try {
 			const hits = await lsp.searchSymbol("totalArea");
 			expect(hits.map((h) => h.qualifiedName)).toContain("src/consumer.ts:totalArea");
+		} finally {
+			await lsp.dispose();
+		}
+	}, 30_000);
+
+	test("excludeTests drops test-file hits", async () => {
+		const lsp = new LspEngine({ tsConfigPath });
+
+		try {
+			const all = (await lsp.searchSymbol("fromTest")).map((h) => h.qualifiedName);
+			const prod = (await lsp.searchSymbol("fromTest", { excludeTests: true })).map((h) => h.qualifiedName);
+			expect(all).toContain("src/e2e/usage.ts:fromTest");
+			expect(prod).not.toContain("src/e2e/usage.ts:fromTest");
+		} finally {
+			await lsp.dispose();
+		}
+	}, 30_000);
+
+	test("classifies the symbol kind, matching the ts-morph engine", async () => {
+		// workspace/symbol carries an LSP SymbolKind; dropping it to "unknown" robbed the
+		// orientation signal (can't tell an interface from a fn at a glance). The lsp engine
+		// must map it to the same ts-morph getKindName() string the renderer compacts.
+		const lsp = new LspEngine({ tsConfigPath });
+
+		try {
+			const iface = await lsp.searchSymbol("Shape", { contains: true });
+			const circle = iface.find((h) => h.qualifiedName === "src/shapes.ts:Shape");
+			expect(circle?.kind).toBe("InterfaceDeclaration");
+
+			const fn = await lsp.searchSymbol("makeCircle");
+			expect(fn[0]?.kind).toBe("FunctionDeclaration");
 		} finally {
 			await lsp.dispose();
 		}
