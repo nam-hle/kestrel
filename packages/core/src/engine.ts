@@ -215,6 +215,10 @@ export class Engine implements SymbolEngine {
 		for (const sourceFile of this.#getProject().getSourceFiles()) {
 			const rel = toRelative(sourceFile.getFilePath(), base);
 
+			if (options?.excludeTests === true && isTestFile(rel)) {
+				continue;
+			}
+
 			for (const decl of allDeclarations(sourceFile)) {
 				const segments = splitName(decl.path);
 

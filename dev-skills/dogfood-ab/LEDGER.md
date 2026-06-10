@@ -7,9 +7,36 @@ history, not comparable on fallback count.
 
 ## Fixed-question series (symantic-preferred arm; fallback count comparable)
 
-| Round | Repo            | Date       | Fixed-Q | Fallbacks (raw / verified-gap) | Issues |
-| ----- | --------------- | ---------- | ------- | ------------------------------ | ------ |
-| 4     | overview-engine | 2026-06-09 | v1      | 6 / **0**                      | none   |
+| Round | Repo            | Date       | Fixed-Q | Fallbacks (raw / verified-gap) | Issues        |
+| ----- | --------------- | ---------- | ------- | ------------------------------ | ------------- |
+| 4     | overview-engine | 2026-06-09 | v1      | 6 / **0**                      | none          |
+| 5     | overview-engine | 2026-06-10 | v1      | 1 / **1**                      | fixed in-loop |
+| 6     | overview-engine | 2026-06-10 | v1      | 2 / **2**                      | 1 fixed, 1 deferred |
+
+Round 6 notes: re-ran after the round-5 fixes. The symantic arm now **found
+both halves** of the flow (the round-5 miss is gone) — kind classification +
+the multi-layer-orientation skill guidance worked, and it was more complete
+than the grep arm on the server detail at fewer tokens. Two new fallbacks, both
+verified gaps: (1) **shell-piped `grep -v test`** to filter test-file noise out
+of `find symbol --contains` output — no production-only filter existed. **Fixed
+in-loop:** added `excludeTests` to `SearchOptions` + `--exclude-tests` CLI flag,
+both engines, repro'd on own source (`engine` fragment: 3 test hits → 0).
+(2) **`view symbol` on an import alias** (`import { X as Y }`) failed on both
+engines — `find symbol` lists the alias as a VariableDeclaration but neither
+engine resolves it to its source. **Deferred** (needs a new fixture; narrower /
+lower-frequency than the noise flood). Branch `feat/lsp-search-symbol-kind`.
+
+Round 5 notes: fallback count dropped 6→1 (only a dir-tree listing, a legit
+non-symantic need). But the symantic arm **missed the server-data half** of the
+flow that the grep arm found — it oriented only by client-state vocabulary and
+stopped at the framework hand-off, wrongly concluding no local server seam
+existed. Two fixes shipped in-loop: (a) **code** — lsp `find symbol --contains`
+emitted `kind: "unknown"` (dropped the LSP SymbolKind from workspace/symbol),
+losing the orientation signal; now maps to the ts-morph kind string
+(`lspSymbolKindToName`), parity restored, repro'd on symantic's own fixtures
+(`Shape` → was `unknown`, now `InterfaceDeclaration`). (b) **skill** — teach
+casting `--contains` for every layer's vocabulary when tracing a whole flow,
+not just the first concept that hits. Branch `feat/lsp-search-symbol-kind`.
 
 Round 4 notes: all 6 grep fallbacks were operator error / habit, not capability
 gaps. `find symbol <fragment> --contains` (e.g. `load`, `Saga`) surfaces the

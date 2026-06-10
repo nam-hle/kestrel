@@ -275,6 +275,11 @@ export class LspEngine {
 			}
 
 			const position = locationToPosition(loc, this.#root);
+
+			if (options?.excludeTests === true && isTestFile(position.file)) {
+				continue;
+			}
+
 			const kind = r.kind === undefined ? "unknown" : lspSymbolKindToName(r.kind);
 			candidates.push({ kind, position, qualifiedName: `${position.file}:${r.name}` });
 		}

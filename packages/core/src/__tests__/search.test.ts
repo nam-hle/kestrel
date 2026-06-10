@@ -44,6 +44,17 @@ describe("searchSymbol", () => {
 		expect(engine.searchSymbol("DoesNotExistAnywhere")).toEqual([]);
 	});
 
+	test("excludeTests drops hits that live in test files", () => {
+		const engine = new Engine({ tsConfigPath });
+
+		// `fromTest` is declared in src/e2e/usage.ts — a test path per isTestFile.
+		const all = engine.searchSymbol("fromTest").map((h) => h.qualifiedName);
+		const prod = engine.searchSymbol("fromTest", { excludeTests: true }).map((h) => h.qualifiedName);
+
+		expect(all).toContain("src/e2e/usage.ts:fromTest");
+		expect(prod).not.toContain("src/e2e/usage.ts:fromTest");
+	});
+
 	test("finds a shorthand method declared inside an object literal", () => {
 		const engine = new Engine({ tsConfigPath });
 
@@ -77,6 +88,19 @@ describe.skipIf(!binAvailable)("searchSymbol (lsp engine, cold index)", () => {
 		try {
 			const hits = await lsp.searchSymbol("totalArea");
 			expect(hits.map((h) => h.qualifiedName)).toContain("src/consumer.ts:totalArea");
+		} finally {
+			await lsp.dispose();
+		}
+	}, 30_000);
+
+	test("excludeTests drops test-file hits", async () => {
+		const lsp = new LspEngine({ tsConfigPath });
+
+		try {
+			const all = (await lsp.searchSymbol("fromTest")).map((h) => h.qualifiedName);
+			const prod = (await lsp.searchSymbol("fromTest", { excludeTests: true })).map((h) => h.qualifiedName);
+			expect(all).toContain("src/e2e/usage.ts:fromTest");
+			expect(prod).not.toContain("src/e2e/usage.ts:fromTest");
 		} finally {
 			await lsp.dispose();
 		}

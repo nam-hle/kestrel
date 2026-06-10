@@ -277,6 +277,7 @@ const findSymbol = defineCommand({
 		engine,
 		tsconfig,
 		name: { required: true, type: "positional", description: "Symbol name" },
+		"exclude-tests": { type: "boolean", description: "Omit hits in test files — cuts orientation noise on test-heavy projects" },
 		contains: {
 			type: "boolean",
 			description: "Match the name as a substring (case-insensitive) — the orientation entry point when you only know part of a name"
@@ -284,7 +285,7 @@ const findSymbol = defineCommand({
 	},
 	async run({ args }) {
 		await withEngine(args, async (e, tc) => {
-			const cands = await e.searchSymbol(args.name, { contains: args.contains });
+			const cands = await e.searchSymbol(args.name, { contains: args.contains, excludeTests: args["exclude-tests"] === true });
 			output({ tsconfig: tc, op: "find symbol" }, cands, () => renderCandidates(cands), args.json);
 
 			if (cands.length === 0 && args.json !== true) {

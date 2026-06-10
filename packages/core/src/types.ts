@@ -179,6 +179,8 @@ export interface UsageReportOptions {
 export interface SearchOptions {
 	/** Match the name as a substring (case-insensitive) instead of exact. */
 	contains?: boolean;
+	/** Omit hits that live in test files (see isTestFile) — cuts orientation noise. */
+	excludeTests?: boolean;
 }
 
 export interface CallHierarchyOptions {
