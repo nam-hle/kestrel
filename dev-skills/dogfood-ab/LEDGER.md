@@ -5,18 +5,43 @@ question** so convergence to grep parity is visible. Rounds before the fixed-que
 used ad-hoc questions and a strict symantic-only arm (no fallback metric) — recorded for
 history, not comparable on fallback count.
 
+Target repos are private and anonymized here (engine A / B / C — A12 `*-engine` packages, same
+client-core/Redux/saga shape). The grep baseline is run once per repo (the first round on it);
+later rounds run the symantic arm only, tracking its fallback count converge.
+
 ## Fixed-question series (symantic-preferred arm; fallback count comparable)
 
-| Round | Repo            | Date       | Fixed-Q | Fallbacks (raw / verified-gap) | Issues              |
-| ----- | --------------- | ---------- | ------- | ------------------------------ | ------------------- |
-| 4     | overview-engine | 2026-06-09 | v1      | 6 / **0**                      | none                |
-| 5     | overview-engine | 2026-06-10 | v1      | 1 / **1**                      | fixed in-loop       |
-| 6     | overview-engine | 2026-06-10 | v1      | 2 / **2**                      | 1 fixed, 1 deferred |
-| 7     | overview-engine | 2026-06-10 | v1      | 0 / **0**                      | none (converged)    |
-| 8     | overview-engine | 2026-06-10 | v1      | 0 / **0**                      | proactive: --kind   |
-| 9     | tree-engine     | 2026-06-10 | v1      | 3 / **2**                      | 1 fixed, 1 deferred |
+| Round | Repo     | Date       | Fixed-Q | Fallbacks (raw / verified-gap) | Issues              |
+| ----- | -------- | ---------- | ------- | ------------------------------ | ------------------- |
+| 4     | engine A | 2026-06-09 | v1      | 6 / **0**                      | none                |
+| 5     | engine A | 2026-06-10 | v1      | 1 / **1**                      | fixed in-loop       |
+| 6     | engine A | 2026-06-10 | v1      | 2 / **2**                      | 1 fixed, 1 deferred |
+| 7     | engine A | 2026-06-10 | v1      | 0 / **0**                      | none (converged)    |
+| 8     | engine A | 2026-06-10 | v1      | 0 / **0**                      | proactive: --kind   |
+| 9     | engine B | 2026-06-10 | v1      | 3 / **2**                      | 1 fixed, 1 deferred |
+| 10    | engine B | 2026-06-10 | v1      | 1 / **0**                      | none (--path used)  |
+| 11    | engine B | 2026-06-10 | v1      | 0 / **0**                      | none (converged)    |
 
-Round 9 notes (first run on tree-engine — tests whether the OE-found fixes
+Round 11 notes (symantic arm only): **zero fallbacks, zero gaps**. Used `--path`,
+`--exclude-tests`, `--kind`, and `view members` all natively — no shell-pipe, no
+Read on TS source. Found both halves of the flow. Two lsp friction notes (not
+fallbacks): `view symbol` with a `#index` overload address and a `::`-nested
+arrow/const member each returned not-found under `--engine lsp`; neither blocked
+the answer. Same body-local/addressing family as the round-6 and round-9
+deferrals — the recurring theme worth a dedicated fixture + fix later.
+
+Round 10 notes (symantic arm only — the grep baseline is set once per repo in
+round 9; re-running it each round just reproduces the same answer at token
+cost). The round-9 `--path` fix landed: the arm used `--path view` to scope a
+cast cleanly instead of `| grep view/`. Down to **1 fallback, 0 gaps** — and
+that one was operator habit (grepped a printed outline for namespace members
+where `view members <file>:Ns` was the native op; verified `view members`
+works fine on a namespace). Cost note observed this round: the symantic arm
+runs **more tool calls + more wall-time** than grep (fine-grained per-symbol
+ops, + lsp cold-index ~3s) but **fewer tokens** (53k vs 64k) — it trades
+process-time for context economy, the right trade for an agent.
+
+Round 9 notes (first run on engine B — tests whether the engine-A fixes
 generalize): they do. The symantic arm found **both halves** of the flow with
 **no Read-tool fallback**, at ~53k tokens vs the grep arm's ~95k (~17 files,
 ~2800 lines). Used `--exclude-tests`/`--kind` cleanly. Three fallbacks, all
@@ -46,9 +71,9 @@ Round 7 notes: **zero fallbacks** — convergence. The arm used `--exclude-tests
 on every `--contains` cast (no shell-piping), found both halves of the flow,
 and was complete at fewer tokens than the grep arm. Trajectory 6→1→2→0. One
 friction note (not a fallback): the arm wanted a `--kind` filter on
-`find symbol` to cut collision noise (`action` matched UI `ActionBar`/
-`RowAction`). Now that kind classification works (round 5), a `--kind` filter
-is cheap + high-value → round 8 target.
+`find symbol` to cut collision noise (a `action` fragment matched UI
+component names). Now that kind classification works (round 5), a `--kind`
+filter is cheap + high-value → round 8 target.
 
 Round 6 notes: re-ran after the round-5 fixes. The symantic arm now **found
 both halves** of the flow (the round-5 miss is gone) — kind classification +
@@ -77,18 +102,17 @@ not just the first concept that hits. Branch `feat/lsp-search-symbol-kind`.
 
 Round 4 notes: all 6 grep fallbacks were operator error / habit, not capability
 gaps. `find symbol <fragment> --contains` (e.g. `load`, `Saga`) surfaces the
-symbols the agent grepped for — including the `client-extensions/` saga layer the
-symantic arm wrongly concluded didn't exist. #3/#5/#6 were `find refs` /
-`view symbol` / `::`-addressing the agent skipped by habit. Residual friction is a
-**skill/guidance gap** (orient by casting `find symbol --contains` wide before
-grepping; nested decls are `::`-addressable), not a symantic code gap — no issue
-filed. Convergence holding: real code gaps from rounds 1-3 (#102-#105) are fixed;
-round 4 found none.
+symbols the agent grepped for — including the saga layer the symantic arm
+wrongly concluded didn't exist. Residual friction is a **skill/guidance gap**
+(orient by casting `find symbol --contains` wide before grepping; nested decls
+are `::`-addressable), not a symantic code gap — no issue filed. Convergence
+holding: real code gaps from earlier rounds (#102-#105) are fixed; round 4
+found none.
 
 ## Pre-series history (strict symantic-only arm; ad-hoc questions)
 
-| Round | Repo                | Question                  | Verified gaps → issues                             |
-| ----- | ------------------- | ------------------------- | -------------------------------------------------- |
-| 1     | tree-engine         | node expand/collapse flow | #102, #103 (lsp namespace + function-scope parity) |
-| 2     | overview-engine     | column sorting flow       | #104 (lsp interface-member dump)                   |
-| 3     | relationship-engine | add-link flow             | #105 (JSDoc release tags not surfaced)             |
+| Round | Repo     | Question                  | Verified gaps → issues                             |
+| ----- | -------- | ------------------------- | -------------------------------------------------- |
+| 1     | engine B | node expand/collapse flow | #102, #103 (lsp namespace + function-scope parity) |
+| 2     | engine A | column sorting flow       | #104 (lsp interface-member dump)                   |
+| 3     | engine C | add-link flow             | #105 (JSDoc release tags not surfaced)             |
