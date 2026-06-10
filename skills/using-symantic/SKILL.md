@@ -101,6 +101,10 @@ provider/loader doing the real work. The kind column (`cls`/`fn`/`iface`) on eac
 hit is your cheapest orientation signal — a `…Provider`/`…Loader` _class_ among `fn` hits is
 often the server seam.
 
+When a `--contains` cast drowns in test-file hits (`*.test.ts`, `__tests__/`, `e2e/`) on a
+project whose tsconfig includes tests, add **`--exclude-tests`** to drop them — don't pipe the
+output through `grep -v test`.
+
 ## When to fall back to Read/grep
 
 Only when symantic can't serve it: non-TS file, file outside the tsconfig project, no
