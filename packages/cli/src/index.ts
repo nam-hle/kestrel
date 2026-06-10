@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-import { createEngine } from "@symantic/core";
 /**
  * symantic CLI adapter. Translates CLI args <-> @symantic/core calls and prints
  * results. No analysis logic. See docs/DESIGN.md Section 1.
@@ -8,6 +7,7 @@ import { createEngine } from "@symantic/core";
  * plus top-level addressing / whole-file facts.
  */
 import { runMain, defineCommand } from "citty";
+import { NS_SEP, createEngine } from "@symantic/core";
 import type { EngineKind, SymbolHandle, AsyncSymbolEngine } from "@symantic/core";
 import {
 	renderSource,
@@ -168,13 +168,12 @@ const viewFile = defineCommand({
 				return;
 			}
 
-			const sources = (
-				await Promise.all(
-					outline.exports.map((m) =>
-						m.qualifiedName !== undefined ? e.symbolSource({ position: m.position, qualifiedName: m.qualifiedName }) : Promise.resolve([])
-					)
-				)
-			).flat();
+			// Top-level exports only: a nested member's source is already inside its
+			// namespace's source, so fetching it too would print it twice.
+			const handles = outline.exports.flatMap((m) =>
+				m.qualifiedName !== undefined && !m.name.includes(NS_SEP) ? [{ position: m.position, qualifiedName: m.qualifiedName }] : []
+			);
+			const sources = (await Promise.all(handles.map((h) => e.symbolSource(h)))).flat();
 			const tree = renderFileOutline(args.file, outline);
 			const body = sources.map((s) => s.source).join("\n\n");
 			output({ tsconfig: tc, op: "view file" }, { outline, sources }, () => `${tree}\n${body}`, args.json);

@@ -158,6 +158,23 @@ describe("CLI integration", () => {
 			expect(Array.isArray(ctx.callees)).toBe(true);
 		}, 20_000);
 
+		it("view file --body prints each export's source", async () => {
+			const { code, stdout } = await run(["view", "file", "--tsconfig", TSCONFIG, "src/nested.ts", "--body"]);
+
+			expect(code).toBe(0);
+			expect(stdout).toContain("export namespace Model");
+		}, 20_000);
+
+		it("view file --body prints each namespace member exactly once", async () => {
+			const { code, stdout } = await run(["view", "file", "--tsconfig", TSCONFIG, "src/nested.ts", "--body"]);
+
+			expect(code).toBe(0);
+			// Members nested in namespaces appear only inside their namespace's source,
+			// never re-printed standalone.
+			expect(stdout.match(/deep: boolean/g)).toHaveLength(1);
+			expect(stdout.match(/live: boolean/g)).toHaveLength(1);
+		}, 20_000);
+
 		it("view body --source prints the function source instead of the skeleton", async () => {
 			const { code, stdout } = await run(["view", "body", "--tsconfig", TSCONFIG, "src/consumer.ts:totalArea", "--source"]);
 
@@ -240,6 +257,15 @@ describe("CLI integration", () => {
 			expect(code).toBe(0);
 			expect(stdout).toContain("src/shapes.ts:makeCircle");
 			expect(stdout).not.toContain('"kind"');
+		}, 20_000);
+
+		it("view file --body prints each namespace member exactly once (lsp)", async () => {
+			const { code, stdout } = await run(["view", "file", "--tsconfig", TSCONFIG, "--engine", "lsp", "src/nested.ts", "--body"]);
+
+			expect(code).toBe(0);
+			expect(stdout).toContain("export namespace Model");
+			expect(stdout.match(/deep: boolean/g)).toHaveLength(1);
+			expect(stdout.match(/live: boolean/g)).toHaveLength(1);
 		}, 20_000);
 	});
 
