@@ -29,6 +29,8 @@ import { gain } from "./gain/command.js";
 import { readVersion } from "./version.js";
 import { recordGain } from "./gain/track.js";
 import { resolveTsconfig } from "./tsconfig.js";
+import { daemonEngine } from "./daemon/client.js";
+import { runDaemonServer } from "./daemon/server.js";
 
 /** Identifies the query for the gain ledger: its op label and the project tsconfig. */
 interface GainMeta {
@@ -70,7 +72,10 @@ async function withEngine(
 		return;
 	}
 
-	const engineInstance = createEngine({ tsConfigPath, engine: args.engine as EngineKind | undefined });
+	const engineKind = (args.engine as EngineKind | undefined) ?? "tsmorph";
+	// Warm daemon first (#113) — repeat invocations skip the full project load. Falls back
+	// to a fresh in-process engine when the daemon is disabled or unreachable.
+	const engineInstance = (await daemonEngine(tsConfigPath, engineKind, readVersion())) ?? createEngine({ tsConfigPath, engine: engineKind });
 
 	try {
 		if ((await engineInstance.sourceFileCount()) === 0) {
@@ -407,8 +412,27 @@ const find = defineCommand({
 	subCommands: { def: findDef, refs: findRefs, impls: findImpls, symbol: findSymbol, callers: findCallers, callees: findCallees }
 });
 
+/** Hidden daemon entry point — spawned detached by daemonEngine, never typed by hand. */
+const daemon = defineCommand({
+	meta: { name: "_daemon", description: "(internal) run the warm-engine daemon for a tsconfig" },
+	args: {
+		engine: { type: "string", description: "Engine backend: tsmorph (default) or lsp (tsgo)" },
+		tsconfig: { type: "string", required: true, description: "Project tsconfig the daemon serves" }
+	},
+	async run({ args }) {
+		const idleRaw = process.env["SYMANTIC_DAEMON_IDLE_MS"];
+		const idleMs = idleRaw !== undefined && idleRaw !== "" ? Number(idleRaw) : undefined;
+		await runDaemonServer({
+			idleMs,
+			version: readVersion(),
+			tsConfigPath: args.tsconfig,
+			engineKind: (args.engine as EngineKind | undefined) ?? "tsmorph"
+		});
+	}
+});
+
 const main = defineCommand({
-	subCommands: { view, find, gain, usage, resolve, imports, exports: exportsCmd },
+	subCommands: { view, find, gain, usage, resolve, imports, _daemon: daemon, exports: exportsCmd },
 	meta: { name: "symantic", version: readVersion(), description: "Semantic symbol queries for TypeScript" }
 });
 

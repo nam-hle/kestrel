@@ -42,7 +42,12 @@ function tsgoBinAvailable(): boolean {
 /** Run the CLI with the given args (optionally from `cwd`), returning stdout, stderr, exit code. */
 async function run(args: string[], cwd?: string): Promise<{ code: number; stdout: string; stderr: string }> {
 	try {
-		const { stdout, stderr } = await execFileAsync(process.execPath, [CLI_BIN, ...args], { cwd, timeout: 20_000 });
+		// Daemon-free: these tests exercise the in-process path; daemon behavior is covered in daemon.test.ts.
+		const { stdout, stderr } = await execFileAsync(process.execPath, [CLI_BIN, ...args], {
+			cwd,
+			timeout: 20_000,
+			env: { ...process.env, SYMANTIC_NO_DAEMON: "1" }
+		});
 
 		return { stdout, stderr, code: 0 };
 	} catch (error) {
@@ -68,7 +73,7 @@ async function runWithHome(home: string, args: string[]): Promise<{ code: number
 	try {
 		const { stdout, stderr } = await execFileAsync(process.execPath, [CLI_BIN, ...args], {
 			timeout: 20_000,
-			env: { ...process.env, HOME: home, USERPROFILE: home }
+			env: { ...process.env, HOME: home, USERPROFILE: home, SYMANTIC_NO_DAEMON: "1" }
 		});
 
 		return { stdout, stderr, code: 0 };

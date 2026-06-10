@@ -167,6 +167,14 @@ Add `--engine lsp` to any CLI command to use the tsgo-backed engine instead of t
 > unavailable for your platform (e.g. Alpine/musl), `--engine lsp` errors with an install hint while
 > the default engine keeps working.
 
+## Warm daemon (CLI performance)
+
+The first CLI query on a project spawns a small background daemon that keeps the loaded project
+warm, one per `(tsconfig, engine)`; repeat queries skip the full project load (~3s → ~0.7s on a
+mid-size package). The daemon exits on its own after 10 idle minutes. State lives under
+`~/.symantic/daemon/` (plus a socket in the OS temp dir); set `SYMANTIC_NO_DAEMON=1` to always run
+queries in-process.
+
 ## Token savings (`gain`)
 
 Every CLI query records an estimated token saving — symantic's structured output vs. the cost of
