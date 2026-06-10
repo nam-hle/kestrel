@@ -103,7 +103,9 @@ often the server seam.
 
 When a `--contains` cast drowns in test-file hits (`*.test.ts`, `__tests__/`, `e2e/`) on a
 project whose tsconfig includes tests, add **`--exclude-tests`** to drop them — don't pipe the
-output through `grep -v test`.
+output through `grep -v test`. When a fragment collides with unrelated symbols (e.g. `action`
+matching `ActionBar`/`RowAction` components), narrow by declaration kind with
+**`--kind cls,iface,fn,ns,const,type,enum`** instead of eyeballing a long list.
 
 ## When to fall back to Read/grep
 

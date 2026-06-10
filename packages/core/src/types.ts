@@ -177,6 +177,8 @@ export interface UsageReportOptions {
 }
 
 export interface SearchOptions {
+	/** Keep only hits whose short kind (cls/iface/fn/ns/const/type/enum/…) is in this set. */
+	kinds?: string[];
 	/** Match the name as a substring (case-insensitive) instead of exact. */
 	contains?: boolean;
 	/** Omit hits that live in test files (see isTestFile) — cuts orientation noise. */

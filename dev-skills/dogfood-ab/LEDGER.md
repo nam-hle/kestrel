@@ -7,11 +7,30 @@ history, not comparable on fallback count.
 
 ## Fixed-question series (symantic-preferred arm; fallback count comparable)
 
-| Round | Repo            | Date       | Fixed-Q | Fallbacks (raw / verified-gap) | Issues        |
-| ----- | --------------- | ---------- | ------- | ------------------------------ | ------------- |
-| 4     | overview-engine | 2026-06-09 | v1      | 6 / **0**                      | none          |
-| 5     | overview-engine | 2026-06-10 | v1      | 1 / **1**                      | fixed in-loop |
+| Round | Repo            | Date       | Fixed-Q | Fallbacks (raw / verified-gap) | Issues              |
+| ----- | --------------- | ---------- | ------- | ------------------------------ | ------------------- |
+| 4     | overview-engine | 2026-06-09 | v1      | 6 / **0**                      | none                |
+| 5     | overview-engine | 2026-06-10 | v1      | 1 / **1**                      | fixed in-loop       |
 | 6     | overview-engine | 2026-06-10 | v1      | 2 / **2**                      | 1 fixed, 1 deferred |
+| 7     | overview-engine | 2026-06-10 | v1      | 0 / **0**                      | none (converged)    |
+| 8     | overview-engine | 2026-06-10 | v1      | 0 / **0**                      | proactive: --kind   |
+
+Round 8 notes: no new A/B run — fallbacks already at 0. Acted on the round-7
+friction note proactively: added a **`--kind` filter** to `find symbol`
+(`kinds` on `SearchOptions`, both engines, `--kind cls,iface,fn,…` CLI flag),
+reusing the round-5 kind classification + a now-exported `shortKind`. Repro'd
+on fixtures (`Area` → `--kind cls` yields only the class, `iface,fn` the rest).
+Skill updated to reach for `--kind` on collision noise. This widens symantic's
+lead beyond parity: a kind-narrowed cast is a precision grep can't match
+(text search has no notion of declaration kind).
+
+Round 7 notes: **zero fallbacks** — convergence. The arm used `--exclude-tests`
+on every `--contains` cast (no shell-piping), found both halves of the flow,
+and was complete at fewer tokens than the grep arm. Trajectory 6→1→2→0. One
+friction note (not a fallback): the arm wanted a `--kind` filter on
+`find symbol` to cut collision noise (`action` matched UI `ActionBar`/
+`RowAction`). Now that kind classification works (round 5), a `--kind` filter
+is cheap + high-value → round 8 target.
 
 Round 6 notes: re-ran after the round-5 fixes. The symantic arm now **found
 both halves** of the flow (the round-5 miss is gone) — kind classification +

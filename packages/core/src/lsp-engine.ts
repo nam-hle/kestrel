@@ -7,6 +7,7 @@ import { resolve as resolvePath } from "node:path";
  */
 import { readdirSync, readFileSync } from "node:fs";
 
+import { shortKind } from "./render.js";
 import { LspClient } from "./lsp/client.js";
 import { isTestFile } from "./test-file.js";
 import { readRegionFrom } from "./region.js";
@@ -281,6 +282,11 @@ export class LspEngine {
 			}
 
 			const kind = r.kind === undefined ? "unknown" : lspSymbolKindToName(r.kind);
+
+			if (options?.kinds !== undefined && options.kinds.length > 0 && !options.kinds.includes(shortKind(kind))) {
+				continue;
+			}
+
 			candidates.push({ kind, position, qualifiedName: `${position.file}:${r.name}` });
 		}
 

@@ -55,6 +55,20 @@ describe("searchSymbol", () => {
 		expect(prod).not.toContain("src/e2e/usage.ts:fromTest");
 	});
 
+	test("kinds filters hits to the given short kinds", () => {
+		const engine = new Engine({ tsConfigPath });
+
+		// "Area" spans a fn (totalArea), const (averageArea), class (AreaService), iface (AreaCalculators).
+		const classes = engine.searchSymbol("Area", { contains: true, kinds: ["cls"] }).map((h) => h.qualifiedName);
+		const ifaces = engine.searchSymbol("Area", { contains: true, kinds: ["iface"] }).map((h) => h.qualifiedName);
+
+		expect(classes).toContain("src/consumer.ts:AreaService");
+		expect(classes).not.toContain("src/consumer.ts:totalArea");
+		expect(classes).not.toContain("src/consumer.ts:AreaCalculators");
+		expect(ifaces).toContain("src/consumer.ts:AreaCalculators");
+		expect(ifaces).not.toContain("src/consumer.ts:AreaService");
+	});
+
 	test("finds a shorthand method declared inside an object literal", () => {
 		const engine = new Engine({ tsConfigPath });
 
