@@ -277,6 +277,7 @@ const findSymbol = defineCommand({
 		engine,
 		tsconfig,
 		name: { required: true, type: "positional", description: "Symbol name" },
+		path: { type: "string", description: "Keep only hits whose file path contains this substring — scope to a subtree" },
 		"exclude-tests": { type: "boolean", description: "Omit hits in test files — cuts orientation noise on test-heavy projects" },
 		kind: { type: "string", description: "Keep only these short kinds, comma-separated (e.g. cls,iface,fn,ns,const,type,enum)" },
 		contains: {
@@ -287,7 +288,12 @@ const findSymbol = defineCommand({
 	async run({ args }) {
 		await withEngine(args, async (e, tc) => {
 			const kinds = typeof args.kind === "string" && args.kind.length > 0 ? args.kind.split(",").map((k) => k.trim()) : undefined;
-			const cands = await e.searchSymbol(args.name, { kinds, contains: args.contains, excludeTests: args["exclude-tests"] === true });
+			const cands = await e.searchSymbol(args.name, {
+				kinds,
+				contains: args.contains,
+				excludeTests: args["exclude-tests"] === true,
+				path: typeof args.path === "string" ? args.path : undefined
+			});
 			output({ tsconfig: tc, op: "find symbol" }, cands, () => renderCandidates(cands), args.json);
 
 			if (cands.length === 0 && args.json !== true) {

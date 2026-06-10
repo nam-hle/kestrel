@@ -69,6 +69,19 @@ describe("searchSymbol", () => {
 		expect(ifaces).not.toContain("src/consumer.ts:AreaService");
 	});
 
+	test("path scopes hits to a file-path substring", () => {
+		const engine = new Engine({ tsConfigPath });
+
+		// "Area" lives only in consumer.ts here; "area" (case-insensitive contains) also hits
+		// shapes.ts (Circle.area etc). Scoping by path keeps just the consumer.ts subtree.
+		const all = engine.searchSymbol("area", { contains: true }).map((h) => h.qualifiedName);
+		const scoped = engine.searchSymbol("area", { contains: true, path: "consumer" }).map((h) => h.qualifiedName);
+
+		expect(all.some((q) => q.startsWith("src/shapes.ts"))).toBe(true);
+		expect(scoped.every((q) => q.startsWith("src/consumer.ts"))).toBe(true);
+		expect(scoped.length).toBeGreaterThan(0);
+	});
+
 	test("finds a shorthand method declared inside an object literal", () => {
 		const engine = new Engine({ tsConfigPath });
 

@@ -281,6 +281,10 @@ export class LspEngine {
 				continue;
 			}
 
+			if (options?.path !== undefined && options.path !== "" && !position.file.toLowerCase().includes(options.path.toLowerCase())) {
+				continue;
+			}
+
 			const kind = r.kind === undefined ? "unknown" : lspSymbolKindToName(r.kind);
 
 			if (options?.kinds !== undefined && options.kinds.length > 0 && !options.kinds.includes(shortKind(kind))) {

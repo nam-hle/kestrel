@@ -14,6 +14,24 @@ history, not comparable on fallback count.
 | 6     | overview-engine | 2026-06-10 | v1      | 2 / **2**                      | 1 fixed, 1 deferred |
 | 7     | overview-engine | 2026-06-10 | v1      | 0 / **0**                      | none (converged)    |
 | 8     | overview-engine | 2026-06-10 | v1      | 0 / **0**                      | proactive: --kind   |
+| 9     | tree-engine     | 2026-06-10 | v1      | 3 / **2**                      | 1 fixed, 1 deferred |
+
+Round 9 notes (first run on tree-engine — tests whether the OE-found fixes
+generalize): they do. The symantic arm found **both halves** of the flow with
+**no Read-tool fallback**, at ~53k tokens vs the grep arm's ~95k (~17 files,
+~2800 lines). Used `--exclude-tests`/`--kind` cleanly. Three fallbacks, all
+shell-pipes of symantic output (no raw grep-for-code): two were
+`| grep <dir>` to scope hits to a subtree — **verified gap, fixed in-loop:**
+added `path` to `SearchOptions` + `--path <substr>` CLI flag, both engines,
+repro'd on fixtures (`area` `--path consumer` → only consumer.ts). The third
+fallback was friction, not a fix: **`::` addressing into function-local
+declarations** (a generator assigned to an object property, a const inside a
+factory's returned object) returned not-found — but a statement-level inner
+function (`makeSelectors::mean`) resolves fine on both engines, so the failing
+shape is property-value/closure-local, not all body-locals. **Deferred** —
+needs a synthetic fixture matching the exact failing shape (can't repro from
+private code). Same neighbourhood as the round-6 import-alias deferral
+(body-local resolution).
 
 Round 8 notes: no new A/B run — fallbacks already at 0. Acted on the round-7
 friction note proactively: added a **`--kind` filter** to `find symbol`

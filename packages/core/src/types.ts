@@ -177,6 +177,8 @@ export interface UsageReportOptions {
 }
 
 export interface SearchOptions {
+	/** Keep only hits whose file path contains this substring (case-insensitive) — scope to a subtree. */
+	path?: string;
 	/** Keep only hits whose short kind (cls/iface/fn/ns/const/type/enum/…) is in this set. */
 	kinds?: string[];
 	/** Match the name as a substring (case-insensitive) instead of exact. */

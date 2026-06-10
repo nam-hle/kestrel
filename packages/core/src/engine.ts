@@ -213,11 +213,16 @@ export class Engine implements SymbolEngine {
 		const candidates: Candidate[] = [];
 		const base = this.#baseDir();
 		const kindSet = options?.kinds !== undefined && options.kinds.length > 0 ? new Set(options.kinds) : undefined;
+		const pathNeedle = options?.path !== undefined && options.path !== "" ? options.path.toLowerCase() : undefined;
 
 		for (const sourceFile of this.#getProject().getSourceFiles()) {
 			const rel = toRelative(sourceFile.getFilePath(), base);
 
 			if (options?.excludeTests === true && isTestFile(rel)) {
+				continue;
+			}
+
+			if (pathNeedle !== undefined && !rel.toLowerCase().includes(pathNeedle)) {
 				continue;
 			}
 
