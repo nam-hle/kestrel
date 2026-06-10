@@ -11,16 +11,35 @@ later rounds run the symantic arm only, tracking its fallback count converge.
 
 ## Fixed-question series (symantic-preferred arm; fallback count comparable)
 
-| Round | Repo     | Date       | Fixed-Q | Fallbacks (raw / verified-gap) | Issues              |
-| ----- | -------- | ---------- | ------- | ------------------------------ | ------------------- |
-| 4     | engine A | 2026-06-09 | v1      | 6 / **0**                      | none                |
-| 5     | engine A | 2026-06-10 | v1      | 1 / **1**                      | fixed in-loop       |
-| 6     | engine A | 2026-06-10 | v1      | 2 / **2**                      | 1 fixed, 1 deferred |
-| 7     | engine A | 2026-06-10 | v1      | 0 / **0**                      | none (converged)    |
-| 8     | engine A | 2026-06-10 | v1      | 0 / **0**                      | proactive: --kind   |
-| 9     | engine B | 2026-06-10 | v1      | 3 / **2**                      | 1 fixed, 1 deferred |
-| 10    | engine B | 2026-06-10 | v1      | 1 / **0**                      | none (--path used)  |
-| 11    | engine B | 2026-06-10 | v1      | 0 / **0**                      | none (converged)    |
+| Round | Repo     | Date       | Fixed-Q | Fallbacks (raw / verified-gap) | Issues                       |
+| ----- | -------- | ---------- | ------- | ------------------------------ | ---------------------------- |
+| 4     | engine A | 2026-06-09 | v1      | 6 / **0**                      | none                         |
+| 5     | engine A | 2026-06-10 | v1      | 1 / **1**                      | fixed in-loop                |
+| 6     | engine A | 2026-06-10 | v1      | 2 / **2**                      | 1 fixed, 1 deferred          |
+| 7     | engine A | 2026-06-10 | v1      | 0 / **0**                      | none (converged)             |
+| 8     | engine A | 2026-06-10 | v1      | 0 / **0**                      | proactive: --kind            |
+| 9     | engine B | 2026-06-10 | v1      | 3 / **2**                      | 1 fixed, 1 deferred          |
+| 10    | engine B | 2026-06-10 | v1      | 1 / **0**                      | none (--path used)           |
+| 11    | engine B | 2026-06-10 | v1      | 0 / **0**                      | none (converged)             |
+| 12    | engine A | 2026-06-10 | v1      | 0 / **0**                      | perf round: 3 drafts pending |
+
+Round 12 notes (symantic arm only, perf-instrumented — every command timed): **zero
+grep/Read fallbacks on TS source**; convergence holds on engine A. The round's yield is
+all perf/output-quality, surfaced by timing instrumentation, each verified on own
+fixtures/source: (1) `view file --body` broken both engines differently — ts-morph
+silently ignores `--body` (outline only), lsp duplicates namespace members recursively
+(deep member printed 3×); repro'd on `nested.ts`/`consumer.ts`. (2) `find symbol`
+cold-start: ~3s per call on a mid-size package (both engines), 8.6–13.5s via lsp from a
+large workspace root — no CLI daemon/index cache (MCP keeps a warm engine; CLI pays full
+project load per invocation). (3) shared-base root tsconfig footgun: ts-morph loads a
+0-file project and prints a misleading `(none)` + `--contains` hint; lsp instead searches
+the whole workspace incl. `lib/**/*.d.ts` build outputs (returns d.ts twins of source
+hits) — divergence with no 0-file warning. Operator notes (not gaps): the arm's `view
+body` complaint was stale — `--source` + the short-body hint (#93 fix) already exist and
+were shown; and most of the 8–13s latency was self-inflicted by running from the repo
+root instead of the per-package tsconfig (10.6s → 3.3s, lib noise gone). Side
+observation, not filed: `view symbol`/`view body` not-found prints raw
+`{"kind":"not-found"}` JSON with no hint — adjacent to open #94/#101.
 
 Round 11 notes (symantic arm only): **zero fallbacks, zero gaps**. Used `--path`,
 `--exclude-tests`, `--kind`, and `view members` all natively — no shell-pipe, no
