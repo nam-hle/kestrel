@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.3.2](https://github.com/nam-hle/symantic/compare/v0.3.1...v0.3.2) (2026-06-13)
+
+
+### Features
+
+* **core:** Find symbol kind classification, --exclude-tests, --kind ([#110](https://github.com/nam-hle/symantic/issues/110)) ([f272681](https://github.com/nam-hle/symantic/commit/f2726814601833f2f966eb840cc6d7dcff7ac0ca))
+* **core:** Scope find symbol by file path ([fd81235](https://github.com/nam-hle/symantic/commit/fd812355ef3f389180aed06c683a3f646e6f149b))
+
+
+### Bug Fixes
+
+* **core:** Hint toward :: when a member is addressed with a dot ([4d3fd63](https://github.com/nam-hle/symantic/commit/4d3fd635af4986b021c51a53849ce7a3258ca591)), closes [#101](https://github.com/nam-hle/symantic/issues/101)
+* **core:** Honest miss with --engine lsp hint for external imports ([0df8b82](https://github.com/nam-hle/symantic/commit/0df8b82bbad0f7260a6ef414ed0daee115312a0e)), closes [#100](https://github.com/nam-hle/symantic/issues/100)
+* **core:** Lsp file ops give an honest miss, not a raw ENOENT ([c72624e](https://github.com/nam-hle/symantic/commit/c72624e9052b36b38f9a50da92dad5334e5b53d2)), closes [#116](https://github.com/nam-hle/symantic/issues/116)
+* **core:** View members enumerates object-literal const properties ([150d7d4](https://github.com/nam-hle/symantic/commit/150d7d4565c9c82ba3d89cb5d3ab7d3ad1642b92)), closes [#95](https://github.com/nam-hle/symantic/issues/95)
+
 ## [0.3.1](https://github.com/nam-hle/symantic/compare/v0.3.0...v0.3.1) (2026-06-09)
 
 

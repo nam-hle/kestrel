@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.3.2](https://github.com/nam-hle/symantic/compare/v0.3.1...v0.3.2) (2026-06-13)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @symantic/core bumped to 0.3.2
+
 ## [0.3.1](https://github.com/nam-hle/symantic/compare/v0.3.0...v0.3.1) (2026-06-09)
 
 
