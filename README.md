@@ -70,6 +70,9 @@ The engine (ts-morph today, [tsgo](https://github.com/microsoft/typescript-go) l
 commoditized. The output contract is the durable part — see the
 [v1 roadmap epic](https://github.com/nam-hle/symantic/issues/78).
 
+The fuller argument for the address model — why byte-offsets fail an agent and what
+name-addressing buys — is in [docs/NAME-ADDRESSING.md](docs/NAME-ADDRESSING.md).
+
 ## What it does (v1, read-only)
 
 Commands group by intent: **`view`** (read code) and **`find`** (locate / trace), plus top-level

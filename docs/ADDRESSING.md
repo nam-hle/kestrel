@@ -61,5 +61,6 @@ Two address forms appear in results, both re-feedable:
 
 ## Out of scope (v0)
 
-- The persuasion piece ("agents need name-addressing, not byte-offsets") — a separate post.
+- The persuasion piece ("agents need name-addressing, not byte-offsets") — now written, see
+  [NAME-ADDRESSING.md](./NAME-ADDRESSING.md).
 - A conformance suite for third-party tools — future, once the contract stabilizes.
