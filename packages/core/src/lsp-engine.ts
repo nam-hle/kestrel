@@ -5,7 +5,7 @@ import { resolve as resolvePath } from "node:path";
  * native parser (syntactic ops). Implements AsyncSymbolEngine; translates LSP results to
  * symantic's name-addressed contract. ts-morph `Engine` stays the sync default.
  */
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 
 import ts from "typescript";
 
@@ -131,7 +131,7 @@ export class LspEngine {
 	}
 
 	async #open(client: LspClient, relPath: string): Promise<string> {
-		const abs = this.#abs(relPath);
+		const abs = this.#requireAbs(relPath);
 		const text = readFileSync(abs, "utf8");
 
 		if (!this.#opened.has(relPath)) {
@@ -350,8 +350,8 @@ export class LspEngine {
 		}));
 	}
 
-	public readRegion(file: string, startLine: number, endLine: number): Promise<RegionResult> {
-		return Promise.resolve(readRegionFrom(this.#abs(file), file, startLine, endLine));
+	public async readRegion(file: string, startLine: number, endLine: number): Promise<RegionResult> {
+		return readRegionFrom(this.#requireAbs(file), file, startLine, endLine);
 	}
 
 	public async symbolContext(symbol: SymbolHandle): Promise<SymbolContext> {
@@ -520,16 +520,33 @@ export class LspEngine {
 		return resolveProjectFile(this.#root, relPath);
 	}
 
+	/**
+	 * Like #abs, but throws the same honest message as the ts-morph engine's #requireSourceFile
+	 * when the file is absent — rather than letting a raw readFileSync ENOENT escape with the
+	 * leaked root-joined path (#116). Used by the file-reading ops, not the warm-index probe.
+	 */
+	#requireAbs(relPath: string): string {
+		const abs = this.#abs(relPath);
+
+		if (!existsSync(abs)) {
+			throw new Error(`file not found in project: ${relPath} (is it covered by the tsconfig, and is the path correct?)`);
+		}
+
+		return abs;
+	}
+
 	#read(relPath: string): string {
-		return readFileSync(this.#abs(relPath), "utf8");
+		return readFileSync(this.#requireAbs(relPath), "utf8");
 	}
 
-	public listImports(path: string): Promise<ImportInfo[]> {
-		return Promise.resolve(parseImports(path, this.#read(path)));
+	// async so a #requireAbs miss surfaces as a rejection, not a sync throw — a consistent
+	// contract for callers using .catch/await (#116).
+	public async listImports(path: string): Promise<ImportInfo[]> {
+		return parseImports(path, this.#read(path));
 	}
 
-	public outlineFile(path: string): Promise<FileOutline> {
-		return Promise.resolve(buildOutline(path, this.#read(path)));
+	public async outlineFile(path: string): Promise<FileOutline> {
+		return buildOutline(path, this.#read(path));
 	}
 
 	public async outlineSymbol(symbol: SymbolHandle): Promise<Member[]> {

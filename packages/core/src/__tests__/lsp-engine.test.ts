@@ -173,4 +173,13 @@ describe.skipIf(!binAvailable)("LspEngine", () => {
 		expect(report.length).toBeGreaterThan(0);
 		expect(report.every((e) => typeof e.total === "number" && typeof e.consumed === "number")).toBe(true);
 	}, 30_000);
+
+	it("a missing file throws the same honest message as the ts-morph engine, not a raw ENOENT (#116)", async () => {
+		await expect(lsp.outlineFile("does/not/exist.ts")).rejects.toThrow(/file not found in project: does\/not\/exist\.ts/);
+		// the path the caller typed, not a leaked root-joined absolute path
+		await expect(lsp.outlineFile("does/not/exist.ts")).rejects.not.toThrow(/ENOENT/);
+
+		// ts-morph baseline, same message shape
+		expect(() => tsmorph.outlineFile("does/not/exist.ts")).toThrow(/file not found in project: does\/not\/exist\.ts/);
+	}, 30_000);
 });

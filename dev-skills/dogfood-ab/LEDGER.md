@@ -50,7 +50,7 @@ slices to exercise different layers — row-select/multi-delete on A, drag-drop
 node-move on B). **Zero grep/Read fallbacks across all four symantic arms** — every
 "fallback" the agents logged was operator error (bare name where `::` was needed,
 wrong `#index` on a non-overloaded member, `:L270-330` region syntax) or
-grep-over-symantic-*output*, not a source-navigation fallback. Convergence holds.
+grep-over-symantic-_output_, not a source-navigation fallback. Convergence holds.
 Yield is two **partial-regression** gaps, both reproduced on own fixtures:
 (1) **#116** (new) — lsp file-read ops raw-throw Node `ENOENT` on a missing file,
 leaking the root-joined absolute path, where ts-morph gives the honest
