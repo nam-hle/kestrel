@@ -26,6 +26,11 @@ later rounds run the symantic arm only, tracking its fallback count converge.
 | 14    | engine B | 2026-06-13 | v1      | 0 / **0**                      | none (converged)             |
 | 15    | engine A | 2026-06-13 | v1      | 0 / **1**                      | #95 reopened (objlit parity) |
 | 16    | engine B | 2026-06-13 | v1      | 0 / **0**                      | none (converged)             |
+| 17    | engine A | 2026-06-13 | v1      | 0 / **0**                      | none (converged)             |
+| 18    | engine B | 2026-06-13 | v1      | 0 / **0**                      | none (converged)             |
+| 19    | engine A | 2026-06-13 | v1      | 0 / **0**                      | none (converged)             |
+| 20    | engine B | 2026-06-13 | v1      | 0 / **0**                      | none (converged)             |
+| 21    | engine A | 2026-06-13 | v1      | 0 / **0**                      | none (converged)             |
 
 Round 12 notes (symantic arm only, perf-instrumented — every command timed): **zero
 grep/Read fallbacks on TS source**; convergence holds on engine A. The round's yield is
@@ -64,6 +69,26 @@ now resolve there) but the default **ts-morph** engine is still blind, and
 on an action-creator (#96) does **not** reproduce — round-15's `(none)` was a bare
 name (`actions.ts:onRowsSelected`) vs the needed `Events::onRowsSelected`; the
 namespace-nested-creator shape resolves correctly (verified on a scratch fixture).
+
+Rounds 17–21 notes (OE = engine A, TE = engine B; #116 + #95 shipped before this batch,
+so it tests convergence after those fixes — five fresh slices: sort/column-width,
+expand/collapse+lazy-load, pagination/infinite-scroll, copy/paste, new-filters). **Zero
+grep/Read fallbacks across all five arms; zero new verified gaps.** Every lead chased to
+own fixtures and dropped: (a) lsp `find symbol --kind` returning `(none)` — does not
+reproduce, the `--kind` filter works on both engines; (b) `find refs` on a `::`-qualified
+namespace member — does not reproduce (a constructed `NewFilter::onApplied` with two call
+sites returns both refs on both engines); round-21's miss was an _incomplete_ qualified
+path (`NewFilter::…` where the real address was `Events::NewFilter::…`), operator error;
+(c) function-body locals (`useCallback`/const inside a hook/component body) not
+name-addressable — by design (symantic addresses declarations, not arbitrary locals); the
+arms correctly recovered with `view region` on the printed range or `view symbol
+<enclosing-exported-fn>`. Two recurring cosmetic notes, not filed: `view region` rejects an
+`Lstart-Lend` prefix (wants bare `start-end`) — arms self-correct in one step; and lsp
+`find symbol` prints **bare** member names (`area`) where ts-morph prints **qualified**
+(`Shape::area`) — output divergence only, both locate the symbol. The #95 object-literal
+fix is implicitly exercised: dispatch-map / request-selector object literals that bit
+earlier rounds no longer caused a fallback. Convergence is solid across both engines and
+all six flow slices.
 
 Round 11 notes (symantic arm only): **zero fallbacks, zero gaps**. Used `--path`,
 `--exclude-tests`, `--kind`, and `view members` all natively — no shell-pipe, no
