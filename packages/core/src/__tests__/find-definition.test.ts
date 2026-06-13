@@ -49,6 +49,38 @@ describe("resolveSymbol", () => {
 		expect(result.kind).toBe("not-found");
 	});
 
+	test("hints --engine lsp when the name is an external import the default engine can't follow (#100)", () => {
+		const engine = newEngine();
+
+		const result = engine.resolveSymbol("src/external.ts:Node");
+
+		expect(result.kind).toBe("not-found");
+
+		if (result.kind !== "not-found") {
+			return;
+		}
+
+		expect(result.hint).toBeDefined();
+		expect(result.hint).toContain("--engine lsp");
+		expect(result.hint).toContain("ts-morph");
+	});
+
+	test("does not hint lsp for a local import (resolvable in-project)", () => {
+		const engine = newEngine();
+
+		// `Circle` is imported from a relative module — the default engine resolves it there,
+		// so addressing it in consumer.ts is a real miss, not an external-boundary one.
+		const result = engine.resolveSymbol("src/consumer.ts:Circle");
+
+		expect(result.kind).toBe("not-found");
+
+		if (result.kind !== "not-found") {
+			return;
+		}
+
+		expect(result.hint).toBeUndefined();
+	});
+
 	test("returns candidates when a name is declared more than once in a file", () => {
 		const engine = newEngine();
 

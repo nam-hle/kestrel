@@ -119,6 +119,32 @@ export class Engine implements SymbolEngine {
 		return project.getSourceFile(relPath) ?? project.getSourceFiles().find((sf) => sf.getFilePath().endsWith(relPath));
 	}
 
+	/**
+	 * If `name` is bound by an import from a non-relative (external) module in this file,
+	 * return that module specifier; else undefined. Syntactic — names the import boundary the
+	 * default engine won't cross, so a miss can point at `--engine lsp` (#100).
+	 */
+	#externalImportModule(sourceFile: SourceFile, name: string): string | undefined {
+		for (const decl of sourceFile.getImportDeclarations()) {
+			const moduleSpec = decl.getModuleSpecifierValue();
+
+			if (moduleSpec.startsWith(".") || moduleSpec.startsWith("/")) {
+				continue;
+			}
+
+			const bound =
+				decl.getNamedImports().some((n) => (n.getAliasNode()?.getText() ?? n.getName()) === name) ||
+				decl.getDefaultImport()?.getText() === name ||
+				decl.getNamespaceImport()?.getText() === name;
+
+			if (bound) {
+				return moduleSpec;
+			}
+		}
+
+		return undefined;
+	}
+
 	/** Like #getSourceFile but throws a clear error when the file isn't in the project. */
 	#requireSourceFile(relPath: string): SourceFile {
 		const sourceFile = this.#getSourceFile(relPath);
@@ -181,6 +207,19 @@ export class Engine implements SymbolEngine {
 					const joined = joinSegments(reSplit);
 
 					return { kind: "not-found", hint: `segments nest with \`${NS_SEP}\`, not \`.\` — did you mean ${file}:${joined}?` };
+				}
+			}
+
+			// The name may be imported from an external module the default engine can't cross
+			// into; an honest miss points at `--engine lsp` rather than a bare not-found (#100).
+			if (segments.length === 1) {
+				const externalModule = this.#externalImportModule(sourceFile, segments[0]!);
+
+				if (externalModule !== undefined) {
+					return {
+						kind: "not-found",
+						hint: `"${segments[0]}" is imported from "${externalModule}" — the default engine can't cross the import boundary; retry with \`--engine lsp\` to reach its declaration`
+					};
 				}
 			}
 

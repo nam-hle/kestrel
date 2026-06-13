@@ -225,6 +225,14 @@ describe("CLI integration", () => {
 			expect(stderr).toContain("::");
 		}, 20_000);
 
+		it("find def hints --engine lsp for an external import the default engine can't follow (#100)", async () => {
+			const { code, stderr } = await run(["find", "def", "--tsconfig", TSCONFIG, "src/external.ts:Node"]);
+
+			expect(code).toBe(1);
+			expect(stderr).toContain("--engine lsp");
+			expect(stderr).toContain("ts-morph");
+		}, 20_000);
+
 		it("find refs prints address-first text by default", async () => {
 			const { code, stdout } = await run(["find", "refs", "--tsconfig", TSCONFIG, "src/shapes.ts:makeCircle"]);
 
