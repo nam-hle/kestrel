@@ -40,7 +40,7 @@ export interface Candidate {
 export type ResolveResult =
 	| { kind: "symbol"; symbol: SymbolHandle }
 	| { kind: "ambiguous"; candidates: Candidate[] }
-	| { kind: "not-found"; suggestions?: string[] };
+	| { hint?: string; kind: "not-found"; suggestions?: string[]; };
 
 /** Opaque handle to a resolved symbol. Shape TBD (wraps ts-morph Symbol). */
 export interface SymbolHandle {

@@ -217,6 +217,14 @@ describe("CLI integration", () => {
 			expect(stderr).toContain("view outline");
 		}, 20_000);
 
+		it("find def hints toward :: when a member is addressed with a dot (#101)", async () => {
+			const { code, stderr } = await run(["find", "def", "--tsconfig", TSCONFIG, "src/nested.ts:Model.Node"]);
+
+			expect(code).toBe(1);
+			expect(stderr).toContain("Model::Node");
+			expect(stderr).toContain("::");
+		}, 20_000);
+
 		it("find refs prints address-first text by default", async () => {
 			const { code, stdout } = await run(["find", "refs", "--tsconfig", TSCONFIG, "src/shapes.ts:makeCircle"]);
 

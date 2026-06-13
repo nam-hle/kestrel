@@ -192,6 +192,10 @@ describe("renderResolve", () => {
 		expect(renderResolve({ kind: "not-found" })).toBe("not found");
 	});
 
+	test("not-found with a hint appends the hint line (#101)", () => {
+		expect(renderResolve({ kind: "not-found", hint: "did you mean src/a.ts:Foo::Bar?" })).toBe("not found\nhint: did you mean src/a.ts:Foo::Bar?");
+	});
+
 	test("ambiguous → candidate rows", () => {
 		const r: ResolveResult = {
 			kind: "ambiguous",

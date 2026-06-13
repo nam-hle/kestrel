@@ -19,6 +19,7 @@ import { buildCallHierarchy } from "./call-hierarchy.js";
 import { typeRefsIn, signatureOfSource } from "./lsp/syntactic.js";
 import { tagsOf, buildFileOutline, buildSymbolOutline, buildFunctionOutline } from "./outline.js";
 import {
+	NS_SEP,
 	position,
 	splitName,
 	toRelative,
@@ -169,6 +170,20 @@ export class Engine implements SymbolEngine {
 		const decls = findDeclarationsThroughReExports(sourceFile, segments);
 
 		if (decls.length === 0) {
+			// A caller who used `.` instead of `::` between segments gets a bare miss; if the
+			// dotted form would resolve under `::`, point them at the right separator (#101).
+			const dotted = segments.find((s) => s.includes("."));
+
+			if (dotted !== undefined) {
+				const reSplit = segments.flatMap((s) => s.split("."));
+
+				if (findDeclarationsThroughReExports(sourceFile, reSplit).length > 0) {
+					const joined = joinSegments(reSplit);
+
+					return { kind: "not-found", hint: `segments nest with \`${NS_SEP}\`, not \`.\` — did you mean ${file}:${joined}?` };
+				}
+			}
+
 			const suggestions = nearestNames(sourceFile, segments[segments.length - 1]!);
 
 			return suggestions.length > 0 ? { suggestions, kind: "not-found" } : { kind: "not-found" };

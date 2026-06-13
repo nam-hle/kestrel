@@ -101,6 +101,12 @@ async function resolveSymbolOrThrow(engineInstance: AsyncSymbolEngine, qualified
 		return result.symbol;
 	}
 
+	// A not-found with a hint (#100/#101) reads better as the rendered miss than raw JSON;
+	// ambiguous still throws the structured candidates the caller needs to disambiguate.
+	if (result.kind === "not-found") {
+		throw new Error(renderResolve(result));
+	}
+
 	throw new Error(JSON.stringify(result, null, 2));
 }
 

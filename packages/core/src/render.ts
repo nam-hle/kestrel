@@ -273,6 +273,10 @@ export function renderResolve(result: ResolveResult): string {
 		return result.candidates.map(candidateRow).join("\n");
 	}
 
+	if (result.hint !== undefined) {
+		return `not found\nhint: ${result.hint}`;
+	}
+
 	return result.suggestions !== undefined && result.suggestions.length > 0
 		? `not found\ndid you mean: ${result.suggestions.join(", ")}`
 		: "not found";

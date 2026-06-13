@@ -67,6 +67,22 @@ describe("namespace-nested resolution", () => {
 		expect(result.symbol.position.line).toBe(1);
 	});
 
+	test("a dotted member separator hints toward :: (#101)", () => {
+		const engine = new Engine({ tsConfigPath });
+
+		const result = engine.resolveSymbol("src/nested.ts:Model.Node");
+
+		expect(result.kind).toBe("not-found");
+
+		if (result.kind !== "not-found") {
+			return;
+		}
+
+		expect(result.hint).toBeDefined();
+		expect(result.hint).toContain("Model::Node");
+		expect(result.hint).toContain("::");
+	});
+
 	test("membersByName folds a merged interface+namespace into one member list (#97)", () => {
 		const engine = new Engine({ tsConfigPath });
 
