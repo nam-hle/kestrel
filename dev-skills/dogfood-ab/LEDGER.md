@@ -22,6 +22,10 @@ later rounds run the symantic arm only, tracking its fallback count converge.
 | 10    | engine B | 2026-06-10 | v1      | 1 / **0**                      | none (--path used)           |
 | 11    | engine B | 2026-06-10 | v1      | 0 / **0**                      | none (converged)             |
 | 12    | engine A | 2026-06-10 | v1      | 0 / **0**                      | perf round: 3 drafts pending |
+| 13    | engine A | 2026-06-13 | v1      | 0 / **1**                      | #116 (lsp ENOENT parity)     |
+| 14    | engine B | 2026-06-13 | v1      | 0 / **0**                      | none (converged)             |
+| 15    | engine A | 2026-06-13 | v1      | 0 / **1**                      | #95 reopened (objlit parity) |
+| 16    | engine B | 2026-06-13 | v1      | 0 / **0**                      | none (converged)             |
 
 Round 12 notes (symantic arm only, perf-instrumented — every command timed): **zero
 grep/Read fallbacks on TS source**; convergence holds on engine A. The round's yield is
@@ -40,6 +44,26 @@ were shown; and most of the 8–13s latency was self-inflicted by running from t
 root instead of the per-package tsconfig (10.6s → 3.3s, lib noise gone). Side
 observation, not filed: `view symbol`/`view body` not-found prints raw
 `{"kind":"not-found"}` JSON with no hint — adjacent to open #94/#101.
+
+Rounds 13–16 notes (OE = engine A, TE = engine B; fixed question + two variant
+slices to exercise different layers — row-select/multi-delete on A, drag-drop
+node-move on B). **Zero grep/Read fallbacks across all four symantic arms** — every
+"fallback" the agents logged was operator error (bare name where `::` was needed,
+wrong `#index` on a non-overloaded member, `:L270-330` region syntax) or
+grep-over-symantic-*output*, not a source-navigation fallback. Convergence holds.
+Yield is two **partial-regression** gaps, both reproduced on own fixtures:
+(1) **#116** (new) — lsp file-read ops raw-throw Node `ENOENT` on a missing file,
+leaking the root-joined absolute path, where ts-morph gives the honest
+`file not found in project (…path correct?)` message. Root cause: lsp `#read` →
+`readFileSync` with no existence check; `resolveProjectFile` returns a root-joined
+guess on miss. (2) **#95 reopened** — object-literal members were fixed on the
+**lsp** engine only (`find symbol greet --contains` + `view symbol const::member`
+now resolve there) but the default **ts-morph** engine is still blind, and
+`view members <objlit-const>` is `(no members)` on **both** — two ops disagreeing
+(members says none; `::` resolves one). Dropped lead: `find callers` vs `find refs`
+on an action-creator (#96) does **not** reproduce — round-15's `(none)` was a bare
+name (`actions.ts:onRowsSelected`) vs the needed `Events::onRowsSelected`; the
+namespace-nested-creator shape resolves correctly (verified on a scratch fixture).
 
 Round 11 notes (symantic arm only): **zero fallbacks, zero gaps**. Used `--path`,
 `--exclude-tests`, `--kind`, and `view members` all natively — no shell-pipe, no
