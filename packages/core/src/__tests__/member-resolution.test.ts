@@ -50,6 +50,15 @@ describe("member resolution", () => {
 		expect(source?.source).toBe("/** @deprecated */\nexport function staleFn(): void {}");
 	});
 
+	test("view members enumerates an object-literal const's function properties (#95)", () => {
+		const engine = new Engine({ tsConfigPath });
+
+		// politeGreeter = { greet(name) { ... } } — a shorthand method in an object literal.
+		const members = engine.membersByName("src/resolvers.ts:politeGreeter").map((m) => m.name);
+
+		expect(members).toContain("greet");
+	});
+
 	test("search finds same-named members across types as candidates", () => {
 		const engine = new Engine({ tsConfigPath });
 

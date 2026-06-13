@@ -205,6 +205,36 @@ export function buildSymbolOutline(decl: Node, baseDir: string, ownerQualifiedNa
 		});
 	}
 
+	// An object-literal const (`const x = { foo() {}, bar: () => {} }`) — enumerate its
+	// function-valued properties, mirroring what they're addressable as via `::` (#95).
+	if (Node.isVariableDeclaration(decl)) {
+		const init = decl.getInitializer();
+
+		if (init === undefined || !Node.isObjectLiteralExpression(init)) {
+			return [];
+		}
+
+		return init.getProperties().flatMap((prop) => {
+			if (Node.isMethodDeclaration(prop)) {
+				const name = prop.getName();
+
+				return name === "" ? [] : [withQName(toMember(prop, name, baseDir), name)];
+			}
+
+			if (Node.isPropertyAssignment(prop)) {
+				const value = prop.getInitializer();
+
+				if (value !== undefined && (Node.isArrowFunction(value) || Node.isFunctionExpression(value))) {
+					const name = prop.getName();
+
+					return name === "" ? [] : [withQName(toMember(prop, name, baseDir), name)];
+				}
+			}
+
+			return [];
+		});
+	}
+
 	const members: Node[] = [];
 
 	if (Node.isClassDeclaration(decl)) {

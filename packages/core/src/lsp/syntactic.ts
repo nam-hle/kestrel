@@ -449,6 +449,20 @@ export function outlineSymbolMembers(path: string, text: string, pos: LspPositio
 					push(name, stmt);
 				}
 			}
+		} else if (ts.isVariableDeclaration(decl) && decl.initializer !== undefined && ts.isObjectLiteralExpression(decl.initializer)) {
+			// Object-literal const: enumerate its function-valued properties (#95), mirroring
+			// ts-morph's buildSymbolOutline object-literal branch.
+			for (const prop of decl.initializer.properties) {
+				if (ts.isMethodDeclaration(prop) && ts.isIdentifier(prop.name)) {
+					push(prop.name.text, prop);
+				} else if (
+					ts.isPropertyAssignment(prop) &&
+					ts.isIdentifier(prop.name) &&
+					(ts.isArrowFunction(prop.initializer) || ts.isFunctionExpression(prop.initializer))
+				) {
+					push(prop.name.text, prop);
+				}
+			}
 		}
 	};
 
@@ -469,6 +483,9 @@ function ownerAt(sf: ts.SourceFile, offset: number): ts.Node | undefined {
 		}
 
 		if (ts.isClassDeclaration(node) || ts.isInterfaceDeclaration(node) || ts.isModuleDeclaration(node)) {
+			found = node;
+		} else if (ts.isVariableDeclaration(node) && node.initializer !== undefined && ts.isObjectLiteralExpression(node.initializer)) {
+			// An object-literal const owns its function-valued properties (#95).
 			found = node;
 		}
 

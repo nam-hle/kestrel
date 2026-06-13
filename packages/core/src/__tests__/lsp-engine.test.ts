@@ -174,6 +174,14 @@ describe.skipIf(!binAvailable)("LspEngine", () => {
 		expect(report.every((e) => typeof e.total === "number" && typeof e.consumed === "number")).toBe(true);
 	}, 30_000);
 
+	it("view members enumerates an object-literal const's function properties, like ts-morph (#95)", async () => {
+		const members = (await lsp.membersByName("src/resolvers.ts:politeGreeter")).map((m) => m.name);
+		const baseline = tsmorph.membersByName("src/resolvers.ts:politeGreeter").map((m) => m.name);
+
+		expect(members).toContain("greet");
+		expect(members).toEqual(baseline);
+	}, 30_000);
+
 	it("a missing file throws the same honest message as the ts-morph engine, not a raw ENOENT (#116)", async () => {
 		await expect(lsp.outlineFile("does/not/exist.ts")).rejects.toThrow(/file not found in project: does\/not\/exist\.ts/);
 		// the path the caller typed, not a leaked root-joined absolute path
