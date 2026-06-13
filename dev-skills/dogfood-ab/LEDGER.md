@@ -77,7 +77,7 @@ grep/Read fallbacks across all five arms; zero new verified gaps.** Every lead c
 own fixtures and dropped: (a) lsp `find symbol --kind` returning `(none)` — does not
 reproduce, the `--kind` filter works on both engines; (b) `find refs` on a `::`-qualified
 namespace member — does not reproduce (a constructed `NewFilter::onApplied` with two call
-sites returns both refs on both engines); round-21's miss was an *incomplete* qualified
+sites returns both refs on both engines); round-21's miss was an _incomplete_ qualified
 path (`NewFilter::…` where the real address was `Events::NewFilter::…`), operator error;
 (c) function-body locals (`useCallback`/const inside a hook/component body) not
 name-addressable — by design (symantic addresses declarations, not arbitrary locals); the
