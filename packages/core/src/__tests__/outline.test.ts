@@ -28,6 +28,16 @@ describe("outlineFile", () => {
 		expect(names).toContain("Runtime::Node");
 	});
 
+	test("members carry an addressable qualifiedName", () => {
+		const engine = new Engine({ tsConfigPath });
+
+		const outline = engine.outlineFile("src/nested.ts");
+		const qualifiedNames = outline.interfaces.map((m) => m.qualifiedName);
+
+		expect(qualifiedNames).toContain("src/nested.ts:Model::Node");
+		expect(qualifiedNames).toContain("src/nested.ts:Model::Inner::Node");
+	});
+
 	test("surfaces JSDoc release tags on declarations (ts-morph)", () => {
 		const engine = new Engine({ tsConfigPath });
 

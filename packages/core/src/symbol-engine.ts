@@ -26,6 +26,8 @@ import type {
 
 export interface SymbolEngine {
 	refreshIfStale(): void;
+	/** Number of source files in the loaded project — 0 signals a non-loadable (base) tsconfig. */
+	sourceFileCount(): number;
 	outlineFile(path: string): FileOutline;
 	listImports(path: string): ImportInfo[];
 	publicSurface(path: string): Candidate[];

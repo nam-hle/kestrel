@@ -42,7 +42,12 @@ function tsgoBinAvailable(): boolean {
 /** Run the CLI with the given args (optionally from `cwd`), returning stdout, stderr, exit code. */
 async function run(args: string[], cwd?: string): Promise<{ code: number; stdout: string; stderr: string }> {
 	try {
-		const { stdout, stderr } = await execFileAsync(process.execPath, [CLI_BIN, ...args], { cwd, timeout: 20_000 });
+		// Daemon-free: these tests exercise the in-process path; daemon behavior is covered in daemon.test.ts.
+		const { stdout, stderr } = await execFileAsync(process.execPath, [CLI_BIN, ...args], {
+			cwd,
+			timeout: 20_000,
+			env: { ...process.env, SYMANTIC_NO_DAEMON: "1" }
+		});
 
 		return { stdout, stderr, code: 0 };
 	} catch (error) {
@@ -68,7 +73,7 @@ async function runWithHome(home: string, args: string[]): Promise<{ code: number
 	try {
 		const { stdout, stderr } = await execFileAsync(process.execPath, [CLI_BIN, ...args], {
 			timeout: 20_000,
-			env: { ...process.env, HOME: home, USERPROFILE: home }
+			env: { ...process.env, HOME: home, USERPROFILE: home, SYMANTIC_NO_DAEMON: "1" }
 		});
 
 		return { stdout, stderr, code: 0 };
@@ -158,6 +163,23 @@ describe("CLI integration", () => {
 			expect(Array.isArray(ctx.callees)).toBe(true);
 		}, 20_000);
 
+		it("view file --body prints each export's source", async () => {
+			const { code, stdout } = await run(["view", "file", "--tsconfig", TSCONFIG, "src/nested.ts", "--body"]);
+
+			expect(code).toBe(0);
+			expect(stdout).toContain("export namespace Model");
+		}, 20_000);
+
+		it("view file --body prints each namespace member exactly once", async () => {
+			const { code, stdout } = await run(["view", "file", "--tsconfig", TSCONFIG, "src/nested.ts", "--body"]);
+
+			expect(code).toBe(0);
+			// Members nested in namespaces appear only inside their namespace's source,
+			// never re-printed standalone.
+			expect(stdout.match(/deep: boolean/g)).toHaveLength(1);
+			expect(stdout.match(/live: boolean/g)).toHaveLength(1);
+		}, 20_000);
+
 		it("view body --source prints the function source instead of the skeleton", async () => {
 			const { code, stdout } = await run(["view", "body", "--tsconfig", TSCONFIG, "src/consumer.ts:totalArea", "--source"]);
 
@@ -223,6 +245,24 @@ describe("CLI integration", () => {
 		}, 10_000);
 	});
 
+	describe("0-file project warning", () => {
+		const BASE_CONFIG_DIR = join(__dirname, "..", "..", "..", "core", "src", "__tests__", "fixtures", "base-config");
+
+		it("warns on stderr when the discovered tsconfig yields no source files", async () => {
+			const { code, stderr } = await run(["find", "symbol", "fooMarker"], BASE_CONFIG_DIR);
+
+			expect(code).toBe(0);
+			expect(stderr).toContain("0 source files");
+			expect(stderr).toContain("--tsconfig");
+		}, 20_000);
+
+		it("does not warn for a project with source files", async () => {
+			const { stderr } = await run(["find", "symbol", "makeCircle", "--tsconfig", TSCONFIG]);
+
+			expect(stderr).not.toContain("0 source files");
+		}, 20_000);
+	});
+
 	describe("tsconfig auto-discovery (--tsconfig optional)", () => {
 		it("discovers the nearest tsconfig.json from cwd when --tsconfig is omitted", async () => {
 			// Run from the fixture dir (which has a tsconfig.json) without --tsconfig.
@@ -240,6 +280,15 @@ describe("CLI integration", () => {
 			expect(code).toBe(0);
 			expect(stdout).toContain("src/shapes.ts:makeCircle");
 			expect(stdout).not.toContain('"kind"');
+		}, 20_000);
+
+		it("view file --body prints each namespace member exactly once (lsp)", async () => {
+			const { code, stdout } = await run(["view", "file", "--tsconfig", TSCONFIG, "--engine", "lsp", "src/nested.ts", "--body"]);
+
+			expect(code).toBe(0);
+			expect(stdout).toContain("export namespace Model");
+			expect(stdout.match(/deep: boolean/g)).toHaveLength(1);
+			expect(stdout.match(/live: boolean/g)).toHaveLength(1);
 		}, 20_000);
 	});
 

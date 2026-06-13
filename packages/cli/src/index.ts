@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-import { createEngine } from "@symantic/core";
 /**
  * symantic CLI adapter. Translates CLI args <-> @symantic/core calls and prints
  * results. No analysis logic. See docs/DESIGN.md Section 1.
@@ -8,6 +7,7 @@ import { createEngine } from "@symantic/core";
  * plus top-level addressing / whole-file facts.
  */
 import { runMain, defineCommand } from "citty";
+import { NS_SEP, createEngine } from "@symantic/core";
 import type { EngineKind, SymbolHandle, AsyncSymbolEngine } from "@symantic/core";
 import {
 	renderSource,
@@ -29,6 +29,8 @@ import { gain } from "./gain/command.js";
 import { readVersion } from "./version.js";
 import { recordGain } from "./gain/track.js";
 import { resolveTsconfig } from "./tsconfig.js";
+import { daemonEngine } from "./daemon/client.js";
+import { runDaemonServer } from "./daemon/server.js";
 
 /** Identifies the query for the gain ledger: its op label and the project tsconfig. */
 interface GainMeta {
@@ -70,9 +72,18 @@ async function withEngine(
 		return;
 	}
 
-	const engineInstance = createEngine({ tsConfigPath, engine: args.engine as EngineKind | undefined });
+	const engineKind = (args.engine as EngineKind | undefined) ?? "tsmorph";
+	// Warm daemon first (#113) — repeat invocations skip the full project load. Falls back
+	// to a fresh in-process engine when the daemon is disabled or unreachable.
+	const engineInstance = (await daemonEngine(tsConfigPath, engineKind, readVersion())) ?? createEngine({ tsConfigPath, engine: engineKind });
 
 	try {
+		if ((await engineInstance.sourceFileCount()) === 0) {
+			process.stderr.write(
+				`warning: project loaded 0 source files from ${tsConfigPath} — likely a shared base config; pass a per-package tsconfig via --tsconfig\n`
+			);
+		}
+
 		await fn(engineInstance, tsConfigPath);
 	} catch (error) {
 		process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
@@ -168,13 +179,12 @@ const viewFile = defineCommand({
 				return;
 			}
 
-			const sources = (
-				await Promise.all(
-					outline.exports.map((m) =>
-						m.qualifiedName !== undefined ? e.symbolSource({ position: m.position, qualifiedName: m.qualifiedName }) : Promise.resolve([])
-					)
-				)
-			).flat();
+			// Top-level exports only: a nested member's source is already inside its
+			// namespace's source, so fetching it too would print it twice.
+			const handles = outline.exports.flatMap((m) =>
+				m.qualifiedName !== undefined && !m.name.includes(NS_SEP) ? [{ position: m.position, qualifiedName: m.qualifiedName }] : []
+			);
+			const sources = (await Promise.all(handles.map((h) => e.symbolSource(h)))).flat();
 			const tree = renderFileOutline(args.file, outline);
 			const body = sources.map((s) => s.source).join("\n\n");
 			output({ tsconfig: tc, op: "view file" }, { outline, sources }, () => `${tree}\n${body}`, args.json);
@@ -402,8 +412,27 @@ const find = defineCommand({
 	subCommands: { def: findDef, refs: findRefs, impls: findImpls, symbol: findSymbol, callers: findCallers, callees: findCallees }
 });
 
+/** Hidden daemon entry point — spawned detached by daemonEngine, never typed by hand. */
+const daemon = defineCommand({
+	meta: { name: "_daemon", description: "(internal) run the warm-engine daemon for a tsconfig" },
+	args: {
+		engine: { type: "string", description: "Engine backend: tsmorph (default) or lsp (tsgo)" },
+		tsconfig: { type: "string", required: true, description: "Project tsconfig the daemon serves" }
+	},
+	async run({ args }) {
+		const idleRaw = process.env["SYMANTIC_DAEMON_IDLE_MS"];
+		const idleMs = idleRaw !== undefined && idleRaw !== "" ? Number(idleRaw) : undefined;
+		await runDaemonServer({
+			idleMs,
+			version: readVersion(),
+			tsConfigPath: args.tsconfig,
+			engineKind: (args.engine as EngineKind | undefined) ?? "tsmorph"
+		});
+	}
+});
+
 const main = defineCommand({
-	subCommands: { view, find, gain, usage, resolve, imports, exports: exportsCmd },
+	subCommands: { view, find, gain, usage, resolve, imports, _daemon: daemon, exports: exportsCmd },
 	meta: { name: "symantic", version: readVersion(), description: "Semantic symbol queries for TypeScript" }
 });
 

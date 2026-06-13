@@ -230,7 +230,8 @@ export function buildFileOutline(sourceFile: SourceFile, baseDir: string): FileO
 		// A VariableDeclaration's export modifier lives on its parent VariableStatement.
 		const exportHolder = Node.isVariableDeclaration(node) ? node.getVariableStatement() : node;
 		const exported = exportHolder !== undefined && Node.isExportable(exportHolder) && exportHolder.isExported();
-		const member: Member = { ...toMember(node, path, baseDir), exported };
+		const base = toMember(node, path, baseDir);
+		const member: Member = { ...base, exported, qualifiedName: `${base.position.file}:${path}` };
 
 		if (Node.isClassDeclaration(node)) {
 			outline.classes.push(member);
