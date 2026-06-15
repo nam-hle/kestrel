@@ -20,6 +20,19 @@ describe("usageReport", () => {
 		expect(makeCircle!.consumed).toBeGreaterThan(0);
 	});
 
+	test("members:true also reports class/interface member ref counts (#119)", () => {
+		const engine = new Engine({ tsConfigPath });
+
+		const topLevel = engine.usageReport("src/shapes.ts").map((e) => e.qualifiedName);
+		const withMembers = engine.usageReport("src/shapes.ts", { members: true }).map((e) => e.qualifiedName);
+
+		// Top-level report has no members; the member report adds Circle::area etc.
+		expect(topLevel).not.toContain("src/shapes.ts:Circle::area");
+		expect(withMembers).toContain("src/shapes.ts:Circle::area");
+		// Top-level exports are still present.
+		expect(withMembers).toContain("src/shapes.ts:Circle");
+	});
+
 	test("excludeTests drops test-file references from the counts", () => {
 		const engine = new Engine({ tsConfigPath });
 

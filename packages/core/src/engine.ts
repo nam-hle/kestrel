@@ -494,12 +494,36 @@ export class Engine implements SymbolEngine {
 	 * proxy for real consumption). One call replaces surface + per-symbol refs.
 	 */
 	public usageReport(path: string, options?: UsageReportOptions): UsageReportEntry[] {
-		return this.publicSurface(path).map((symbol) => {
-			const { total, references } = this.findUsages(symbol, { excludeTests: options?.excludeTests });
+		const entryFor = (handle: SymbolHandle, kind: string): UsageReportEntry => {
+			const { total, references } = this.findUsages(handle, { excludeTests: options?.excludeTests });
 			const consumed = references.filter((r) => r.kind !== "import" && r.kind !== "re-export").length;
 
-			return { total, consumed, kind: symbol.kind, position: symbol.position, qualifiedName: symbol.qualifiedName };
-		});
+			return { kind, total, consumed, position: handle.position, qualifiedName: handle.qualifiedName };
+		};
+
+		const entries: UsageReportEntry[] = [];
+
+		for (const symbol of this.publicSurface(path)) {
+			entries.push(entryFor(symbol, symbol.kind));
+
+			// Opt-in: also report each class/interface member, so a dead public *method*
+			// (invisible to the top-level surface) is surfaced too (#119).
+			if (options?.members === true) {
+				for (const member of this.membersByName(symbol.qualifiedName)) {
+					if (member.qualifiedName === undefined) {
+						continue;
+					}
+
+					const resolved = this.resolveSymbol(member.qualifiedName);
+
+					if (resolved.kind === "symbol") {
+						entries.push(entryFor(resolved.symbol, member.kind));
+					}
+				}
+			}
+		}
+
+		return entries;
 	}
 
 	/** The import statements of a file — module wiring, deterministic. */

@@ -173,6 +173,8 @@ export interface UsageReportEntry {
 }
 
 export interface UsageReportOptions {
+	/** Also report class/interface member ref counts (e.g. `Owner::member`), not just top-level exports. */
+	members?: boolean;
 	excludeTests?: boolean;
 }
 

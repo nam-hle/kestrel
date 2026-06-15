@@ -174,6 +174,17 @@ describe.skipIf(!binAvailable)("LspEngine", () => {
 		expect(report.every((e) => typeof e.total === "number" && typeof e.consumed === "number")).toBe(true);
 	}, 30_000);
 
+	it("usageReport members:true reports member ref counts, like ts-morph (#119)", async () => {
+		// Compare the member entries (the `::` rows #119 adds); top-level publicSurface can
+		// diverge between engines on non-export visibility — out of scope for this test.
+		const memberRows = (qns: string[]): string[] => qns.filter((q) => q.includes("::")).sort();
+		const withMembers = memberRows((await lsp.usageReport("src/shapes.ts", { members: true })).map((e) => e.qualifiedName));
+		const baseline = memberRows(tsmorph.usageReport("src/shapes.ts", { members: true }).map((e) => e.qualifiedName));
+
+		expect(withMembers).toContain("src/shapes.ts:Circle::area");
+		expect(withMembers).toEqual(baseline);
+	}, 30_000);
+
 	it("view members enumerates an object-literal const's function properties, like ts-morph (#95)", async () => {
 		const members = (await lsp.membersByName("src/resolvers.ts:politeGreeter")).map((m) => m.name);
 		const baseline = tsmorph.membersByName("src/resolvers.ts:politeGreeter").map((m) => m.name);

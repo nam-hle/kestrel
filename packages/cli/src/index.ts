@@ -150,10 +150,17 @@ const exportsCmd = defineCommand({
 
 const usage = defineCommand({
 	meta: { name: "usage", description: "Usage report: each public symbol of an entry with its reference counts" },
-	args: { json, engine, tsconfig, file: fileArg, "exclude-tests": { type: "boolean", description: "Omit references in test files" } },
+	args: {
+		json,
+		engine,
+		tsconfig,
+		file: fileArg,
+		"exclude-tests": { type: "boolean", description: "Omit references in test files" },
+		members: { type: "boolean", description: "Also report class/interface member ref counts (Owner::member), not just top-level exports" }
+	},
 	async run({ args }) {
 		await withEngine(args, async (e, tc) => {
-			const report = await e.usageReport(args.file, { excludeTests: args["exclude-tests"] === true });
+			const report = await e.usageReport(args.file, { members: args.members === true, excludeTests: args["exclude-tests"] === true });
 			output({ op: "usage", tsconfig: tc }, report, () => renderUsageReport(report), args.json);
 		});
 	}

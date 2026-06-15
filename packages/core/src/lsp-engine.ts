@@ -674,10 +674,29 @@ export class LspEngine {
 		const surface = await this.publicSurface(path);
 		const entries: UsageReportEntry[] = [];
 
-		for (const symbol of surface) {
-			const { total, references } = await this.findUsages(symbol, { excludeTests: options?.excludeTests });
+		const pushEntry = async (handle: SymbolHandle, kind: string): Promise<void> => {
+			const { total, references } = await this.findUsages(handle, { excludeTests: options?.excludeTests });
 			const consumed = references.filter((r) => r.kind !== "import" && r.kind !== "re-export").length;
-			entries.push({ total, consumed, kind: symbol.kind, position: symbol.position, qualifiedName: symbol.qualifiedName });
+			entries.push({ kind, total, consumed, position: handle.position, qualifiedName: handle.qualifiedName });
+		};
+
+		for (const symbol of surface) {
+			await pushEntry(symbol, symbol.kind);
+
+			// Opt-in: also report class/interface member ref counts (#119).
+			if (options?.members === true) {
+				for (const member of await this.membersByName(symbol.qualifiedName)) {
+					if (member.qualifiedName === undefined) {
+						continue;
+					}
+
+					const resolved = await this.resolveSymbol(member.qualifiedName);
+
+					if (resolved.kind === "symbol") {
+						await pushEntry(resolved.symbol, member.kind);
+					}
+				}
+			}
 		}
 
 		return entries;

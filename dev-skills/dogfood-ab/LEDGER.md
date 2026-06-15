@@ -81,24 +81,23 @@ questions to stress ops the flow rounds never exercised: `usage`, `find refs`/`f
 dead-surface proof, discriminated-union walks). The flow question had converged to 0 fallbacks;
 hard questions immediately surfaced **3 new verified gaps** (all reproduced on own fixtures), the
 most productive batch since the early rounds:
-(1) **#117** — no op finds the *value-construction* sites of a discriminated-union arm. `find refs
+(1) **#117** — no op finds the _value-construction_ sites of a discriminated-union arm. `find refs
 <file>:MoveNode` returns only type-refs (union membership, param annotations); the
 `{ type: "MOVE_NODE", … }` object literal that builds it is structurally typed, carries no symbol
 reference, and is invisible. Both rounds 22 + 23 hit it (RPC-op sweep, TreeEngineOperation union
 walk); the agents had to grep the discriminant literal. The headline gap.
 (2) **#118** — ts-morph `find callers` degrades arrow/expression-bodied callers to `(anonymous)`
-and returns a *different* caller set than lsp (which names them). Quality + engine-parity; distinct
+and returns a _different_ caller set than lsp (which names them). Quality + engine-parity; distinct
 from closed #96 (empty-vs-nonempty). Repro on `consumer.ts:averageArea`.
 (3) **#119** — `usage` reports only top-level exports, not class/interface members, so a dead public
-*method* is invisible to the dead-surface report; round 22 fell back to per-member `find refs`.
+_method_ is invisible to the dead-surface report; round 22 fell back to per-member `find refs`.
 Feature gap (opt-in `--members` depth), low sev.
 Dropped leads: lsp `find callers` self-only on a generator (round 22) — subsumed by the cleaner
 #118 repro; `find refs --exclude-tests` "not honored" (round 25 claim) — **does not reproduce**,
-the flag filters test refs correctly on `find refs`; `documentation/` duplicate-tree noise (round
-25) — the repo's tsconfig includes a vendored mirror, an operator/tsconfig issue, not a symantic
+the flag filters test refs correctly on `find refs`; `documentation/` duplicate-tree noise (round 25) — the repo's tsconfig includes a vendored mirror, an operator/tsconfig issue, not a symantic
 gap. Function-body locals still surface as `view symbol` misses across rounds — by design,
 recovered with `view region`/`view symbol <enclosing-fn>`, never a grep fallback. Convergence on the
-*flow* question holds; the hard questions show the remaining frontier is value-construction tracing
+_flow_ question holds; the hard questions show the remaining frontier is value-construction tracing
 (#117) and report granularity (#119), not navigation.
 
 Rounds 17–21 notes (OE = engine A, TE = engine B; #116 + #95 shipped before this batch,
