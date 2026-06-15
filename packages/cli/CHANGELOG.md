@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.3.3](https://github.com/nam-hle/symantic/compare/v0.3.2...v0.3.3) (2026-06-15)
+
+
+### Features
+
+* **core:** Usage --members reports class/interface member ref counts ([ef22ffe](https://github.com/nam-hle/symantic/commit/ef22ffee1793d7bb68e290080655f232f90c4db4)), closes [#119](https://github.com/nam-hle/symantic/issues/119)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @symantic/core bumped to 0.3.3
+
 ## [0.3.2](https://github.com/nam-hle/symantic/compare/v0.3.1...v0.3.2) (2026-06-13)
 
 
