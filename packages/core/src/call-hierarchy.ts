@@ -14,12 +14,17 @@ function enclosingNamed(node: Node): Node | undefined {
 			return a;
 		}
 
-		// Arrow / function-expression assigned to a const: report the variable declaration
-		// (it carries the name), not the function expression itself.
+		// Arrow / function-expression bound to a name: report the name-bearing declaration
+		// (variable, class property, or object-literal property), not the function expression
+		// itself — otherwise the caller reads as "(anonymous)" (#118).
 		if (Node.isArrowFunction(a) || Node.isFunctionExpression(a)) {
 			const parent = a.getParent();
 
-			return parent !== undefined && Node.isVariableDeclaration(parent) ? parent : a;
+			if (parent !== undefined && (Node.isVariableDeclaration(parent) || Node.isPropertyDeclaration(parent) || Node.isPropertyAssignment(parent))) {
+				return parent;
+			}
+
+			return a;
 		}
 	}
 

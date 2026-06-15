@@ -67,6 +67,21 @@ describe("callHierarchy", () => {
 		expect(names(callees)).toContain("averageArea");
 	});
 
+	test("incoming: names arrow/expression-bodied callers, never (anonymous) (#118)", () => {
+		const engine = new Engine({ tsConfigPath });
+		const symbol = resolve(engine, "src/consumer.ts:averageArea");
+
+		const callers = names(engine.callHierarchy(symbol, { depth: 1, direction: "incoming" }));
+
+		// averageArea is called from describeArea (fn), AreaService.compute (arrow class prop),
+		// and object-literal `mean` arrow props. Every caller resolves to its name-bearing
+		// declaration — none read as "(anonymous)".
+		expect(callers).not.toContain("(anonymous)");
+		expect(callers).toContain("describeArea");
+		expect(callers).toContain("compute"); // arrow-bound class property
+		expect(callers).toContain("mean"); // arrow in an object-literal property
+	});
+
 	test("mutual recursion terminates and dedupes by position, not node identity", () => {
 		const engine = new Engine({ tsConfigPath });
 		const symbol = resolve(engine, "src/recursion.ts:ping");
