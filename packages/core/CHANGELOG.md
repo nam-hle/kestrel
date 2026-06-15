@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.3](https://github.com/nam-hle/symantic/compare/v0.3.2...v0.3.3) (2026-06-15)
+
+
+### Features
+
+* **core:** Usage --members reports class/interface member ref counts ([ef22ffe](https://github.com/nam-hle/symantic/commit/ef22ffee1793d7bb68e290080655f232f90c4db4)), closes [#119](https://github.com/nam-hle/symantic/issues/119)
+
+
+### Bug Fixes
+
+* **core:** Find callers names arrow/property-bound callers, not (anonymous) ([9b08aa3](https://github.com/nam-hle/symantic/commit/9b08aa30b224340974c1ee0f44329b7ff69cd7d6)), closes [#118](https://github.com/nam-hle/symantic/issues/118)
+
 ## [0.3.2](https://github.com/nam-hle/symantic/compare/v0.3.1...v0.3.2) (2026-06-13)
 
 
