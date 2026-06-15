@@ -31,6 +31,11 @@ later rounds run the symantic arm only, tracking its fallback count converge.
 | 19    | engine A | 2026-06-13 | v1      | 0 / **0**                      | none (converged)             |
 | 20    | engine B | 2026-06-13 | v1      | 0 / **0**                      | none (converged)             |
 | 21    | engine A | 2026-06-13 | v1      | 0 / **0**                      | none (converged)             |
+| 22    | engine A | 2026-06-15 | hard    | 1 / **2**                      | #117 (union ctor), #118      |
+| 23    | engine B | 2026-06-15 | hard    | 1 / **1**                      | #117 (union ctor sites)      |
+| 24    | engine A | 2026-06-15 | hard    | 0 / **0**                      | none (legacy/new both live)  |
+| 25    | engine B | 2026-06-15 | hard    | 0 / **0**                      | none (error taxonomy)        |
+| 26    | engine B | 2026-06-15 | hard    | 0 / **0**                      | none (saga registration)     |
 
 Round 12 notes (symantic arm only, perf-instrumented — every command timed): **zero
 grep/Read fallbacks on TS source**; convergence holds on engine A. The round's yield is
@@ -69,6 +74,32 @@ now resolve there) but the default **ts-morph** engine is still blind, and
 on an action-creator (#96) does **not** reproduce — round-15's `(none)` was a bare
 name (`actions.ts:onRowsSelected`) vs the needed `Events::onRowsSelected`; the
 namespace-nested-creator shape resolves correctly (verified on a scratch fixture).
+
+Rounds 22–26 notes (OE = engine A, TE = engine B; **hard questions**, not the fixed flow
+question — deliberately switched to exhaustive-sweep + reachability/dead-code + type-relationship
+questions to stress ops the flow rounds never exercised: `usage`, `find refs`/`find callers` for
+dead-surface proof, discriminated-union walks). The flow question had converged to 0 fallbacks;
+hard questions immediately surfaced **3 new verified gaps** (all reproduced on own fixtures), the
+most productive batch since the early rounds:
+(1) **#117** — no op finds the *value-construction* sites of a discriminated-union arm. `find refs
+<file>:MoveNode` returns only type-refs (union membership, param annotations); the
+`{ type: "MOVE_NODE", … }` object literal that builds it is structurally typed, carries no symbol
+reference, and is invisible. Both rounds 22 + 23 hit it (RPC-op sweep, TreeEngineOperation union
+walk); the agents had to grep the discriminant literal. The headline gap.
+(2) **#118** — ts-morph `find callers` degrades arrow/expression-bodied callers to `(anonymous)`
+and returns a *different* caller set than lsp (which names them). Quality + engine-parity; distinct
+from closed #96 (empty-vs-nonempty). Repro on `consumer.ts:averageArea`.
+(3) **#119** — `usage` reports only top-level exports, not class/interface members, so a dead public
+*method* is invisible to the dead-surface report; round 22 fell back to per-member `find refs`.
+Feature gap (opt-in `--members` depth), low sev.
+Dropped leads: lsp `find callers` self-only on a generator (round 22) — subsumed by the cleaner
+#118 repro; `find refs --exclude-tests` "not honored" (round 25 claim) — **does not reproduce**,
+the flag filters test refs correctly on `find refs`; `documentation/` duplicate-tree noise (round
+25) — the repo's tsconfig includes a vendored mirror, an operator/tsconfig issue, not a symantic
+gap. Function-body locals still surface as `view symbol` misses across rounds — by design,
+recovered with `view region`/`view symbol <enclosing-fn>`, never a grep fallback. Convergence on the
+*flow* question holds; the hard questions show the remaining frontier is value-construction tracing
+(#117) and report granularity (#119), not navigation.
 
 Rounds 17–21 notes (OE = engine A, TE = engine B; #116 + #95 shipped before this batch,
 so it tests convergence after those fixes — five fresh slices: sort/column-width,
